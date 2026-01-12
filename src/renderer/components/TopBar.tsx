@@ -22,6 +22,7 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
       const [showSettings, setShowSettings] = useState(false);
       const [ralphRunning, setRalphRunning] = useState(false);
       const [ralphProgress, setRalphProgress] = useState<RalphProgress | null>(null);
+      const [stoppingRalph, setStoppingRalph] = useState(false);
       const settingsRef = useRef<HTMLDivElement>(null);
       const ralphIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -57,6 +58,19 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
           const checkRalph = async () => {
               try {
                   const running = await window.dexteria?.ralph?.isRunning?.();
+
+                  // If we're stopping, don't update state until confirmed stopped
+                  if (stoppingRalph) {
+                      if (!running) {
+                          // Backend confirmed it stopped
+                          setRalphRunning(false);
+                          setRalphProgress(null);
+                          setStoppingRalph(false);
+                      }
+                      // If still running, keep waiting - don't update UI
+                      return;
+                  }
+
                   setRalphRunning(running ?? false);
                   if (running) {
                       const progress = await window.dexteria?.ralph?.getProgress?.() as RalphProgress;
@@ -80,7 +94,7 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
                   clearInterval(ralphIntervalRef.current);
               }
           };
-      }, []);
+      }, [stoppingRalph]);
 
       const handleStartRalph = async () => {
           if (mode === 'planner') {
@@ -99,12 +113,17 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
 
       const handleStopRalph = async () => {
           try {
+              // Set stopping flag to prevent polling from overwriting state
+              setStoppingRalph(true);
               await window.dexteria.ralph.stop();
-              setRalphRunning(false);
-              setRalphProgress(null);
+
+              // The polling will detect when backend confirms it stopped
+              // and will clear stoppingRalph flag and update UI
               refresh();
           } catch (err) {
               console.error('Failed to stop Ralph:', err);
+              // On error, reset the stopping flag
+              setStoppingRalph(false);
           }
       };
 
@@ -189,14 +208,25 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
                   style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               >
                   {/* Ralph Run All Button */}
-                  {ralphRunning ? (
+                  {ralphRunning || stoppingRalph ? (
                       <div className="flex items-center gap-2 px-3">
-                          <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-                              <Loader2 className="w-3 h-3 text-green-400 animate-spin" />
-                              <span className="text-xs text-green-400 font-medium">
-                                  {ralphProgress ? `${ralphProgress.completed}/${ralphProgress.total}` : 'Running...'}
+                          <div className={cn(
+                              "flex items-center gap-2 px-2 py-1 rounded-full border",
+                              stoppingRalph
+                                  ? "bg-orange-500/10 border-orange-500/20"
+                                  : "bg-green-500/10 border-green-500/20"
+                          )}>
+                              <Loader2 className={cn(
+                                  "w-3 h-3 animate-spin",
+                                  stoppingRalph ? "text-orange-400" : "text-green-400"
+                              )} />
+                              <span className={cn(
+                                  "text-xs font-medium",
+                                  stoppingRalph ? "text-orange-400" : "text-green-400"
+                              )}>
+                                  {stoppingRalph ? 'Stopping...' : (ralphProgress ? `${ralphProgress.completed}/${ralphProgress.total}` : 'Running...')}
                               </span>
-                              {ralphProgress?.currentTaskTitle && (
+                              {!stoppingRalph && ralphProgress?.currentTaskTitle && (
                                   <span className="text-xs text-green-400/70 truncate max-w-[100px]">
                                       {ralphProgress.currentTaskTitle}
                                   </span>
@@ -204,8 +234,9 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
                           </div>
                           <button
                               onClick={handleStopRalph}
-                              className="p-1.5 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-300 transition-colors"
-                              title="Stop Ralph"
+                              disabled={stoppingRalph}
+                              className="p-1.5 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={stoppingRalph ? "Stopping..." : "Stop Ralph"}
                           >
                               <StopCircle size={16} />
                           </button>

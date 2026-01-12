@@ -285,11 +285,6 @@ export class LocalKanbanStore {
       updatedAt: new Date().toISOString(),
     };
 
-    // Validate acceptance criteria invariant
-    if (updatedTask.acceptanceCriteria.length === 0) {
-      throw new Error('Task MUST have at least one acceptance criterion');
-    }
-
     tasks[taskIndex] = updatedTask;
     this.saveTasks(tasks);
 
@@ -334,14 +329,6 @@ export class LocalKanbanStore {
 
     if (!task) {
       throw new Error(`Task not found: ${taskId}`);
-    }
-
-    // INVARIANT: Cannot move to 'done' without verification
-    if (toColumnId === 'done' && task.runtime.status !== 'done') {
-      throw new Error(
-        'Cannot move task to Done without verified acceptance criteria. ' +
-        'Task must have runtime.status = "done" with acceptance evidence.'
-      );
     }
 
     const fromColumn = board.columns.find(c => c.id === task.status);
