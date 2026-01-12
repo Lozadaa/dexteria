@@ -1,0 +1,14 @@
+{
+  "activeTaskId": null,
+  "activeChatId": null,
+  "mode": "manual",
+  "agentMode": "planner",
+  "isRunning": false,
+  "ralphMode": {
+    "enabled": false,
+    "strategy": "fifo",
+    "processedCount": 0,
+    "failedCount": 0
+  },
+  "lastUpdated": "2026-01-12T17:49:19.096Z"
+}

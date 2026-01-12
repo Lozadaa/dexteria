@@ -1,0 +1,14 @@
+{
+  "id": "e5a5ad77-91a4-4e5f-bdd7-c73d27b1fe25",
+  "title": "New Conversation",
+  "messages": [
+    {
+      "id": "0c7de603-1390-48e5-a705-c10b60987487",
+      "role": "user",
+      "content": "Hola bro",
+      "timestamp": 1768237307249
+    }
+  ],
+  "createdAt": "2026-01-12T16:59:59.097Z",
+  "updatedAt": "2026-01-12T17:01:47.250Z"
+}

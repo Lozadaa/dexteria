@@ -1,0 +1,26 @@
+{
+  "id": "1c49469f-e7ef-4ca7-ab7a-3eac22007ed6",
+  "title": "New Conversation",
+  "messages": [
+    {
+      "id": "41abcfeb-668a-4336-8d9f-02dbb8b05352",
+      "role": "user",
+      "content": "Review backlog and todo task if verify are needed yet",
+      "timestamp": 1768234933916
+    },
+    {
+      "id": "10a1032f-7637-4b57-90f9-3c42a533edad",
+      "role": "assistant",
+      "content": "Error calling Claude Code: Claude Code command timed out",
+      "timestamp": 1768235233948
+    },
+    {
+      "id": "af11a9bb-dc3a-4e1b-9362-5d7865302b85",
+      "role": "user",
+      "content": "continue",
+      "timestamp": 1768235948026
+    }
+  ],
+  "createdAt": "2026-01-12T16:21:54.965Z",
+  "updatedAt": "2026-01-12T16:39:08.026Z"
+}

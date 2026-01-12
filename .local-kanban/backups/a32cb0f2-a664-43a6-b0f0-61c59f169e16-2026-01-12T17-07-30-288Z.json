@@ -1,0 +1,20 @@
+{
+  "id": "a32cb0f2-a664-43a6-b0f0-61c59f169e16",
+  "title": "New Conversation",
+  "messages": [
+    {
+      "id": "e14bb295-aeba-4c72-af6a-708cc6d6dc06",
+      "role": "user",
+      "content": "Hola que tal?",
+      "timestamp": 1768237612966
+    },
+    {
+      "id": "6a07c59e-88fd-424b-9efe-9bc0cfaa639d",
+      "role": "assistant",
+      "content": "¡Hola! Todo bien por aquí, gracias por preguntar. ¿En qué puedo ayudarte hoy con tu proyecto?",
+      "timestamp": 1768237618379
+    }
+  ],
+  "createdAt": "2026-01-12T17:06:45.408Z",
+  "updatedAt": "2026-01-12T17:06:58.380Z"
+}

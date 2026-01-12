@@ -1,0 +1,49 @@
+{
+  "id": "board-dexteria-main",
+  "name": "Dexteria Development",
+  "columns": [
+    {
+      "id": "backlog",
+      "title": "Backlog",
+      "taskIds": [
+        "task-1768238557558-2bqjtvtik"
+      ]
+    },
+    {
+      "id": "todo",
+      "title": "To Do",
+      "taskIds": [
+        "task-007"
+      ]
+    },
+    {
+      "id": "doing",
+      "title": "In Progress",
+      "taskIds": []
+    },
+    {
+      "id": "review",
+      "title": "Review",
+      "taskIds": []
+    },
+    {
+      "id": "done",
+      "title": "Done",
+      "taskIds": [
+        "task-001",
+        "task-002",
+        "task-003",
+        "task-004",
+        "task-005",
+        "task-006",
+        "task-009",
+        "task-010",
+        "task-011",
+        "task-012",
+        "task-008"
+      ]
+    }
+  ],
+  "createdAt": "2026-01-12T00:00:00.000Z",
+  "updatedAt": "2026-01-12T17:42:34.230Z"
+}

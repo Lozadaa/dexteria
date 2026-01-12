@@ -1,0 +1,32 @@
+{
+  "id": "ce88b4d6-4ba1-4564-8d60-436d31725cfd",
+  "title": "New Conversation",
+  "messages": [
+    {
+      "id": "59fdf579-08cb-4b58-9fe0-9195a390d198",
+      "role": "user",
+      "content": "Revisa las tareas en backlog y TODO y ve si aun siguen siendo necesarias o ya han sido implementadas",
+      "timestamp": 1768232681175
+    },
+    {
+      "id": "7b544e52-1384-42bb-b3e6-8117833f9b53",
+      "role": "assistant",
+      "content": "Let me first explore the project structure to understand the codebase.",
+      "timestamp": 1768232681181
+    },
+    {
+      "id": "9ee141e0-143b-4d71-aae7-b7622ecaa401",
+      "role": "user",
+      "content": "Continue",
+      "timestamp": 1768232963156
+    },
+    {
+      "id": "93d87cd7-74b4-4d4b-a355-570027e1c58d",
+      "role": "assistant",
+      "content": "Let me first explore the project structure to understand the codebase.",
+      "timestamp": 1768232963161
+    }
+  ],
+  "createdAt": "2026-01-12T15:43:48.082Z",
+  "updatedAt": "2026-01-12T15:49:23.161Z"
+}

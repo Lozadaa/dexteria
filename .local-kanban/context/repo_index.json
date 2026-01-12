@@ -1,0 +1,107 @@
+{
+  "rootPath": ".",
+  "entries": [
+    {
+      "path": "src/",
+      "type": "directory",
+      "description": "Main source code directory"
+    },
+    {
+      "path": "src/main/",
+      "type": "directory",
+      "description": "Electron main process code"
+    },
+    {
+      "path": "src/main/main.ts",
+      "type": "file",
+      "description": "Electron main entry point - window creation and app lifecycle",
+      "signals": ["BrowserWindow", "app.whenReady", "ipcMain"]
+    },
+    {
+      "path": "src/main/preload.ts",
+      "type": "file",
+      "description": "Preload script for secure IPC bridge",
+      "signals": ["contextBridge", "exposeInMainWorld", "ipcRenderer"]
+    },
+    {
+      "path": "src/renderer/",
+      "type": "directory",
+      "description": "React renderer process code"
+    },
+    {
+      "path": "src/renderer/main.tsx",
+      "type": "file",
+      "description": "React app entry point",
+      "signals": ["ReactDOM.createRoot", "StrictMode"]
+    },
+    {
+      "path": "src/renderer/App.tsx",
+      "type": "file",
+      "description": "Root React component",
+      "signals": ["function App", "window.dexteria"]
+    },
+    {
+      "path": "src/renderer/styles.css",
+      "type": "file",
+      "description": "Global CSS styles with dark theme"
+    },
+    {
+      "path": "src/shared/",
+      "type": "directory",
+      "description": "Shared code between main and renderer"
+    },
+    {
+      "path": "src/shared/types.ts",
+      "type": "file",
+      "description": "TypeScript type definitions for all data structures",
+      "signals": ["Task", "Board", "Chat", "AgentState", "Policy"]
+    },
+    {
+      "path": "src/shared/schemas.ts",
+      "type": "file",
+      "description": "Schema validators and factory functions",
+      "signals": ["createTask", "createBoard", "createChat", "isValidTask"]
+    },
+    {
+      "path": ".local-kanban/",
+      "type": "directory",
+      "description": "Project brain - local storage for all project data"
+    },
+    {
+      "path": "assets/",
+      "type": "directory",
+      "description": "Static assets (icons, images)"
+    },
+    {
+      "path": "public/",
+      "type": "directory",
+      "description": "Public files copied to build output"
+    }
+  ],
+  "keyFiles": [
+    "package.json",
+    "vite.config.ts",
+    "tsconfig.json",
+    "tsconfig.main.json",
+    "index.html",
+    "src/main/main.ts",
+    "src/main/preload.ts",
+    "src/renderer/App.tsx",
+    "src/shared/types.ts"
+  ],
+  "importantPaths": [
+    "src/main/",
+    "src/renderer/",
+    "src/shared/",
+    ".local-kanban/"
+  ],
+  "signals": {
+    "package.json": "Project configuration, dependencies, and npm scripts",
+    "vite.config.ts": "Vite bundler configuration for React",
+    "tsconfig.json": "TypeScript config for renderer process",
+    "tsconfig.main.json": "TypeScript config for main process",
+    "index.html": "HTML entry point for Vite/React",
+    "electron-builder": "Desktop app packaging configuration (in package.json)"
+  },
+  "updatedAt": "2026-01-12T00:00:00.000Z"
+}
