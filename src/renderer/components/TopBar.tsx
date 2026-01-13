@@ -3,8 +3,10 @@ import { useAgentState } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
 import Ralph from '../../../assets/ralph.png'
-import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown } from 'lucide-react';
+import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop } from 'lucide-react';
 import LogoIcon from '../../../assets/logoicon.png';
+import { SettingsModal } from './SettingsModal';
+import type { ProjectProcessStatus } from '../../shared/types';
 
   interface RalphProgress {
       total: number;
@@ -25,6 +27,9 @@ import LogoIcon from '../../../assets/logoicon.png';
       const [ralphRunning, setRalphRunning] = useState(false);
       const [ralphProgress, setRalphProgress] = useState<RalphProgress | null>(null);
       const [stoppingRalph, setStoppingRalph] = useState(false);
+      const [showSettingsModal, setShowSettingsModal] = useState(false);
+      const [runStatus, setRunStatus] = useState<ProjectProcessStatus | null>(null);
+      const [buildStatus, setBuildStatus] = useState<ProjectProcessStatus | null>(null);
       const settingsRef = useRef<HTMLDivElement>(null);
       const fileMenuRef = useRef<HTMLDivElement>(null);
       const ralphIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -101,6 +106,69 @@ import LogoIcon from '../../../assets/logoicon.png';
               }
           };
       }, [stoppingRalph]);
+
+      // Listen for process status updates
+      useEffect(() => {
+          const loadInitialStatus = async () => {
+              try {
+                  const statuses = await window.dexteria.project.getAllProcessStatus() as ProjectProcessStatus[];
+                  for (const status of statuses) {
+                      if (status.type === 'run') setRunStatus(status);
+                      if (status.type === 'build') setBuildStatus(status);
+                  }
+              } catch (err) {
+                  console.error('Failed to load process status:', err);
+              }
+          };
+
+          loadInitialStatus();
+
+          const cleanup = window.dexteria.project.onStatusUpdate((status: unknown) => {
+              const s = status as ProjectProcessStatus;
+              if (s.type === 'run') setRunStatus(s);
+              if (s.type === 'build') setBuildStatus(s);
+          });
+
+          return () => cleanup?.();
+      }, []);
+
+      const handleStartRun = async () => {
+          try {
+              const result = await window.dexteria.project.startRun();
+              if (!result.success) {
+                  console.error('Failed to start run:', result.error);
+              }
+          } catch (err) {
+              console.error('Failed to start run:', err);
+          }
+      };
+
+      const handleStopRun = async () => {
+          try {
+              await window.dexteria.project.stopRun();
+          } catch (err) {
+              console.error('Failed to stop run:', err);
+          }
+      };
+
+      const handleStartBuild = async () => {
+          try {
+              const result = await window.dexteria.project.startBuild();
+              if (!result.success) {
+                  console.error('Failed to start build:', result.error);
+              }
+          } catch (err) {
+              console.error('Failed to start build:', err);
+          }
+      };
+
+      const handleStopBuild = async () => {
+          try {
+              await window.dexteria.project.stopBuild();
+          } catch (err) {
+              console.error('Failed to stop build:', err);
+          }
+      };
 
       const handleStartRalph = async () => {
           if (mode === 'planner') {
@@ -187,8 +255,7 @@ import LogoIcon from '../../../assets/logoicon.png';
                   style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
               >
                   <div className="flex items-center gap-2">
-                      <img src={LogoIcon} alt="Dexteria" className="w-5 h-5" />
-                      <span className="font-semibold text-sm tracking-tight">Dexteria</span>
+                      <img src={LogoIcon} alt="Dexteria" className="w-10" />
                   </div>
 
                   {/* File Menu */}
@@ -292,6 +359,53 @@ import LogoIcon from '../../../assets/logoicon.png';
                   className="flex items-center h-full"
                   style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               >
+                  {/* Project Run/Build Controls */}
+                  <div className="flex items-center gap-1 px-2">
+                      {/* Play/Stop Run */}
+                      {runStatus?.running ? (
+                          <button
+                              onClick={handleStopRun}
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-500/10 border border-green-500/20 text-green-400 rounded hover:bg-green-500/20 transition-colors"
+                              title="Stop dev server"
+                          >
+                              <CircleStop size={12} />
+                              <span className="max-w-[60px] truncate">Running</span>
+                          </button>
+                      ) : (
+                          <button
+                              onClick={handleStartRun}
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded transition-colors"
+                              title="Start dev server"
+                          >
+                              <Play size={12} />
+                              Run
+                          </button>
+                      )}
+
+                      {/* Build */}
+                      {buildStatus?.running ? (
+                          <button
+                              onClick={handleStopBuild}
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/20 transition-colors"
+                              title="Stop build"
+                          >
+                              <Loader2 size={12} className="animate-spin" />
+                              <span>Building</span>
+                          </button>
+                      ) : (
+                          <button
+                              onClick={handleStartBuild}
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded transition-colors"
+                              title="Build project"
+                          >
+                              <Hammer size={12} />
+                              Build
+                          </button>
+                      )}
+                  </div>
+
+                  <div className="h-4 w-px bg-border mx-1" />
+
                   {/* Ralph Run All Button */}
                   {ralphRunning || stoppingRalph ? (
                       <div className="flex items-center gap-2 px-3">
@@ -369,12 +483,21 @@ import LogoIcon from '../../../assets/logoicon.png';
 
                       {/* Settings Dropdown */}
                       {showSettings && (
-                          <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg
-  shadow-lg z-50 overflow-hidden">
+                          <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                              <button
+                                  onClick={() => {
+                                      setShowSettings(false);
+                                      setShowSettingsModal(true);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                              >
+                                  <Settings size={14} />
+                                  Project Settings
+                              </button>
+                              <div className="h-px bg-border" />
                               <button
                                   onClick={handleOpenDevTools}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted
-  transition-colors text-left"
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
                               >
                                   <Terminal size={14} />
                                   Open DevTools
@@ -411,6 +534,12 @@ import LogoIcon from '../../../assets/logoicon.png';
                       <X size={14} />
                   </button>
               </div>
+
+              {/* Settings Modal */}
+              <SettingsModal
+                  isOpen={showSettingsModal}
+                  onClose={() => setShowSettingsModal(false)}
+              />
           </div>
       );
   };

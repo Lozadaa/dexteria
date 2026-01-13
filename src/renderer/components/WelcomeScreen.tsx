@@ -26,7 +26,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             className="h-20 w-auto mx-auto"
                         />
                     </div>
-                    <p className="text-muted-foreground">AI-powered task management for developers</p>
+                    <p className="text-muted-foreground">Designed for humans. Powered by AI.</p>
                 </div>
 
                 {/* Actions */}

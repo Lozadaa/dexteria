@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, globalShortcut } from 'electron';
 import * as path from 'path';
 import { initializeIpcHandlers } from './ipc/handlers';
+import { initBadgeClearing } from './services/NotificationService';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
 // This is only needed for Squirrel.Windows installers
@@ -86,6 +87,9 @@ function createWindow(): void {
   mainWindow.on('unmaximize', () => {
     mainWindow?.webContents.send('window:maximized-changed', false);
   });
+
+  // Initialize badge clearing on window focus/show
+  initBadgeClearing(mainWindow);
 }
 
 // App lifecycle

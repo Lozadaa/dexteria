@@ -7,7 +7,11 @@ export interface RunnerState {
     currentTask: Task | null;
     currentRun: AgentRun | null;
     log: string;
+    streamingContent: string;
+    streamingTaskId: string | null;
+    streamingTaskTitle: string | null;
     isRunning: boolean;
+    wasCancelled: boolean;
     error: string | null;
     canPlay: boolean;
     canPause: boolean;
@@ -18,7 +22,11 @@ export function useRunner() {
     const [currentTask, setCurrentTask] = useState<Task | null>(null);
     const [currentRun, setCurrentRun] = useState<AgentRun | null>(null);
     const [log, setLog] = useState<string>('');
+    const [streamingContent, setStreamingContent] = useState<string>('');
+    const [streamingTaskId, setStreamingTaskId] = useState<string | null>(null);
+    const [streamingTaskTitle, setStreamingTaskTitle] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
+    const [wasCancelled, setWasCancelled] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Fetch current run and task
@@ -107,6 +115,29 @@ export function useRunner() {
         return () => clearInterval(interval);
     }, [fetchRunState]);
 
+    // Listen for streaming updates
+    useEffect(() => {
+        const cleanup = window.dexteria?.agent?.onStreamUpdate?.((data) => {
+            console.log('[Runner] Stream update:', data.taskId, 'done:', data.done, 'cancelled:', data.cancelled, 'len:', data.content.length);
+            setStreamingContent(data.content);
+            setStreamingTaskId(data.taskId);
+            if (data.taskTitle) {
+                setStreamingTaskTitle(data.taskTitle);
+            }
+            setIsRunning(!data.done);
+            setWasCancelled(data.cancelled || false);
+            if (data.done) {
+                // Streaming complete - clear after a delay so user can see final state
+                setTimeout(() => {
+                    setStreamingTaskId(null);
+                    setStreamingTaskTitle(null);
+                    setWasCancelled(false);
+                }, 5000);
+            }
+        });
+        return () => cleanup?.();
+    }, []);
+
     // Control handlers
     const handlePlay = useCallback(async () => {
         if (!currentTask) return;
@@ -152,7 +183,11 @@ export function useRunner() {
         currentTask,
         currentRun,
         log,
+        streamingContent,
+        streamingTaskId,
+        streamingTaskTitle,
         isRunning,
+        wasCancelled,
         error,
         handlePlay,
         handlePause,

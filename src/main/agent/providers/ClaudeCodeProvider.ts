@@ -28,12 +28,14 @@ export class ClaudeCodeProvider extends AgentProvider {
   private workingDirectory: string;
   private timeout: number;
   private ready: boolean = false;
+  private currentProcess: ReturnType<typeof spawn> | null = null;
+  private cancelled: boolean = false;
 
   constructor(config: ClaudeCodeProviderConfig = {}) {
     super(config);
     this.claudePath = config.claudePath || 'claude';
     this.workingDirectory = config.workingDirectory || process.cwd();
-    this.timeout = config.timeout || 300000; // 5 minutes default
+    this.timeout = config.timeout || 1800000; // 30 minutes default (no rush)
 
     // Check if claude is available
     this.checkClaudeAvailable();
@@ -72,10 +74,40 @@ export class ClaudeCodeProvider extends AgentProvider {
   }
 
   /**
+   * Cancel the current execution.
+   */
+  cancel(): void {
+    this.cancelled = true;
+    if (this.currentProcess) {
+      console.log('[ClaudeCode] Cancelling current process');
+      try {
+        // Kill the process tree on Windows
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/pid', String(this.currentProcess.pid), '/f', '/t'], { shell: true });
+        } else {
+          this.currentProcess.kill('SIGTERM');
+        }
+      } catch (e) {
+        console.error('[ClaudeCode] Error killing process:', e);
+      }
+      this.currentProcess = null;
+    }
+  }
+
+  /**
+   * Check if currently running.
+   */
+  isExecuting(): boolean {
+    return this.currentProcess !== null;
+  }
+
+  /**
    * Execute a claude command with streaming JSON output.
    * Parses NDJSON events and streams text in real-time.
    */
   private executeStreamingCommand(args: string[], prompt: string, onChunk?: (chunk: string) => void): Promise<string> {
+    this.cancelled = false;
+
     return new Promise((resolve, reject) => {
       console.log('[ClaudeCode] Spawning claude with streaming args:', args);
 
@@ -86,9 +118,41 @@ export class ClaudeCodeProvider extends AgentProvider {
         windowsHide: true,
       });
 
+      // Track the current process for cancellation
+      this.currentProcess = proc;
+
       let fullContent = '';
       let stderr = '';
       let lineBuffer = '';
+
+      // Typing effect - queue text and type character by character
+      let typingQueue = '';
+      let isTyping = false;
+
+      const processTypingQueue = async () => {
+        if (isTyping || typingQueue.length === 0 || !onChunk) return;
+        isTyping = true;
+
+        while (typingQueue.length > 0) {
+          // Send characters in small batches (3-5 chars at a time for speed)
+          const batchSize = Math.min(4, typingQueue.length);
+          const batch = typingQueue.substring(0, batchSize);
+          typingQueue = typingQueue.substring(batchSize);
+          onChunk(batch);
+          await new Promise(r => setTimeout(r, 10));
+        }
+
+        isTyping = false;
+      };
+
+      const typeText = (text: string) => {
+        if (!onChunk || !text) return;
+        typingQueue += text;
+        processTypingQueue();
+      };
+
+      // Track displayed content to build full output
+      let displayedContent = '';
 
       proc.stdout.on('data', (data) => {
         const chunk = data.toString();
@@ -105,60 +169,85 @@ export class ClaudeCodeProvider extends AgentProvider {
             const event = JSON.parse(line);
 
             // Debug: log event type
-            console.log('[ClaudeCode] Event:', event.type, JSON.stringify(event).substring(0, 200));
+            console.log('[ClaudeCode] Event:', event.type);
 
-            // Handle Claude Code streaming event types
-            // See: https://docs.anthropic.com/claude-code/streaming
-            let textContent = '';
+            // Handle different event types from Claude Code CLI
 
-            // Primary event types from Claude Code stream-json
-            if (event.type === 'content_block_delta' && event.delta?.text) {
-              // Streaming text delta - this is the main streaming event
-              textContent = event.delta.text;
-            } else if (event.type === 'text' && event.text) {
-              // Simple text event
-              textContent = event.text;
-            } else if (event.type === 'assistant' && event.message) {
-              // Full assistant message event
-              // Extract content from message.content array
+            // Assistant message with content
+            if (event.type === 'assistant' && event.message?.content) {
               const content = event.message.content;
               if (Array.isArray(content)) {
                 for (const block of content) {
+                  // Text content
                   if (block.type === 'text' && block.text) {
-                    // Only use if we haven't already collected this content via streaming
-                    if (fullContent.length === 0) {
-                      textContent = block.text;
+                    // Only add if we haven't seen this exact text
+                    if (!displayedContent.endsWith(block.text)) {
+                      const newText = block.text;
+                      displayedContent += newText;
+                      fullContent = displayedContent;
+                      typeText(newText);
                     }
                   }
-                }
-              } else if (typeof content === 'string' && fullContent.length === 0) {
-                textContent = content;
-              }
-              console.log('[ClaudeCode] Assistant message, extracted:', textContent.length, 'chars');
-            } else if (event.type === 'result') {
-              // Final result event - contains the text result
-              if (event.result && fullContent.length === 0) {
-                textContent = event.result;
-                console.log('[ClaudeCode] Result event, content:', textContent.length, 'chars');
-              }
-            } else if (event.type === 'message_start' || event.type === 'message_stop' ||
-                       event.type === 'content_block_start' || event.type === 'content_block_stop') {
-              // Control events - skip
-              continue;
-            } else {
-              // Log unknown event types for debugging
-              console.log('[ClaudeCode] Unknown event type:', event.type);
-            }
+                  // Tool use - show what tool is being called
+                  else if (block.type === 'tool_use') {
+                    const toolName = block.name || 'unknown';
+                    const toolInput = block.input || {};
+                    let toolDesc = `\n🔧 ${toolName}`;
 
-            if (textContent) {
-              fullContent += textContent;
-              if (onChunk) {
-                onChunk(textContent);
+                    // Add descriptive info based on tool type
+                    if (toolName === 'Read' && toolInput.file_path) {
+                      toolDesc = `\n📖 Reading: \`${toolInput.file_path}\``;
+                    } else if (toolName === 'Write' && toolInput.file_path) {
+                      toolDesc = `\n✏️ Writing: \`${toolInput.file_path}\``;
+                    } else if (toolName === 'Edit' && toolInput.file_path) {
+                      toolDesc = `\n📝 Editing: \`${toolInput.file_path}\``;
+                    } else if (toolName === 'Bash' && toolInput.command) {
+                      const cmd = String(toolInput.command).substring(0, 100);
+                      toolDesc = `\n💻 Running: \`${cmd}\``;
+                    } else if (toolName === 'Glob' && toolInput.pattern) {
+                      toolDesc = `\n🔍 Searching: \`${toolInput.pattern}\``;
+                    } else if (toolName === 'Grep' && toolInput.pattern) {
+                      toolDesc = `\n🔎 Grep: \`${toolInput.pattern}\``;
+                    } else if (toolName === 'Task') {
+                      toolDesc = `\n🤖 Spawning agent...`;
+                    } else if (toolName === 'TodoWrite') {
+                      toolDesc = `\n📋 Updating task list...`;
+                    }
+
+                    displayedContent += toolDesc;
+                    fullContent = displayedContent;
+                    typeText(toolDesc);
+                  }
+                }
+              }
+            }
+            // Content block delta (streaming text)
+            else if (event.type === 'content_block_delta' && event.delta?.text) {
+              const deltaText = event.delta.text;
+              displayedContent += deltaText;
+              fullContent = displayedContent;
+              typeText(deltaText);
+            }
+            // Tool result - just add a subtle indicator that tool completed
+            else if (event.type === 'tool_result') {
+              // Don't show raw tool output - just indicate completion with checkmark
+              const doneText = ' ✓';
+              displayedContent += doneText;
+              fullContent = displayedContent;
+              typeText(doneText);
+            }
+            // Final result
+            else if (event.type === 'result' && event.result) {
+              // If result has new content not yet displayed
+              if (event.result.length > displayedContent.length) {
+                const newContent = event.result.substring(displayedContent.length);
+                displayedContent = event.result;
+                fullContent = displayedContent;
+                typeText(newContent);
               }
             }
           } catch (parseError) {
-            // Not valid JSON - skip verbose logs
-            console.log('[ClaudeCode] Non-JSON line (skipping):', line.substring(0, 50));
+            // Not valid JSON - skip
           }
         }
       });
@@ -176,6 +265,14 @@ export class ClaudeCodeProvider extends AgentProvider {
 
       proc.on('close', (code) => {
         clearTimeout(timeoutId);
+        this.currentProcess = null;
+
+        // Check if cancelled
+        if (this.cancelled) {
+          console.log('[ClaudeCode] Process was cancelled');
+          reject(new Error('Cancelled'));
+          return;
+        }
 
         // Process any remaining content in buffer
         if (lineBuffer.trim()) {
@@ -200,6 +297,7 @@ export class ClaudeCodeProvider extends AgentProvider {
 
       proc.on('error', (error) => {
         clearTimeout(timeoutId);
+        this.currentProcess = null;
         console.log('[ClaudeCode] Error:', error);
         reject(error);
       });
@@ -221,46 +319,18 @@ export class ClaudeCodeProvider extends AgentProvider {
   private getSystemPrompt(mode: 'planner' | 'agent'): string {
     const basePrompt = `You are Dexter, an AI assistant integrated into a Kanban-style task management app called Dexteria.
 
-## CRITICAL RULE: NO CODE CHANGES WITHOUT A TASK
+## Context
 
-**THIS IS MANDATORY AND NON-NEGOTIABLE:**
-- You CANNOT modify ANY code, write ANY file, or run ANY command that changes the codebase WITHOUT having a task in "doing" status FIRST
-- Before ANY code modification, you MUST:
-  1. Create a task (if one doesn't exist for this work)
-  2. Move the task to "doing" status using \`update_task\` with \`status: "doing"\`
-  3. ONLY THEN can you make code changes
-- This rule has NO exceptions. Even "small fixes" or "quick changes" require a task
+You are executing a task that has already been assigned to you. The task has been automatically moved to "doing" status.
+When you complete the work successfully, the system will automatically move it to "review".
 
-## Task ID Format
+## Your Job
 
-Task IDs are auto-generated UUIDs like "task-1705123456789-a1b2c3d4e".
-- You CANNOT invent or guess task IDs
-- To get a task ID, either:
-  1. Use \`create_task\` - it returns the new taskId
-  2. Use \`list_tasks\` - it returns all existing tasks with their IDs
-
-## Your MANDATORY Workflow
-
-When the user asks you to do ANY work:
-
-### Step 1: Create the Task (REQUIRED)
-Use \`create_task\` with:
-- Clear, descriptive title
-- Detailed description of what needs to be done
-- Specific acceptance criteria (checklist items that define "done")
-- Set initial status to "backlog"
-
-### Step 2: Move Task to "doing" (REQUIRED before any code changes)
-Use \`update_task\` with the taskId and \`status: "doing"\`
-
-### Step 3: Execute the Work
-Only after the task is in "doing" can you:
-- Write or modify files
+Execute the task described in the user message. You have full access to:
+- Read files
+- Write/modify files
 - Run commands
-- Make any changes to the codebase
-
-### Step 4: Complete the Task
-When done, use \`update_task\` with \`status: "done"\`
+- Search the codebase
 
 ## Response Style
 
@@ -269,64 +339,103 @@ When done, use \`update_task\` with \`status: "done"\`
 - Show your thinking process
 - For code changes, explain what you're changing and why
 - Always confirm destructive operations before executing
+
+## Important Guidelines
+
+1. Focus on completing the task efficiently
+2. Test your changes when applicable (run tests, build, etc.)
+3. If you encounter blockers, explain the issue clearly
+4. When done, summarize what you accomplished
 `;
 
     if (mode === 'planner') {
       return basePrompt + `
 ## PLANNER MODE (Current Mode)
 
-You are in **PLANNER MODE**. In this mode:
+You are in **PLANNER MODE**. This is a READ-ONLY analysis mode.
 
-- You CAN create tasks, update tasks, list tasks
-- You CAN analyze code, read files, search the codebase
-- You CANNOT execute code changes, run commands, or write files
-- You CANNOT modify code in any way
+### What you CAN do:
+- Analyze code and the codebase
+- Read files and search for patterns
+- Explain how things work
+- Suggest what should be done
+- Answer questions about the code
 
-Your job is to help the user PLAN and organize work:
-1. Create detailed tasks with clear acceptance criteria
-2. Break down complex work into smaller tasks
-3. Analyze the codebase to inform planning
-4. Document what needs to be done
+### What you CANNOT do:
+- **DO NOT create tasks** - no create_task tool calls
+- **DO NOT execute code** - no file writes or commands
+- **DO NOT modify anything** - read-only mode
 
-When the user asks you to execute something:
-1. Create a task with all the details
+### Your job:
+1. Analyze and understand what the user needs
 2. Explain what would need to be done
-3. Tell the user to switch to **Agent Mode** to execute the task
+3. Identify potential challenges
+4. Provide recommendations
 
-DO NOT attempt any file writes, code changes, or commands. Only plan and document.
+When the user wants to actually DO something (create tasks or make changes), tell them:
+"Switch to **Agent Mode** to create tasks for this work."
+
+### Rules:
+- NO tool calls allowed (no create_task, no write, no commands)
+- Only analyze, explain, and recommend
+- This mode is for discussion and planning only
 `;
     } else {
       return basePrompt + `
 ## AGENT MODE (Current Mode)
 
-You are in **AGENT MODE**. You have full execution permissions, BUT:
+You are in **AGENT MODE**. Your job is to CREATE TASKS for the user's request.
 
-**REMEMBER: You CANNOT write any code until you have a task in "doing" status!**
+## CRITICAL: Create Tasks Only - Do NOT Execute Code
 
-Your REQUIRED workflow for EVERY request:
+**IMPORTANT**: In this chat, you plan work by creating tasks. You do NOT execute them directly.
 
-1. **Create a task** with \`create_task\`:
-   - Title describing the work
-   - Description with full context
-   - Acceptance criteria (what defines "done")
+The workflow is:
+1. You output tasks in a special JSON format (the system will create them automatically)
+2. User reviews the tasks in the Kanban board
+3. User runs "Ralph Mode" to execute all tasks automatically
 
-2. **Move to "doing"** with \`update_task\`:
-   \`\`\`
-   update_task({ taskId: "...", status: "doing" })
-   \`\`\`
+### How to Create Tasks
 
-3. **NOW you can execute**:
-   - Read and write files
-   - Run commands
-   - Make code changes
-   - Execute each step of the work
+Output each task as a JSON code block. The system will automatically parse and create them:
 
-4. **Mark complete** with \`update_task\`:
-   \`\`\`
-   update_task({ taskId: "...", status: "done" })
-   \`\`\`
+\`\`\`json
+{"tool": "create_task", "arguments": {"title": "Task title", "description": "What needs to be done", "status": "todo", "acceptanceCriteria": ["Criterion 1", "Criterion 2"]}}
+\`\`\`
 
-If the user says "just do it" or "skip the task", STILL create the task. It's mandatory for tracking and organization.
+**IMPORTANT**: You CAN and SHOULD output these JSON blocks. The Dexteria system intercepts them and creates the tasks automatically. This is YOUR way of creating tasks.
+
+### Example
+
+User: "Add a login page with validation"
+
+Your response:
+1. Analyze what's needed
+2. Output task JSON blocks (system creates them):
+
+\`\`\`json
+{"tool": "create_task", "arguments": {"title": "Create login page component", "description": "Create the React component for the login form with email and password fields", "status": "todo", "acceptanceCriteria": ["Component renders correctly", "Has email and password inputs", "Has submit button"]}}
+\`\`\`
+
+\`\`\`json
+{"tool": "create_task", "arguments": {"title": "Add form validation", "description": "Add client-side validation for login form", "status": "todo", "acceptanceCriteria": ["Email format validated", "Password minimum 8 characters", "Shows error messages"]}}
+\`\`\`
+
+\`\`\`json
+{"tool": "create_task", "arguments": {"title": "Connect login to auth API", "description": "Integrate the login form with the authentication API", "status": "todo", "acceptanceCriteria": ["Calls auth endpoint on submit", "Handles success/error responses", "Redirects on success"]}}
+\`\`\`
+
+3. Tell user: "I've created X tasks. Run Ralph Mode to execute them."
+
+### Rules:
+- **DO** output JSON blocks with create_task - the system handles them
+- **DO NOT** write code or make file changes in this mode
+- **DO NOT** run commands in this mode
+- **ALWAYS** set status to "todo" for new tasks
+- After outputting ALL tasks, tell user to run Ralph Mode
+
+### Remember:
+You ARE able to create tasks by outputting the JSON format above. The Dexteria app parses your response and creates the tasks. Do not say you cannot create tasks - you can!
 `;
     }
   }

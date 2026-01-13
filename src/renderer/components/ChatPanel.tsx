@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChats } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
-import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle } from 'lucide-react';
+import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2 } from 'lucide-react';
 import { MarkdownRenderer, ThinkingIndicator } from './MarkdownRenderer';
 import type { Chat, ChatMessage } from '../../shared/types';
 
@@ -31,6 +31,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const historyRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
     const userScrolledUpRef = useRef(false);
 
@@ -79,6 +80,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         }
     }, [isSending]);
 
+    // Auto-resize textarea
+    const adjustTextareaHeight = useCallback(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+        }
+    }, []);
+
+    useEffect(() => {
+        adjustTextareaHeight();
+    }, [inputValue, adjustTextareaHeight]);
+
     // Close history popup when clicking outside
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -101,7 +115,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     // Reset streaming content when done
                     setStreamingContent('');
                 } else {
-                    // Replace streaming content with latest (backend accumulates)
+                    // Replace streaming content with latest (backend filters JSON before sending)
                     setStreamingContent(data.content);
                 }
             }
@@ -154,7 +168,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         try {
             // Send message and get response with timeout
             const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Request timeout')), 120000); // 2 min timeout
+                setTimeout(() => reject(new Error('Request timeout')), 600000); // 10 min timeout
             });
 
             const response = await Promise.race([
@@ -214,6 +228,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     const handleSelectChat = (chatId: string) => {
         setActiveChatId(chatId);
         setShowHistory(false);
+    };
+
+    const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await window.dexteria.chat.delete(chatId);
+            // If deleted chat was active, create a new one
+            if (activeChatId === chatId) {
+                handleCreateChat();
+            }
+            refresh();
+        } catch (err) {
+            console.error('Failed to delete chat:', err);
+        }
     };
 
     // Handle warning modal actions
@@ -279,11 +307,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                         </div>
                                     ) : (
                                         chatsWithMessages.map(chat => (
-                                            <button
+                                            <div
                                                 key={chat.id}
                                                 onClick={() => handleSelectChat(chat.id)}
                                                 className={cn(
-                                                    "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-muted transition-colors",
+                                                    "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-muted transition-colors cursor-pointer group",
                                                     activeChatId === chat.id && "bg-primary/10"
                                                 )}
                                             >
@@ -296,10 +324,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                                         {chat.messages?.length || 0} messages
                                                     </div>
                                                 </div>
+                                                <button
+                                                    onClick={(e) => handleDeleteChat(chat.id, e)}
+                                                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all shrink-0"
+                                                    title="Delete conversation"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
                                                 {activeChatId === chat.id && (
                                                     <Check size={14} className="text-primary shrink-0" />
                                                 )}
-                                            </button>
+                                            </div>
                                         ))
                                     )}
                                 </div>
@@ -360,9 +395,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                     {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                                 </div>
                                 <div className={cn(
-                                    "p-3 rounded-xl text-sm leading-relaxed",
+                                    "p-3 rounded-xl text-sm leading-relaxed break-words overflow-hidden",
                                     msg.role === 'user'
-                                        ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
+                                        ? "bg-primary text-white rounded-br-sm whitespace-pre-wrap"
                                         : "bg-muted border border-border rounded-bl-sm"
                                 )}>
                                     {msg.role === 'user' ? (
@@ -384,7 +419,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                     {streamingContent ? (
                                         <div className="break-words">
                                             <MarkdownRenderer content={streamingContent} />
-                                            <span className="inline-block w-1.5 h-4 bg-primary/50 animate-pulse ml-0.5 align-middle" />
+                                            {/* Loading indicator after content */}
+                                            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
+                                                <span className="flex gap-0.5">
+                                                    <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                    <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                    <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                                </span>
+                                            </div>
                                         </div>
                                     ) : (
                                         <ThinkingIndicator />
@@ -407,13 +449,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     <FileText size={12} />
                     <span>
                         {mode === 'planner'
-                            ? "Planner Mode: Will create tasks but won't execute"
-                            : "Agent Mode: Will create and execute tasks"
+                            ? "Planner Mode: Will analyze and plan but won't create tasks"
+                            : "Agent Mode: Will create tasks in TODO (run Ralph Mode to execute)"
                         }
                     </span>
                 </div>
                 <div className="flex gap-2">
                     <textarea
+                        ref={textareaRef}
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -424,7 +467,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                         }}
                         placeholder={isSending ? "Waiting for response..." : (activeChatId ? "Message Dexter..." : "Creating chat...")}
                         disabled={!activeChatId}
-                        className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none min-h-[40px] max-h-32"
+                        className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-y min-h-[40px] max-h-[200px] overflow-y-auto"
                         rows={1}
                     />
                     {isSending ? (

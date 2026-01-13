@@ -12,6 +12,7 @@ import {
   TasksFileSchema,
   AgentStateSchema,
   PolicySchema,
+  ProjectSettingsSchema,
   ProjectContextSchema,
   RepoIndexSchema,
   ChatIndexSchema,
@@ -20,6 +21,8 @@ import {
   LOCAL_KANBAN_PATHS,
   createDefaultState,
   createDefaultPolicy,
+  createDefaultSettings,
+  createBoard,
   createComment,
   migrateTaskToV3,
   createActivityEntry,
@@ -30,6 +33,7 @@ import type {
   TasksFile,
   AgentState,
   Policy,
+  ProjectSettings,
   ProjectContext,
   RepoIndex,
   ChatIndex,
@@ -55,6 +59,88 @@ export class LocalKanbanStore {
     this.projectRoot = config.projectRoot;
     this.enableBackups = config.enableBackups;
     this.maxBackups = config.maxBackups;
+  }
+
+  // ============================================
+  // Initialization
+  // ============================================
+
+  /**
+   * Initialize .local-kanban directory with default files if they don't exist.
+   * Called automatically when opening a project.
+   */
+  initialize(projectName?: string): void {
+    const kanbanDir = this.getPath(LOCAL_KANBAN_PATHS.root);
+
+    // Create .local-kanban directory if it doesn't exist
+    if (!fs.existsSync(kanbanDir)) {
+      fs.mkdirSync(kanbanDir, { recursive: true });
+      console.log('[Store] Created .local-kanban directory');
+    }
+
+    // Create default board.json if it doesn't exist
+    const boardPath = this.getPath(LOCAL_KANBAN_PATHS.board);
+    if (!fs.existsSync(boardPath)) {
+      const name = projectName || path.basename(this.projectRoot);
+      const defaultBoard = createBoard(name);
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.board, defaultBoard);
+      console.log('[Store] Created default board.json');
+    }
+
+    // Create default tasks.json if it doesn't exist
+    const tasksPath = this.getPath(LOCAL_KANBAN_PATHS.tasks);
+    if (!fs.existsSync(tasksPath)) {
+      const defaultTasks: TasksFile = { tasks: [] };
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.tasks, defaultTasks);
+      console.log('[Store] Created default tasks.json');
+    }
+
+    // Create default state.json if it doesn't exist
+    const statePath = this.getPath(LOCAL_KANBAN_PATHS.state);
+    if (!fs.existsSync(statePath)) {
+      const defaultState = createDefaultState();
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.state, defaultState);
+      console.log('[Store] Created default state.json');
+    }
+
+    // Create default policy.json if it doesn't exist
+    const policyPath = this.getPath(LOCAL_KANBAN_PATHS.policy);
+    if (!fs.existsSync(policyPath)) {
+      const defaultPolicy = createDefaultPolicy();
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.policy, defaultPolicy);
+      console.log('[Store] Created default policy.json');
+    }
+
+    // Create chats index if it doesn't exist
+    const chatsIndexPath = this.getPath(LOCAL_KANBAN_PATHS.chatsIndex);
+    if (!fs.existsSync(chatsIndexPath)) {
+      this.ensureDir(LOCAL_KANBAN_PATHS.chats);
+      const defaultIndex: ChatIndex = { chats: [] };
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.chatsIndex, defaultIndex);
+      console.log('[Store] Created default chats index');
+    }
+
+    // Create context directory
+    this.ensureDir(LOCAL_KANBAN_PATHS.context);
+
+    // Create agent-runs directory
+    this.ensureDir('agent-runs');
+
+    // Create backups directory
+    this.ensureDir(LOCAL_KANBAN_PATHS.backups);
+
+    // Cleanup any orphaned running tasks from previous crashes
+    this.cleanupOrphanedRuns();
+
+    console.log('[Store] Project initialized:', this.projectRoot);
+  }
+
+  /**
+   * Check if .local-kanban exists and is initialized.
+   */
+  isInitialized(): boolean {
+    const boardPath = this.getPath(LOCAL_KANBAN_PATHS.board);
+    return fs.existsSync(boardPath);
   }
 
   // ============================================
@@ -468,6 +554,58 @@ export class LocalKanbanStore {
   }
 
   // ============================================
+  // Settings Operations
+  // ============================================
+
+  getSettings(): ProjectSettings {
+    const data = this.readJSON<ProjectSettings>(LOCAL_KANBAN_PATHS.settings);
+    if (!data) {
+      const defaultSettings = createDefaultSettings();
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.settings, defaultSettings);
+      return defaultSettings;
+    }
+
+    const result = ProjectSettingsSchema.safeParse(data);
+    if (!result.success) {
+      console.warn('Invalid settings.json, using defaults:', result.error);
+      const defaultSettings = createDefaultSettings();
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.settings, defaultSettings);
+      return defaultSettings;
+    }
+
+    return result.data;
+  }
+
+  saveSettings(settings: ProjectSettings): void {
+    const result = ProjectSettingsSchema.safeParse(settings);
+    if (!result.success) {
+      throw new Error(`Invalid settings data: ${result.error.message}`);
+    }
+
+    this.atomicWriteJSON(LOCAL_KANBAN_PATHS.settings, settings);
+  }
+
+  updateSettings(patch: Partial<ProjectSettings>): ProjectSettings {
+    const current = this.getSettings();
+    const updated: ProjectSettings = {
+      ...current,
+      ...patch,
+      notifications: patch.notifications
+        ? { ...current.notifications, ...patch.notifications }
+        : current.notifications,
+      projectCommands: patch.projectCommands
+        ? { ...current.projectCommands, ...patch.projectCommands }
+        : current.projectCommands,
+      runner: patch.runner
+        ? { ...current.runner, ...patch.runner }
+        : current.runner,
+    };
+
+    this.saveSettings(updated);
+    return updated;
+  }
+
+  // ============================================
   // Project Context Operations
   // ============================================
 
@@ -578,6 +716,27 @@ export class LocalKanbanStore {
     this.saveChatIndex(index);
   }
 
+  deleteChat(chatId: string): boolean {
+    const chatPath = `${LOCAL_KANBAN_PATHS.chats}/${chatId}.json`;
+    const fullPath = path.join(this.projectRoot, chatPath);
+
+    // Remove file if exists
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+    }
+
+    // Update index
+    const index = this.getChatIndex();
+    const filtered = index.chats.filter(c => c.id !== chatId);
+    if (filtered.length !== index.chats.length) {
+      index.chats = filtered;
+      this.saveChatIndex(index);
+      return true;
+    }
+
+    return false;
+  }
+
   // ============================================
   // Agent Run Operations
   // ============================================
@@ -607,8 +766,54 @@ export class LocalKanbanStore {
   }
 
   // ============================================
+  // Project Run Operations
+  // ============================================
+
+  ensureProjectRunDir(): string {
+    this.ensureDir(LOCAL_KANBAN_PATHS.projectRuns);
+    return path.join(this.projectRoot, LOCAL_KANBAN_PATHS.projectRuns);
+  }
+
+  getProjectRunLogPath(runId: string): string {
+    this.ensureProjectRunDir();
+    return path.join(this.projectRoot, LOCAL_KANBAN_PATHS.projectRuns, `${runId}.log`);
+  }
+
+  getProjectRunMetadataPath(runId: string): string {
+    this.ensureProjectRunDir();
+    return path.join(this.projectRoot, LOCAL_KANBAN_PATHS.projectRuns, `${runId}.json`);
+  }
+
+  // ============================================
   // Task Runtime Updates
   // ============================================
+
+  /**
+   * Cleanup orphaned running tasks on startup.
+   * If the app crashed or was killed while tasks were running,
+   * this resets them to idle state.
+   */
+  cleanupOrphanedRuns(): number {
+    const tasks = this.getTasks();
+    let cleaned = 0;
+
+    for (const task of tasks) {
+      if (task.runtime.status === 'running') {
+        console.log(`[Store] Cleaning orphaned running task: ${task.id} (${task.title})`);
+        task.runtime.status = 'idle';
+        task.runtime.currentRunId = undefined;
+        task.updatedAt = new Date().toISOString();
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      this.saveTasks(tasks);
+      console.log(`[Store] Cleaned ${cleaned} orphaned running task(s)`);
+    }
+
+    return cleaned;
+  }
 
   updateTaskRuntime(taskId: string, runtime: Partial<Task['runtime']>): void {
     const tasks = this.getTasks();
@@ -730,11 +935,15 @@ export function getStore(projectRoot?: string): LocalKanbanStore {
   return storeInstance;
 }
 
-export function initStore(projectRoot: string): LocalKanbanStore {
+export function initStore(projectRoot: string, projectName?: string): LocalKanbanStore {
   storeInstance = new LocalKanbanStore({
     projectRoot,
     enableBackups: true,
     maxBackups: 10,
   });
+
+  // Initialize .local-kanban with defaults if needed
+  storeInstance.initialize(projectName);
+
   return storeInstance;
 }

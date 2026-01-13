@@ -139,7 +139,8 @@ export class AnthropicProvider extends AgentProvider {
 
   async complete(
     messages: AgentMessage[],
-    tools?: AgentToolDefinition[]
+    tools?: AgentToolDefinition[],
+    _onChunk?: (chunk: string) => void
   ): Promise<AgentResponse> {
     if (!this.client) {
       return {

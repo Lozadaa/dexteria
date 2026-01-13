@@ -71,16 +71,15 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const comments = task.comments || [];
-  const failureComments = comments.filter(c => c.type === 'failure');
-  const hasFailure = failureComments.length > 0;
-  const latestFailure = hasFailure ? failureComments[failureComments.length - 1] : null;
 
-  // Check if agent is requesting clarification (blocked state with question)
-  const blockedComments = comments.filter(c =>
-    c.type === 'failure' && c.content.includes('Question:')
-  );
-  const pendingClarification = blockedComments.length > 0
-    ? blockedComments[blockedComments.length - 1]
+  // Only show failure banner if the LAST comment is a failure
+  const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
+  const hasFailure = lastComment?.type === 'failure';
+  const latestFailure = hasFailure ? lastComment : null;
+
+  // Check if agent is requesting clarification (last comment is failure with question)
+  const pendingClarification = hasFailure && lastComment?.content.includes('Question:')
+    ? lastComment
     : null;
 
   const handleSubmit = async () => {
@@ -182,14 +181,14 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
 
       {isExpanded && (
         <>
-          {/* Comments List */}
+          {/* Comments List - newest first */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {comments.length === 0 ? (
               <div className="text-sm text-muted-foreground text-center py-8">
                 No comments yet. Add notes or instructions for the agent.
               </div>
             ) : (
-              comments.map((comment) => {
+              [...comments].reverse().map((comment) => {
                 const config = COMMENT_TYPE_CONFIG[comment.type] || COMMENT_TYPE_CONFIG.note;
                 const Icon = config.icon;
                 const isAgent = comment.author === 'dexter' || comment.author === 'system';

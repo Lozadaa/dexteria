@@ -9,6 +9,7 @@ interface MarkdownRendererProps {
 /**
  * Simple Markdown renderer for chat messages.
  * Supports: code blocks, inline code, bold, italic, lists, links
+ * Handles incomplete/streaming content gracefully
  */
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
     const rendered = useMemo(() => {
@@ -27,10 +28,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
                 const lang = line.slice(3).trim();
                 const codeLines: string[] = [];
                 i++;
+                // Collect code lines until closing ``` or end of content
                 while (i < lines.length && !lines[i].startsWith('```')) {
                     codeLines.push(lines[i]);
                     i++;
                 }
+                // Check if code block is complete
+                const isComplete = i < lines.length && lines[i].startsWith('```');
                 elements.push(
                     <div key={key++} className="my-2 rounded-lg overflow-hidden">
                         {lang && (
@@ -40,10 +44,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
                         )}
                         <pre className="bg-zinc-900 text-zinc-100 p-3 overflow-x-auto text-xs leading-relaxed">
                             <code>{codeLines.join('\n')}</code>
+                            {!isComplete && <span className="text-zinc-500">...</span>}
                         </pre>
                     </div>
                 );
-                i++;
+                if (isComplete) i++;
                 continue;
             }
 
@@ -191,6 +196,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
 
 /**
  * Parse inline markdown: bold, italic, code, links
+ * Handles incomplete/streaming content gracefully
  */
 function parseInline(text: string): React.ReactNode {
     if (!text) return null;
@@ -198,8 +204,12 @@ function parseInline(text: string): React.ReactNode {
     const parts: React.ReactNode[] = [];
     let remaining = text;
     let key = 0;
+    let iterations = 0;
+    const maxIterations = text.length * 2; // Safety limit
 
-    while (remaining.length > 0) {
+    while (remaining.length > 0 && iterations < maxIterations) {
+        iterations++;
+
         // Inline code `code`
         const codeMatch = remaining.match(/^`([^`]+)`/);
         if (codeMatch) {
@@ -212,12 +222,30 @@ function parseInline(text: string): React.ReactNode {
             continue;
         }
 
+        // Unclosed inline code - show as-is but styled
+        const unclosedCodeMatch = remaining.match(/^`([^`]*)$/);
+        if (unclosedCodeMatch) {
+            parts.push(
+                <code key={key++} className="bg-zinc-800 text-emerald-400 px-1.5 py-0.5 rounded text-xs font-mono">
+                    {unclosedCodeMatch[1]}
+                </code>
+            );
+            break;
+        }
+
         // Bold **text**
         const boldMatch = remaining.match(/^\*\*([^*]+)\*\*/);
         if (boldMatch) {
             parts.push(<strong key={key++} className="font-semibold">{boldMatch[1]}</strong>);
             remaining = remaining.slice(boldMatch[0].length);
             continue;
+        }
+
+        // Unclosed bold - show as-is
+        const unclosedBoldMatch = remaining.match(/^\*\*([^*]*)$/);
+        if (unclosedBoldMatch) {
+            parts.push(<strong key={key++} className="font-semibold">{unclosedBoldMatch[1]}</strong>);
+            break;
         }
 
         // Italic *text* or _text_
@@ -244,6 +272,13 @@ function parseInline(text: string): React.ReactNode {
             );
             remaining = remaining.slice(linkMatch[0].length);
             continue;
+        }
+
+        // Incomplete link [text] or [text](url incomplete
+        const incompleteLinkMatch = remaining.match(/^\[([^\]]*)\]?\(?([^)]*)?$/);
+        if (incompleteLinkMatch && remaining.startsWith('[')) {
+            parts.push(<span key={key++}>{remaining}</span>);
+            break;
         }
 
         // Regular text - find next special character

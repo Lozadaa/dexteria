@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useActiveTask, useBoard } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { cn } from '../lib/utils';
-import { Play, RotateCw, Plus, X, Link, ChevronDown, Search, CheckCircle, XCircle, AlertCircle, Edit2, Trash2, Check, AlertTriangle, Ban } from 'lucide-react';
+import { Play, RotateCw, Plus, X, Link, ChevronDown, Search, CheckCircle, XCircle, AlertCircle, Edit2, Trash2, Check, AlertTriangle, Ban, GripHorizontal } from 'lucide-react';
 import { TaskComments } from './TaskComments';
-import type { Task, RunTaskOptions, AcceptanceCriterionResult } from '../../shared/types';
+import type { RunTaskOptions, AcceptanceCriterionResult } from '../../shared/types';
 
 interface AnalysisResult {
     status: 'analyzing' | 'complete' | 'error';
@@ -41,6 +41,42 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
     const [isEditingAgentPlan, setIsEditingAgentPlan] = useState(false);
     const [agentGoalText, setAgentGoalText] = useState('');
     const [agentScopeText, setAgentScopeText] = useState('');
+
+    // Resizable comments panel
+    const [commentsPanelHeight, setCommentsPanelHeight] = useState(250);
+    const [isResizing, setIsResizing] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const startYRef = useRef(0);
+    const startHeightRef = useRef(0);
+
+    const handleResizeStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+        startYRef.current = e.clientY;
+        startHeightRef.current = commentsPanelHeight;
+    }, [commentsPanelHeight]);
+
+    useEffect(() => {
+        if (!isResizing) return;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const delta = startYRef.current - e.clientY;
+            const newHeight = Math.max(100, Math.min(600, startHeightRef.current + delta));
+            setCommentsPanelHeight(newHeight);
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(false);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]);
 
     if (loading) {
         return <div className="p-4 text-center text-muted-foreground">Loading task details...</div>;
@@ -782,14 +818,35 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
 
             </div>
 
-            {/* Comments Section - Uses new TaskComments component */}
-            <div className="border-t border-border flex-shrink-0 max-h-[40%] overflow-hidden flex flex-col">
-                <TaskComments
-                    task={task}
-                    onAddComment={handleAddCommentFromComponent}
-                    onRetryWithContext={handleRetryWithContext}
-                    isRetrying={isRetrying}
-                />
+            {/* Comments Section - Resizable panel */}
+            <div
+                className="border-t border-border flex-shrink-0 overflow-hidden flex flex-col"
+                style={{ height: commentsPanelHeight }}
+            >
+                {/* Resize handle */}
+                <div
+                    onMouseDown={handleResizeStart}
+                    className={cn(
+                        "h-2 flex items-center justify-center cursor-ns-resize hover:bg-primary/10 transition-colors group",
+                        isResizing && "bg-primary/20"
+                    )}
+                >
+                    <GripHorizontal
+                        size={14}
+                        className={cn(
+                            "text-muted-foreground/30 group-hover:text-muted-foreground transition-colors",
+                            isResizing && "text-primary"
+                        )}
+                    />
+                </div>
+                <div className="flex-1 overflow-hidden">
+                    <TaskComments
+                        task={task}
+                        onAddComment={handleAddCommentFromComponent}
+                        onRetryWithContext={handleRetryWithContext}
+                        isRetrying={isRetrying}
+                    />
+                </div>
             </div>
         </div>
     );

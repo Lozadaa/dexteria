@@ -25,6 +25,8 @@ interface ColumnProps {
     tasks: Task[];
     onTaskClick: (task: Task) => void;
     onTaskDelete: (task: Task) => void;
+    onTaskStop: (task: Task) => void;
+    onTaskRun: (task: Task) => void;
     onCreateTask: (columnId: string) => void;
     activeTaskId?: string;
     isCreating?: boolean;
@@ -40,6 +42,8 @@ const Column: React.FC<ColumnProps> = ({
     tasks,
     onTaskClick,
     onTaskDelete,
+    onTaskStop,
+    onTaskRun,
     onCreateTask,
     activeTaskId,
     isCreating,
@@ -125,6 +129,8 @@ const Column: React.FC<ColumnProps> = ({
                         task={task}
                         onClick={onTaskClick}
                         onDelete={onTaskDelete}
+                        onStop={onTaskStop}
+                        onRun={onTaskRun}
                         isActive={activeTaskId === task.id}
                     />
                 ))}
@@ -186,6 +192,24 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onTaskSelect, activeTa
             await deleteTask(task.id);
         } catch (err) {
             console.error('Failed to delete task:', err);
+        }
+    };
+
+    const handleStopTask = async (task: Task) => {
+        try {
+            await window.dexteria.agent.cancel();
+            refresh();
+        } catch (err) {
+            console.error('Failed to stop task:', err);
+        }
+    };
+
+    const handleRunTask = async (task: Task) => {
+        try {
+            await window.dexteria.agent.runTask(task.id, { mode: 'manual' });
+            refresh();
+        } catch (err) {
+            console.error('Failed to run task:', err);
         }
     };
 
@@ -306,6 +330,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onTaskSelect, activeTa
                             tasks={colTasks}
                             onTaskClick={onTaskSelect}
                             onTaskDelete={handleDeleteTask}
+                            onTaskStop={handleStopTask}
+                            onTaskRun={handleRunTask}
                             onCreateTask={handleCreateTask}
                             activeTaskId={activeTaskId}
                             isCreating={isCreating}

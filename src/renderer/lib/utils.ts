@@ -74,3 +74,69 @@ export function formatDateTime(date: Date | string | number): string {
     const minutes = d.getMinutes().toString().padStart(2, '0');
     return `${dateStr} ${hours}:${minutes}`;
 }
+
+/**
+ * Filter tool JSON blocks from streaming content and replace with friendly indicators.
+ * Handles both complete and incomplete (partial) JSON blocks during streaming.
+ */
+export function filterToolJsonFromContent(content: string): string {
+    if (!content) return content;
+
+    let filtered = content;
+
+    // 1. Replace complete JSON code blocks with tool calls
+    // Match: ```json\n{"tool": "create_task", "arguments": {...}}\n```
+    filtered = filtered.replace(
+        /```json\s*\n?\s*\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*\{[^]*?\}\s*\}\s*\n?```/g,
+        (_match, toolName) => {
+            return getToolIndicator(toolName, 'complete');
+        }
+    );
+
+    // 2. Replace inline tool JSON (not in code blocks)
+    filtered = filtered.replace(
+        /\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*\{[^}]*\}\s*\}/g,
+        (_match, toolName) => {
+            return getToolIndicator(toolName, 'complete');
+        }
+    );
+
+    // 3. Handle partial/incomplete JSON blocks during streaming
+    // Match opening of a JSON code block with tool pattern that hasn't closed yet
+    filtered = filtered.replace(
+        /```json\s*\n?\s*\{\s*"tool"\s*:\s*"([^"]+)"[^`]*$/,
+        (_match, toolName) => {
+            return getToolIndicator(toolName, 'pending');
+        }
+    );
+
+    // 4. Handle partial inline tool JSON
+    filtered = filtered.replace(
+        /\{\s*"tool"\s*:\s*"([^"]+)"[^}]*$/,
+        (_match, toolName) => {
+            return getToolIndicator(toolName, 'pending');
+        }
+    );
+
+    return filtered;
+}
+
+/**
+ * Get a friendly indicator for a tool action.
+ */
+function getToolIndicator(toolName: string, status: 'pending' | 'complete'): string {
+    const icon = status === 'pending' ? '⏳' : '✅';
+
+    switch (toolName) {
+        case 'create_task':
+            return `\n${icon} ${status === 'pending' ? 'Creando tarea...' : 'Tarea creada'}\n`;
+        case 'update_task':
+            return `\n${icon} ${status === 'pending' ? 'Actualizando tarea...' : 'Tarea actualizada'}\n`;
+        case 'list_tasks':
+            return `\n${icon} ${status === 'pending' ? 'Listando tareas...' : 'Tareas listadas'}\n`;
+        case 'save_progress':
+            return `\n${icon} ${status === 'pending' ? 'Guardando progreso...' : 'Progreso guardado'}\n`;
+        default:
+            return `\n${icon} ${status === 'pending' ? `Ejecutando ${toolName}...` : `${toolName} completado`}\n`;
+    }
+}

@@ -161,6 +161,7 @@ export interface RalphModeOptions {
   strategy?: 'fifo' | 'priority' | 'dependency';
   stopOnBlocking?: boolean;
   maxTasks?: number;
+  maxAttempts?: number; // Max retry attempts per task (default: 2)
 }
 
 // ============================================
@@ -328,6 +329,70 @@ export interface AgentResponse {
   content: string;
   toolCalls?: AgentToolCall[];
   finishReason: 'stop' | 'length' | 'tool_calls' | 'error';
+}
+
+// ============================================
+// Settings Types
+// ============================================
+
+export interface ProjectCommand {
+  cmd: string;
+  cwd: string;
+  autoDetect?: boolean;
+  includesInstall?: boolean;
+}
+
+export interface NotificationSettings {
+  soundOnTaskComplete: boolean;
+  badgeOnTaskComplete: boolean;
+}
+
+export interface ProjectCommandsSettings {
+  run: ProjectCommand;
+  build: ProjectCommand;
+  install: ProjectCommand;
+  allowUnsafeCommands: boolean;
+}
+
+export interface RunnerSettings {
+  defaultTimeoutSec: number;
+}
+
+export interface ProjectSettings {
+  version: number;
+  notifications: NotificationSettings;
+  projectCommands: ProjectCommandsSettings;
+  runner: RunnerSettings;
+}
+
+export interface DetectedCommands {
+  run?: string;
+  build?: string;
+  install?: string;
+  packageManager?: 'npm' | 'yarn' | 'pnpm' | 'bun';
+}
+
+// ============================================
+// Project Process Types
+// ============================================
+
+export type ProjectProcessType = 'run' | 'build';
+
+export interface ProjectProcessStatus {
+  type: ProjectProcessType;
+  running: boolean;
+  pid?: number;
+  runId?: string;
+  startedAt?: string;
+  command?: string;
+}
+
+export interface ProjectRunResult {
+  runId: string;
+  success: boolean;
+  exitCode?: number;
+  logPath: string;
+  error?: string;
 }
 
 // ============================================

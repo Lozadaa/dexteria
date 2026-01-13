@@ -34,6 +34,7 @@ export interface RuntimeConfig {
   store: LocalKanbanStore;
   provider?: AgentProvider;
   maxSteps?: number;
+  onStreamChunk?: (chunk: string) => void;
 }
 
 export interface RunResult {
@@ -67,6 +68,7 @@ export class AgentRuntime {
   private recorder: AgentRunRecorder;
   private maxSteps: number;
   private cancelled: boolean = false;
+  private onStreamChunk?: (chunk: string) => void;
 
   constructor(config: RuntimeConfig) {
     this.projectRoot = config.projectRoot;
@@ -75,6 +77,7 @@ export class AgentRuntime {
     this.policy = config.store.getPolicy();
     this.provider = config.provider || new MockAgentProvider();
     this.maxSteps = config.maxSteps || this.policy.limits.maxStepsPerRun;
+    this.onStreamChunk = config.onStreamChunk;
 
     this.repoTools = new RepoTools(this.projectRoot, this.policy);
     this.runner = new Runner(this.projectRoot, this.policy, this.store);
@@ -149,8 +152,8 @@ export class AgentRuntime {
           return this.handleFailure(task, run, runtimeCheck.reason || 'Runtime limit exceeded');
         }
 
-        // Get agent response
-        const response = await this.provider.complete(messages, AGENT_TOOLS);
+        // Get agent response (with streaming callback if available)
+        const response = await this.provider.complete(messages, AGENT_TOOLS, this.onStreamChunk);
 
         // Add assistant message
         messages.push({

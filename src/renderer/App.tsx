@@ -75,6 +75,7 @@ function AppContent() {
   const [currentProject, setCurrentProject] = useState<string | null>(null);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOpeningProject, setIsOpeningProject] = useState(false);
 
   // Check for current project on mount
   useEffect(() => {
@@ -97,6 +98,7 @@ function AppContent() {
     // Listen for project changes
     const cleanupProject = window.dexteria?.project?.onProjectChanged?.((path) => {
       setCurrentProject(path);
+      setIsOpeningProject(false); // Reset loading state when project changes
       // Refresh recent projects
       window.dexteria?.project?.getRecent?.().then(setRecentProjects);
     });
@@ -123,18 +125,43 @@ function AppContent() {
   };
 
   const handleOpenProject = async () => {
-    await window.dexteria?.project?.open?.();
+    setIsOpeningProject(true);
+    try {
+      const result = await window.dexteria?.project?.open?.();
+      // If cancelled, don't keep loading
+      if (!result?.success) {
+        setIsOpeningProject(false);
+      }
+      // If success, the project:changed event will update currentProject
+    } catch (err) {
+      console.error('Failed to open project:', err);
+      setIsOpeningProject(false);
+    }
   };
 
   const handleNewProject = async () => {
-    await window.dexteria?.project?.create?.();
+    setIsOpeningProject(true);
+    try {
+      const result = await window.dexteria?.project?.create?.();
+      // If cancelled, don't keep loading
+      if (!result?.success) {
+        setIsOpeningProject(false);
+      }
+      // If success, the project:changed event will update currentProject
+    } catch (err) {
+      console.error('Failed to create project:', err);
+      setIsOpeningProject(false);
+    }
   };
 
   // Show loading state
-  if (isLoading) {
+  if (isLoading || isOpeningProject) {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
+      <div className="h-screen flex flex-col items-center justify-center bg-background gap-4">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        {isOpeningProject && (
+          <p className="text-sm text-muted-foreground">Opening project...</p>
+        )}
       </div>
     );
   }
@@ -250,14 +277,18 @@ function AppContent() {
                 )}
               </div>
 
-              {/* Tab Content */}
-              <div className="flex-1 overflow-hidden">
-                {activeTab === 'chat' && <ChatPanel />}
-                {activeTab === 'task' && selectedTask && (
-                  <TaskDetail
-                    taskId={selectedTask.id}
-                    onClose={handleCloseTask}
-                  />
+              {/* Tab Content - Keep ChatPanel mounted to preserve state */}
+              <div className="flex-1 overflow-hidden relative">
+                <div className={`absolute inset-0 ${activeTab === 'chat' ? '' : 'hidden'}`}>
+                  <ChatPanel />
+                </div>
+                {selectedTask && (
+                  <div className={`absolute inset-0 ${activeTab === 'task' ? '' : 'hidden'}`}>
+                    <TaskDetail
+                      taskId={selectedTask.id}
+                      onClose={handleCloseTask}
+                    />
+                  </div>
                 )}
               </div>
             </ErrorBoundary>

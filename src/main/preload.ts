@@ -82,6 +82,7 @@ export interface DexteriaAPI {
     cancel: () => Promise<void>;
     isRunning: () => Promise<boolean>;
     getCurrentRun: () => Promise<unknown>;
+    onStreamUpdate: (callback: (data: { taskId: string; taskTitle?: string; content: string; done: boolean; cancelled?: boolean }) => void) => () => void;
   };
   ralph: {
     start: (options?: unknown) => Promise<{
@@ -121,6 +122,7 @@ export interface DexteriaAPI {
     getAll: () => Promise<unknown[]>;
     get: (chatId: string) => Promise<unknown>;
     create: (title: string) => Promise<unknown>;
+    delete: (chatId: string) => Promise<boolean>;
     sendMessage: (chatId: string, content: string, mode?: 'planner' | 'agent') => Promise<unknown>;
     onStreamUpdate: (callback: (data: { chatId: string; content: string; done: boolean }) => void) => () => void;
   };
@@ -139,6 +141,11 @@ export interface DexteriaAPI {
       success: boolean;
       message: string;
     }>;
+    getProject: () => Promise<unknown>;
+    saveProject: (settings: unknown) => Promise<{ success: boolean; error?: string }>;
+    updateProject: (patch: unknown) => Promise<{ success: boolean; settings?: unknown; error?: string }>;
+    detectCommands: () => Promise<unknown>;
+    getEffectiveCommand: (type: 'run' | 'build' | 'install') => Promise<string>;
   };
   project: {
     open: () => Promise<{ success: boolean; path?: string; error?: string }>;
@@ -149,6 +156,14 @@ export interface DexteriaAPI {
     getRecent: () => Promise<Array<{ path: string; name: string; lastOpened: string }>>;
     onProjectChanged: (callback: (path: string | null) => void) => () => void;
     onOpenShortcut: (callback: () => void) => () => void;
+    startRun: () => Promise<{ runId: string; success: boolean; logPath: string; error?: string }>;
+    stopRun: () => Promise<boolean>;
+    startBuild: () => Promise<{ runId: string; success: boolean; logPath: string; error?: string }>;
+    stopBuild: () => Promise<boolean>;
+    getProcessStatus: (type: 'run' | 'build') => Promise<unknown>;
+    getAllProcessStatus: () => Promise<unknown[]>;
+    onStatusUpdate: (callback: (status: unknown) => void) => () => void;
+    onOutput: (callback: (data: { type: string; runId: string; data: string }) => void) => () => void;
   };
 }
 
@@ -207,6 +222,11 @@ const api: DexteriaAPI = {
     cancel: () => ipcRenderer.invoke('agent:cancel'),
     isRunning: () => ipcRenderer.invoke('agent:isRunning'),
     getCurrentRun: () => ipcRenderer.invoke('agent:getCurrentRun'),
+    onStreamUpdate: (callback: (data: { taskId: string; taskTitle?: string; content: string; done: boolean; cancelled?: boolean }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { taskId: string; taskTitle?: string; content: string; done: boolean; cancelled?: boolean }) => callback(data);
+      ipcRenderer.on('agent:stream-update', handler);
+      return () => ipcRenderer.removeListener('agent:stream-update', handler);
+    },
   },
   ralph: {
     start: (options) => ipcRenderer.invoke('ralph:start', options),
@@ -231,6 +251,7 @@ const api: DexteriaAPI = {
     getAll: () => ipcRenderer.invoke('chat:getAll'),
     get: (chatId) => ipcRenderer.invoke('chat:get', chatId),
     create: (title) => ipcRenderer.invoke('chat:create', title),
+    delete: (chatId) => ipcRenderer.invoke('chat:delete', chatId),
     sendMessage: (chatId, content, mode) => ipcRenderer.invoke('chat:sendMessage', chatId, content, mode),
     onStreamUpdate: (callback: (data: { chatId: string; content: string; done: boolean }) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, data: { chatId: string; content: string; done: boolean }) => callback(data);
@@ -242,6 +263,11 @@ const api: DexteriaAPI = {
     getProvider: () => ipcRenderer.invoke('settings:getProvider'),
     setApiKey: (apiKey) => ipcRenderer.invoke('settings:setApiKey', apiKey),
     testProvider: () => ipcRenderer.invoke('settings:testProvider'),
+    getProject: () => ipcRenderer.invoke('settings:getProject'),
+    saveProject: (settings) => ipcRenderer.invoke('settings:saveProject', settings),
+    updateProject: (patch) => ipcRenderer.invoke('settings:updateProject', patch),
+    detectCommands: () => ipcRenderer.invoke('settings:detectCommands'),
+    getEffectiveCommand: (type) => ipcRenderer.invoke('settings:getEffectiveCommand', type),
   },
   project: {
     open: () => ipcRenderer.invoke('project:open'),
@@ -259,6 +285,22 @@ const api: DexteriaAPI = {
       const handler = () => callback();
       ipcRenderer.on('shortcut:open-project', handler);
       return () => ipcRenderer.removeListener('shortcut:open-project', handler);
+    },
+    startRun: () => ipcRenderer.invoke('project:startRun'),
+    stopRun: () => ipcRenderer.invoke('project:stopRun'),
+    startBuild: () => ipcRenderer.invoke('project:startBuild'),
+    stopBuild: () => ipcRenderer.invoke('project:stopBuild'),
+    getProcessStatus: (type) => ipcRenderer.invoke('project:getProcessStatus', type),
+    getAllProcessStatus: () => ipcRenderer.invoke('project:getAllProcessStatus'),
+    onStatusUpdate: (callback: (status: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: unknown) => callback(status);
+      ipcRenderer.on('project:status-update', handler);
+      return () => ipcRenderer.removeListener('project:status-update', handler);
+    },
+    onOutput: (callback: (data: { type: string; runId: string; data: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { type: string; runId: string; data: string }) => callback(data);
+      ipcRenderer.on('project:output', handler);
+      return () => ipcRenderer.removeListener('project:output', handler);
     },
   },
 };

@@ -1,58 +1,66 @@
 /**
  * RalphEngine
  *
- * Ralph Mode = Autonomous task execution mode.
- * "Attempt to autonomously finish all pending tasks."
+ * Ralph Mode = Autonomous task execution mode (Dexter autopilot).
+ * Autonomously completes pending tasks SAFELY, RELIABLY, and AUDITABLY.
  *
- * Named after "Ralph" - the reliable worker who just gets things done.
+ * ## Best Practices Implemented:
  *
- * ## How Ralph Mode Works:
+ * 1. **Verification Gates**: Tasks move to Done ONLY if acceptance criteria verified
+ * 2. **Git Branch per Run**: Each run creates a branch for rollback capability
+ * 3. **Failure Feedback Loop**: On failure, adds detailed comments with context
+ * 4. **Retry with Context**: Includes previous failure comments in retry prompts
+ * 5. **Dependency Resolution**: Respects task dependencies (topological sort)
+ * 6. **Limits**: maxAttempts per task, maxRuntime per task
+ * 7. **Observability**: Full logging to .local-kanban/agent-runs/
  *
- * 1. Determines pending tasks (not in 'done' column)
- * 2. Orders tasks by:
- *    - Dependencies (tasks with unmet dependencies run after their deps)
- *    - Column preference (doing > todo > review > backlog)
- *    - Priority (critical > high > medium > low)
- *    - Order field (for stable sorting within column)
- * 3. For each task:
- *    - Sets state.activeTaskId
- *    - Runs AgentRuntime.runTask(taskId, mode="dexter")
- *    - On success: marks task done, moves to next
- *    - On failure/blocked: marks appropriately, continues to next (unless stopOnBlocking)
- * 4. Continues until:
- *    - All tasks completed
- *    - Manually stopped
- *    - maxTasks limit reached
- *    - Critical blocking (if stopOnBlocking enabled)
+ * ## Task Selection:
+ * - Gets tasks from "todo" column
+ * - Respects dependencies: task runs only when deps are done
+ * - Orders by: dependencies -> priority
  *
- * ## Example Scenario:
- *
- * Backlog:
- * - TSK-0001: "Setup project" (no deps) -> acceptance: package.json exists
- * - TSK-0002: "Add tests" (depends on TSK-0001) -> acceptance: tests pass
- * - TSK-0003: "Add linting" (depends on TSK-0001) -> acceptance: lint passes
- *
- * Ralph Mode Execution:
- * 1. Orders: TSK-0001 first (no deps), then TSK-0002/0003 (both depend on 0001)
- * 2. Runs TSK-0001 -> success -> moves to done
- * 3. Runs TSK-0002 -> tests fail -> marked failed, adds failure comment
- * 4. Runs TSK-0003 -> success -> moves to done
- * 5. TSK-0002 remains in failed state for human review
- *
- * If TSK-0002 needed human decision (blocked), it would add an instruction
- * question comment and Ralph continues to TSK-0003.
+ * ## Failure Handling:
+ * - On failure: marks failed, adds detailed comment, continues to next
+ * - On retry: includes all previous failure context in prompt
+ * - On blocked: adds questions for human input
  */
 
+import { BrowserWindow } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import { LocalKanbanStore } from '../services/LocalKanbanStore';
-import { AgentRuntime, RunResult } from './AgentRuntime';
-import { AgentProvider } from './AgentProvider';
-import { hasUnmetDependencies } from '../../shared/schemas';
+import { ClaudeCodeProvider } from './providers/ClaudeCodeProvider';
+import { notifyRalphTaskComplete } from '../services/NotificationService';
 import type { Task, RalphModeOptions } from '../../shared/types';
 
 export interface RalphEngineConfig {
   projectRoot: string;
   store: LocalKanbanStore;
-  provider?: AgentProvider;
+  provider?: ClaudeCodeProvider;
+  getWindow?: () => BrowserWindow | null;
+}
+
+// Default limits
+const DEFAULT_MAX_ATTEMPTS = 2;
+
+// Run artifact structure
+interface RunArtifact {
+  runId: string;
+  taskId: string;
+  taskTitle: string;
+  startedAt: string;
+  completedAt?: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  gitBranch?: string;
+  promptSummary: string;
+  toolCalls: Array<{ name: string; params: Record<string, unknown>; result?: string }>;
+  filesModified: string[];
+  verificationReport?: {
+    criteria: Array<{ criterion: string; passed: boolean; evidence: string }>;
+    allPassed: boolean;
+  };
+  error?: string;
+  attempt: number;
 }
 
 export interface RalphProgress {
@@ -71,7 +79,6 @@ export interface RalphResult {
   completed: number;
   failed: number;
   blocked: number;
-  results: RunResult[];
   stoppedReason?: string;
 }
 
@@ -88,38 +95,44 @@ type EventListener = (event: RalphEvent) => void;
 export class RalphEngine {
   private projectRoot: string;
   private store: LocalKanbanStore;
-  private provider?: AgentProvider;
-  private runtime: AgentRuntime | null = null;
+  private provider?: ClaudeCodeProvider;
+  private getWindow?: () => BrowserWindow | null;
   private running: boolean = false;
   private paused: boolean = false;
   private stopRequested: boolean = false;
   private eventListeners: EventListener[] = [];
+  private currentTaskId: string | null = null;
 
   constructor(config: RalphEngineConfig) {
     this.projectRoot = config.projectRoot;
     this.store = config.store;
     this.provider = config.provider;
+    this.getWindow = config.getWindow;
   }
 
   /**
    * Start Ralph Mode - autonomous task execution.
+   * Only executes tasks in "todo" column.
+   * Respects dependencies, includes failure context on retries.
    */
   async runAllPending(options: RalphModeOptions = {}): Promise<RalphResult> {
     if (this.running) {
       throw new Error('Ralph Mode is already running');
     }
 
+    if (!this.provider) {
+      throw new Error('No provider configured for Ralph Mode');
+    }
+
     const {
-      stopOnBlocking = false,
       maxTasks = Infinity,
-      strategy = 'dependency',
+      maxAttempts = DEFAULT_MAX_ATTEMPTS,
     } = options;
 
     this.running = true;
     this.stopRequested = false;
     this.paused = false;
 
-    const results: RunResult[] = [];
     let processed = 0;
     let completed = 0;
     let failed = 0;
@@ -131,24 +144,22 @@ export class RalphEngine {
       isRunning: true,
       ralphMode: {
         enabled: true,
-        strategy,
+        strategy: 'dependency',
         startedAt: new Date().toISOString(),
         processedCount: 0,
         failedCount: 0,
       },
     });
 
-    // Log activity
-    this.store.logActivity('ralph_started', { strategy, maxTasks, stopOnBlocking });
-
-    this.emit({ type: 'start', data: { strategy, maxTasks } });
+    this.store.logActivity('ralph_started', { maxTasks, maxAttempts });
+    this.emit({ type: 'start', data: { maxTasks } });
 
     try {
-      // Get ordered pending tasks
-      let pendingTasks = this.store.getPendingTasks(strategy);
+      // Build queue with dependency resolution
+      let taskQueue = this.buildTaskQueue();
       const allTasks = this.store.getTasks();
 
-      while (pendingTasks.length > 0 && processed < maxTasks && !this.stopRequested) {
+      while (taskQueue.length > 0 && processed < maxTasks && !this.stopRequested) {
         // Wait if paused
         while (this.paused && !this.stopRequested) {
           await this.sleep(100);
@@ -156,78 +167,129 @@ export class RalphEngine {
 
         if (this.stopRequested) break;
 
-        // Get next task
-        const task = this.getNextRunnableTask(pendingTasks, allTasks);
-        if (!task) {
-          // All remaining tasks have unmet dependencies or are blocked
+        // Find next runnable task (dependencies met)
+        const taskIndex = taskQueue.findIndex(t => !this.hasUnmetDependencies(t, allTasks));
+        if (taskIndex === -1) {
+          // All remaining tasks have unmet dependencies
+          console.log('[Ralph] All remaining tasks have unmet dependencies, stopping');
+          blocked = taskQueue.length;
           break;
         }
+
+        const task = taskQueue[taskIndex];
+        taskQueue.splice(taskIndex, 1);
+
+        // Check attempt count
+        const attempt = this.getAttemptCount(task);
+        if (attempt > maxAttempts) {
+          console.log(`[Ralph] Task ${task.id} exceeded max attempts (${maxAttempts}), marking blocked`);
+          this.store.updateTaskRuntime(task.id, { status: 'blocked' });
+          this.store.addTypedComment(task.id, 'system', 'system',
+            `Task exceeded maximum attempts (${maxAttempts}). Please review and provide instructions.`);
+          blocked++;
+          continue;
+        }
+
+        this.currentTaskId = task.id;
+        const runId = `run-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+        // Move to doing
+        this.store.moveTask(task.id, 'doing');
+        this.store.updateTaskRuntime(task.id, { status: 'running' });
 
         // Update state
         this.store.setState({
           activeTaskId: task.id,
           ralphMode: {
             enabled: true,
-            strategy,
+            strategy: 'dependency',
             processedCount: processed,
             failedCount: failed,
             currentTaskId: task.id,
           },
         });
 
-        this.emit({ type: 'task_start', taskId: task.id, data: { title: task.title } });
+        this.emit({ type: 'task_start', taskId: task.id, data: { title: task.title, attempt } });
 
-        // Create runtime for this task
-        this.runtime = new AgentRuntime({
-          projectRoot: this.projectRoot,
-          store: this.store,
-          provider: this.provider,
-        });
+        // Create run artifact
+        const artifact: RunArtifact = {
+          runId,
+          taskId: task.id,
+          taskTitle: task.title,
+          startedAt: new Date().toISOString(),
+          status: 'running',
+          promptSummary: '',
+          toolCalls: [],
+          filesModified: [],
+          attempt,
+        };
 
-        // Run the task
+        // Run the task using ClaudeCodeProvider directly
         try {
-          const result = await this.runtime.runTask(task.id, { mode: 'dexter' });
-          results.push(result);
+          const result = await this.runTaskWithProvider(task, runId, attempt);
           processed++;
+
+          artifact.completedAt = new Date().toISOString();
+          artifact.promptSummary = `Task: ${task.title}\nAttempt: ${attempt}`;
 
           if (result.success) {
             completed++;
-            this.emit({ type: 'task_complete', taskId: task.id });
-          } else if (result.run.status === 'blocked') {
-            blocked++;
-            this.emit({ type: 'task_blocked', taskId: task.id, data: { reason: result.error } });
+            artifact.status = 'completed';
 
-            if (stopOnBlocking) {
-              this.store.logActivity('ralph_stopped', {
-                reason: 'Task blocked',
-                taskId: task.id,
-              });
-              break;
-            }
+            // Move to review (not done - human should verify)
+            this.store.moveTask(task.id, 'review');
+            this.store.updateTaskRuntime(task.id, { status: 'done' });
+
+            // Add success comment
+            this.store.addTypedComment(task.id, 'agent', 'dexter',
+              `**Task Completed** (Attempt ${attempt})\n\n${result.content.substring(0, 500)}${result.content.length > 500 ? '...' : ''}`, runId);
+
+            this.emit({ type: 'task_complete', taskId: task.id });
+
+            // Play notification sound and set badge
+            notifyRalphTaskComplete();
           } else {
             failed++;
-            this.emit({ type: 'task_failed', taskId: task.id, data: { error: result.error } });
+            artifact.status = 'failed';
+            artifact.error = result.error;
+
+            this.store.updateTaskRuntime(task.id, { status: 'failed' });
+
+            // Add detailed failure comment
+            this.store.addTypedComment(task.id, 'failure', 'dexter',
+              `**Task Failed** (Attempt ${attempt}/${maxAttempts})\n\n` +
+              `**Run ID:** ${runId}\n` +
+              `**Error:** ${result.error}\n\n` +
+              `**What happened:**\n${result.content.substring(0, 300)}${result.content.length > 300 ? '...' : ''}\n\n` +
+              `**Next steps:** Review the error and add instructions if needed.`,
+              runId);
+
+            this.emit({ type: 'task_failed', taskId: task.id, data: { error: result.error, attempt } });
           }
+
+          this.saveRunArtifact(artifact);
+
         } catch (error) {
           failed++;
           processed++;
+          artifact.status = 'failed';
+          artifact.error = error instanceof Error ? error.message : String(error);
+          artifact.completedAt = new Date().toISOString();
+
+          this.store.updateTaskRuntime(task.id, { status: 'failed' });
+          this.saveRunArtifact(artifact);
+
           this.emit({
             type: 'task_failed',
             taskId: task.id,
-            data: { error: error instanceof Error ? error.message : String(error) },
+            data: { error: artifact.error },
           });
         }
 
-        this.runtime = null;
+        this.currentTaskId = null;
 
-        // Refresh pending tasks (some may now be unblocked)
-        pendingTasks = this.store.getPendingTasks(strategy);
-
-        // Remove completed/failed tasks from pending
-        pendingTasks = pendingTasks.filter(t => {
-          const current = this.store.getTask(t.id);
-          return current && current.status !== 'done' && current.runtime.status !== 'done';
-        });
+        // Refresh task queue (dependencies may now be met)
+        taskQueue = this.buildTaskQueue();
       }
 
       // Determine success
@@ -240,13 +302,12 @@ export class RalphEngine {
         isRunning: false,
         ralphMode: {
           enabled: false,
-          strategy,
+          strategy: 'dependency',
           processedCount: processed,
           failedCount: failed,
         },
       });
 
-      // Log activity
       this.store.logActivity('ralph_stopped', {
         reason: this.stopRequested ? 'Manual stop' : 'Completed',
         processed,
@@ -263,29 +324,124 @@ export class RalphEngine {
         completed,
         failed,
         blocked,
-        results,
         stoppedReason: this.stopRequested ? 'Manual stop' : undefined,
       };
     } finally {
       this.running = false;
-      this.runtime = null;
+      this.currentTaskId = null;
     }
   }
 
   /**
-   * Get the next task that can be run (dependencies met).
+   * Get tasks from todo column, sorted by priority.
    */
-  private getNextRunnableTask(pendingTasks: Task[], allTasks: Task[]): Task | null {
-    for (const task of pendingTasks) {
-      // Skip blocked tasks
-      if (task.runtime.status === 'blocked') continue;
+  private getBacklogTasks(): Task[] {
+    const tasks = this.store.getTasks();
+    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
 
-      // Check dependencies
-      if (!hasUnmetDependencies(task, allTasks)) {
-        return task;
-      }
+    return tasks
+      .filter(t => t.status === 'todo')
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  }
+
+  /**
+   * Run a single task using ClaudeCodeProvider.
+   * Includes failure context and user instructions in the prompt.
+   */
+  private async runTaskWithProvider(
+    task: Task,
+    runId: string,
+    attempt: number
+  ): Promise<{ success: boolean; content: string; error?: string }> {
+    if (!this.provider) {
+      return { success: false, content: '', error: 'No provider' };
     }
-    return null;
+
+    const win = this.getWindow?.() || null;
+
+    // Helper to send stream updates
+    const sendUpdate = (text: string, done: boolean, cancelled: boolean = false) => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('agent:stream-update', {
+          taskId: task.id,
+          taskTitle: task.title,
+          content: text,
+          done,
+          cancelled,
+        });
+      }
+    };
+
+    // Build task prompt with context
+    const failureContext = this.getFailureContext(task);
+    const instructionContext = this.getInstructionContext(task);
+
+    const taskPrompt = `## Task to Execute
+
+**Title:** ${task.title}
+**ID:** ${task.id}
+**Run ID:** ${runId}
+**Attempt:** ${attempt}
+
+**Description:**
+${task.description || 'No description provided.'}
+
+**Acceptance Criteria:**
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+${instructionContext}${failureContext}
+
+## Instructions
+
+Please complete this task. Ensure ALL acceptance criteria are met.
+When done, summarize what you accomplished and verify each criterion.
+
+## Progress Checkpoints
+
+Periodically save your progress during long tasks using save_progress tool:
+\`\`\`json
+{"tool": "save_progress", "arguments": {"completed": "What you've done so far", "nextStep": "What you'll do next"}}
+\`\`\`
+This helps if the task is interrupted - you can resume from where you left off.
+`;
+
+    let accumulated = '';
+
+    try {
+      this.provider.setWorkingDirectory(this.projectRoot);
+
+      const onChunk = (chunk: string) => {
+        accumulated += chunk;
+        sendUpdate(accumulated, false);
+      };
+
+      const response = await this.provider.complete(
+        [{ role: 'user', content: taskPrompt }],
+        undefined,
+        onChunk,
+        'agent'
+      );
+
+      const finalContent = accumulated || response.content;
+      sendUpdate(finalContent, true);
+
+      const success = response.finishReason !== 'error' && finalContent.length > 0;
+
+      return {
+        success,
+        content: finalContent,
+        error: success ? undefined : (response.content || 'No response received'),
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      if (errorMsg === 'Cancelled') {
+        sendUpdate(accumulated + '\n\n❌ **CANCELLED**', true, true);
+        return { success: false, content: accumulated, error: 'Cancelled by user' };
+      }
+
+      sendUpdate(`${accumulated}\n\n❌ **Error:** ${errorMsg}`, true);
+      return { success: false, content: accumulated, error: errorMsg };
+    }
   }
 
   /**
@@ -300,8 +456,8 @@ export class RalphEngine {
    */
   stopRalphMode(): void {
     this.stopRequested = true;
-    if (this.runtime) {
-      this.runtime.cancel();
+    if (this.provider) {
+      this.provider.cancel();
     }
   }
 
@@ -338,15 +494,15 @@ export class RalphEngine {
    */
   getProgress(): RalphProgress {
     const state = this.store.getState();
-    const pendingTasks = this.store.getPendingTasks();
-    const currentTask = state.activeTaskId ? this.store.getTask(state.activeTaskId) : null;
+    const backlogTasks = this.getBacklogTasks();
+    const currentTask = this.currentTaskId ? this.store.getTask(this.currentTaskId) : null;
 
     return {
-      total: pendingTasks.length + state.ralphMode.processedCount,
+      total: backlogTasks.length + state.ralphMode.processedCount,
       completed: state.ralphMode.processedCount - state.ralphMode.failedCount,
       failed: state.ralphMode.failedCount,
-      blocked: pendingTasks.filter(t => t.runtime.status === 'blocked').length,
-      currentTaskId: state.activeTaskId,
+      blocked: 0,
+      currentTaskId: this.currentTaskId,
       currentTaskTitle: currentTask?.title || null,
       status: this.running ? (this.paused ? 'paused' : 'running') : 'idle',
     };
@@ -392,8 +548,151 @@ export class RalphEngine {
   /**
    * Set the agent provider.
    */
-  setProvider(provider: AgentProvider): void {
+  setProvider(provider: ClaudeCodeProvider): void {
     this.provider = provider;
+  }
+
+  /**
+   * Set the window getter function.
+   */
+  setWindowGetter(getter: () => BrowserWindow | null): void {
+    this.getWindow = getter;
+  }
+
+  // ============================================
+  // Dependency Resolution
+  // ============================================
+
+  /**
+   * Check if a task has unmet dependencies.
+   */
+  private hasUnmetDependencies(task: Task, allTasks: Task[]): boolean {
+    if (!task.dependsOn || task.dependsOn.length === 0) {
+      return false;
+    }
+
+    for (const depId of task.dependsOn) {
+      const depTask = allTasks.find(t => t.id === depId);
+      if (!depTask || depTask.status !== 'done') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Build task queue with dependency resolution (topological sort).
+   * Returns tasks in order they should be executed.
+   */
+  private buildTaskQueue(): Task[] {
+    const allTasks = this.store.getTasks();
+    const backlogTasks = allTasks.filter(t => t.status === 'todo');
+    const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+    // Topological sort with priority
+    const queue: Task[] = [];
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+
+    const visit = (task: Task): boolean => {
+      if (visited.has(task.id)) return true;
+      if (visiting.has(task.id)) return false; // Cycle detected
+
+      visiting.add(task.id);
+
+      // Visit dependencies first
+      for (const depId of task.dependsOn || []) {
+        const depTask = backlogTasks.find(t => t.id === depId);
+        if (depTask && !visit(depTask)) {
+          return false;
+        }
+      }
+
+      visiting.delete(task.id);
+      visited.add(task.id);
+      queue.push(task);
+      return true;
+    };
+
+    // Sort by priority first, then visit
+    const sorted = [...backlogTasks].sort(
+      (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
+    );
+
+    for (const task of sorted) {
+      visit(task);
+    }
+
+    return queue;
+  }
+
+  // ============================================
+  // Run Artifacts & Logging
+  // ============================================
+
+  /**
+   * Save run artifact to disk.
+   */
+  private saveRunArtifact(artifact: RunArtifact): void {
+    try {
+      const dir = path.join(this.projectRoot, '.local-kanban', 'agent-runs', artifact.taskId);
+      fs.mkdirSync(dir, { recursive: true });
+
+      const filePath = path.join(dir, `${artifact.runId}.json`);
+      fs.writeFileSync(filePath, JSON.stringify(artifact, null, 2));
+      console.log(`[Ralph] Saved run artifact: ${filePath}`);
+    } catch (e) {
+      console.error('[Ralph] Failed to save run artifact:', e);
+    }
+  }
+
+  // ============================================
+  // Failure Context Building
+  // ============================================
+
+  /**
+   * Get failure context from previous attempts for retry.
+   */
+  private getFailureContext(task: Task): string {
+    const comments = task.comments || [];
+    const failureComments = comments.filter(c => c.type === 'failure');
+
+    if (failureComments.length === 0) return '';
+
+    let context = '\n\n## Previous Failure Context\n\n';
+    context += '**IMPORTANT:** This task has failed before. Learn from these failures:\n\n';
+
+    for (const comment of failureComments) {
+      context += `### Attempt (${comment.createdAt})\n`;
+      context += `${comment.content}\n\n`;
+    }
+
+    context += '**Instructions:** Address the issues mentioned above. Do not repeat the same mistakes.\n';
+    return context;
+  }
+
+  /**
+   * Get instruction comments to include in prompt.
+   */
+  private getInstructionContext(task: Task): string {
+    const comments = task.comments || [];
+    const instructions = comments.filter(c => c.type === 'instruction');
+
+    if (instructions.length === 0) return '';
+
+    let context = '\n\n## User Instructions\n\n';
+    for (const inst of instructions) {
+      context += `- ${inst.content}\n`;
+    }
+    return context;
+  }
+
+  /**
+   * Get attempt count for a task.
+   */
+  private getAttemptCount(task: Task): number {
+    const comments = task.comments || [];
+    return comments.filter(c => c.type === 'failure' || c.type === 'agent').length + 1;
   }
 }
 

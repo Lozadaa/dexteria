@@ -33,10 +33,14 @@ export abstract class AgentProvider {
 
   /**
    * Send messages to the agent and get a response.
+   * @param messages - The conversation history
+   * @param tools - Optional tools available to the agent
+   * @param onChunk - Optional callback for streaming responses
    */
   abstract complete(
     messages: AgentMessage[],
-    tools?: AgentToolDefinition[]
+    tools?: AgentToolDefinition[],
+    onChunk?: (chunk: string) => void
   ): Promise<AgentResponse>;
 
   /**
@@ -305,6 +309,29 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
       required: ['reason'],
     },
   },
+  {
+    name: 'save_progress',
+    description: 'Save your current progress so you can resume if interrupted. Call this after completing each significant step.',
+    parameters: {
+      type: 'object',
+      properties: {
+        completed: {
+          type: 'string',
+          description: 'What you have completed so far',
+        },
+        nextStep: {
+          type: 'string',
+          description: 'What you will do next',
+        },
+        tasksCreated: {
+          type: 'array',
+          description: 'List of task IDs created so far',
+          items: { type: 'string' },
+        },
+      },
+      required: ['completed', 'nextStep'],
+    },
+  },
 ];
 
 // ============================================
@@ -358,7 +385,7 @@ export class MockAgentProvider extends AgentProvider {
     this.callHistory = [];
   }
 
-  async complete(messages: AgentMessage[], tools?: AgentToolDefinition[]): Promise<AgentResponse> {
+  async complete(messages: AgentMessage[], tools?: AgentToolDefinition[], _onChunk?: (chunk: string) => void): Promise<AgentResponse> {
     this.callHistory.push({ messages, tools });
 
     // Get the last user message content

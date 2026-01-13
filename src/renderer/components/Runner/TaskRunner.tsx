@@ -1,14 +1,21 @@
-import React, { useEffect, useRef } from 'react';
-import { Play, Pause, Square, Terminal, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Play, Pause, Square, Terminal, AlertCircle, CheckCircle, XCircle, Loader2, ListTodo, Clock } from 'lucide-react';
 import { useRunner } from '../../hooks/useRunner';
-import { cn } from '../../lib/utils';
+import { useBoard } from '../../hooks/useData';
+import { useMode } from '../../contexts/ModeContext';
+import { cn, formatRelativeTime } from '../../lib/utils';
+import type { Task } from '../../../shared/types';
 
 export const TaskRunner: React.FC = () => {
     const {
         currentTask,
         currentRun,
         log,
+        streamingContent,
+        streamingTaskId,
+        streamingTaskTitle,
         isRunning,
+        wasCancelled,
         error,
         handlePlay,
         handlePause,
@@ -18,6 +25,16 @@ export const TaskRunner: React.FC = () => {
         canStop,
     } = useRunner();
 
+    // Use streaming content if available, otherwise fall back to log
+    const displayContent = streamingContent || log;
+
+    // Use streaming task info or fall back to currentTask
+    const displayTaskTitle = streamingTaskTitle || currentTask?.title || 'Task';
+    const displayTaskId = streamingTaskId || currentTask?.id;
+    const { tasks, refresh } = useBoard();
+    const { mode, triggerPlannerBlock } = useMode();
+    const [runningTaskId, setRunningTaskId] = useState<string | null>(null);
+
     const logEndRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom when log updates
@@ -25,14 +42,122 @@ export const TaskRunner: React.FC = () => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [log]);
 
-    // If no task is running, show idle state
-    if (!currentTask && !isRunning) {
+    // Get pending tasks (backlog and doing)
+    const pendingTasks = tasks.filter(t => t.status === 'backlog' || t.status === 'doing');
+    const recentlyDone = tasks
+        .filter(t => t.status === 'done' && t.completedAt)
+        .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
+        .slice(0, 3);
+
+    const handleRunTask = async (task: Task) => {
+        if (mode === 'planner') {
+            triggerPlannerBlock();
+            return;
+        }
+        setRunningTaskId(task.id);
+        try {
+            await window.dexteria.agent.runTask(task.id, { mode: 'manual' });
+            refresh();
+        } catch (err) {
+            console.error('Failed to run task:', err);
+        } finally {
+            setRunningTaskId(null);
+        }
+    };
+
+    // If no task is running and no streaming, show pending tasks
+    if (!currentTask && !isRunning && !streamingContent) {
         return (
-            <div className="h-full flex items-center justify-center text-muted-foreground">
-                <div className="text-center space-y-2">
-                    <Terminal size={48} className="mx-auto opacity-30" />
-                    <p className="text-sm">No task running</p>
-                    <p className="text-xs opacity-70">Run a task to see execution details</p>
+            <div className="h-full flex flex-col bg-background/40">
+                {/* Header */}
+                <div className="p-3 border-b border-border flex items-center gap-2">
+                    <Terminal size={16} className="text-muted-foreground" />
+                    <span className="text-sm font-medium">Task Runner</span>
+                </div>
+
+                <div className="flex-1 overflow-auto p-4">
+                    {pendingTasks.length === 0 && recentlyDone.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-muted-foreground">
+                            <div className="text-center space-y-2">
+                                <ListTodo size={40} className="mx-auto opacity-30" />
+                                <p className="text-sm">No pending tasks</p>
+                                <p className="text-xs opacity-70">Create tasks from the board or chat</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {/* Pending Tasks */}
+                            {pendingTasks.length > 0 && (
+                                <div>
+                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+                                        <ListTodo size={12} />
+                                        Ready to Run ({pendingTasks.length})
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {pendingTasks.slice(0, 5).map(task => (
+                                            <div
+                                                key={task.id}
+                                                className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 border border-border hover:border-primary/50 transition-colors group"
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-medium truncate">{task.title}</div>
+                                                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                                        <span className="font-mono">{task.id.substring(0, 8)}</span>
+                                                        <span>•</span>
+                                                        <span className={cn(
+                                                            "capitalize",
+                                                            task.status === 'doing' && "text-blue-400"
+                                                        )}>{task.status}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleRunTask(task)}
+                                                    disabled={runningTaskId === task.id}
+                                                    className="p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                                    title="Run task"
+                                                >
+                                                    {runningTaskId === task.id ? (
+                                                        <Loader2 size={14} className="animate-spin" />
+                                                    ) : (
+                                                        <Play size={14} />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {pendingTasks.length > 5 && (
+                                            <p className="text-xs text-muted-foreground text-center">
+                                                +{pendingTasks.length - 5} more tasks
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recently Completed */}
+                            {recentlyDone.length > 0 && (
+                                <div>
+                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+                                        <Clock size={12} />
+                                        Recently Completed
+                                    </h3>
+                                    <div className="space-y-1">
+                                        {recentlyDone.map(task => (
+                                            <div
+                                                key={task.id}
+                                                className="flex items-center gap-2 p-2 rounded-lg text-sm text-muted-foreground"
+                                            >
+                                                <CheckCircle size={14} className="text-green-500 shrink-0" />
+                                                <span className="truncate flex-1">{task.title}</span>
+                                                <span className="text-xs opacity-70 shrink-0">
+                                                    {formatRelativeTime(task.completedAt!)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -65,12 +190,12 @@ export const TaskRunner: React.FC = () => {
                                 )}
 
                                 <h3 className="font-semibold text-sm truncate">
-                                    {currentTask?.title || 'Unknown Task'}
+                                    {displayTaskTitle}
                                 </h3>
                             </div>
 
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                <span className="font-mono">{currentTask?.id?.substring(0, 8)}</span>
+                                <span className="font-mono">{displayTaskId?.substring(0, 8)}</span>
                                 {currentRun && (
                                     <>
                                         <span>•</span>
@@ -174,18 +299,34 @@ export const TaskRunner: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="flex-1 overflow-auto p-3 font-mono text-xs bg-black/40">
-                        {log ? (
+                    <div className={cn(
+                        "flex-1 overflow-auto p-3 font-mono text-xs",
+                        wasCancelled ? "bg-red-950/40" : "bg-black/40"
+                    )}>
+                        {displayContent ? (
                             <div className="space-y-0.5">
-                                <pre className="whitespace-pre-wrap break-all text-green-400/90 leading-relaxed">
-                                    {log}
+                                <pre className={cn(
+                                    "whitespace-pre-wrap break-all leading-relaxed",
+                                    wasCancelled ? "text-red-400/90" : "text-green-400/90"
+                                )}>
+                                    {displayContent}
                                 </pre>
+                                {/* Loading indicator when still streaming */}
+                                {isRunning && streamingContent && !wasCancelled && (
+                                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-green-500/20">
+                                        <span className="flex gap-0.5">
+                                            <span className="w-1.5 h-1.5 bg-green-400/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                            <span className="w-1.5 h-1.5 bg-green-400/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                            <span className="w-1.5 h-1.5 bg-green-400/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                        </span>
+                                    </div>
+                                )}
                                 <div ref={logEndRef} />
                             </div>
                         ) : isRunning ? (
                             <div className="text-muted-foreground italic flex items-center gap-2">
                                 <Loader2 size={14} className="animate-spin" />
-                                Waiting for output...
+                                Starting agent...
                             </div>
                         ) : (
                             <div className="text-muted-foreground italic opacity-50">

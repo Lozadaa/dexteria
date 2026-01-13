@@ -20,6 +20,7 @@ import type {
   TaskRuntimeState,
   AgentRun,
   ActivityEntry,
+  ProjectSettings,
 } from './types';
 
 // ============================================
@@ -291,6 +292,40 @@ export const PolicySchema = z.object({
 });
 
 // ============================================
+// Settings Schemas
+// ============================================
+
+export const ProjectCommandSchema = z.object({
+  cmd: z.string(),
+  cwd: z.string(),
+  autoDetect: z.boolean().optional(),
+  includesInstall: z.boolean().optional(),
+});
+
+export const NotificationSettingsSchema = z.object({
+  soundOnTaskComplete: z.boolean(),
+  badgeOnTaskComplete: z.boolean(),
+});
+
+export const ProjectCommandsSettingsSchema = z.object({
+  run: ProjectCommandSchema,
+  build: ProjectCommandSchema,
+  install: ProjectCommandSchema,
+  allowUnsafeCommands: z.boolean(),
+});
+
+export const RunnerSettingsSchema = z.object({
+  defaultTimeoutSec: z.number().positive(),
+});
+
+export const ProjectSettingsSchema = z.object({
+  version: z.number().int().positive(),
+  notifications: NotificationSettingsSchema,
+  projectCommands: ProjectCommandsSettingsSchema,
+  runner: RunnerSettingsSchema,
+});
+
+// ============================================
 // Default Values & Factories
 // ============================================
 
@@ -436,6 +471,25 @@ export function createDefaultPolicy(): Policy {
   };
 }
 
+export function createDefaultSettings(): ProjectSettings {
+  return {
+    version: 1,
+    notifications: {
+      soundOnTaskComplete: true,
+      badgeOnTaskComplete: true,
+    },
+    projectCommands: {
+      run: { cmd: '', cwd: '.', autoDetect: true },
+      build: { cmd: '', cwd: '.', autoDetect: true, includesInstall: true },
+      install: { cmd: '', cwd: '.' },
+      allowUnsafeCommands: false,
+    },
+    runner: {
+      defaultTimeoutSec: 1800,
+    },
+  };
+}
+
 export function createProjectContext(partial: Partial<ProjectContext>): ProjectContext {
   return {
     name: partial.name || 'Unknown Project',
@@ -526,6 +580,7 @@ export const LOCAL_KANBAN_PATHS = {
   tasks: '.local-kanban/tasks.json',
   state: '.local-kanban/state.json',
   policy: '.local-kanban/policy.json',
+  settings: '.local-kanban/settings.json',
   activity: '.local-kanban/activity.jsonl',
   context: '.local-kanban/context',
   projectContext: '.local-kanban/context/project_context.json',
@@ -533,6 +588,7 @@ export const LOCAL_KANBAN_PATHS = {
   chats: '.local-kanban/chats',
   chatsIndex: '.local-kanban/chats/index.json',
   runs: '.local-kanban/runs',
+  projectRuns: '.local-kanban/runs/project',
   agentRuns: '.local-kanban/agent-runs',
   backups: '.local-kanban/backups',
 } as const;
