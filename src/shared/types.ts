@@ -146,6 +146,7 @@ export interface AgentState {
   activeChatId?: string | null;
   lastUpdated: string;
   ralphMode: RalphModeState;
+  lastTaskNumber: number; // Counter for sequential task IDs (TSK-001, TSK-002, etc.)
 }
 
 // ============================================

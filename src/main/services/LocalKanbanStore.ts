@@ -54,6 +54,7 @@ export class LocalKanbanStore {
   private projectRoot: string;
   private enableBackups: boolean;
   private maxBackups: number;
+  private migrationExecuted: boolean = false;
 
   constructor(config: StoreConfig) {
     this.projectRoot = config.projectRoot;
@@ -284,6 +285,36 @@ export class LocalKanbanStore {
   // Tasks Operations
   // ============================================
 
+  /**
+   * Run task ID migration once on first access
+   */
+  private runTaskIdMigration(tasks: Task[]): void {
+    if (this.migrationExecuted || tasks.length === 0) {
+      return;
+    }
+
+    this.migrationExecuted = true;
+
+    try {
+      const { migrateTaskIds } = require('./TaskIdMigration');
+      const board = this.getBoard();
+      const state = this.getState();
+      const chatIndex = this.getChatIndex();
+
+      const result = migrateTaskIds(tasks, board, state, chatIndex);
+
+      if (result.migratedCount > 0) {
+        console.log(`[Store] Migrated ${result.migratedCount} task IDs to sequential format`);
+        this.saveTasks(tasks);
+        this.saveBoard(board);
+        this.setState(state);
+        this.saveChatIndex(chatIndex);
+      }
+    } catch (error) {
+      console.error('[Store] Task ID migration failed:', error);
+    }
+  }
+
   getTasks(): Task[] {
     const data = this.readJSON<{ tasks: unknown[] }>(LOCAL_KANBAN_PATHS.tasks);
     if (!data) {
@@ -292,15 +323,21 @@ export class LocalKanbanStore {
 
     // Try parsing with v3 schema, fall back to migration
     const result = TasksFileSchema.safeParse(data);
+    let tasks: Task[];
+
     if (result.success) {
-      return result.data.tasks;
+      tasks = result.data.tasks;
+    } else {
+      // Migrate v2 tasks to v3
+      console.log('Migrating tasks to v3 format...');
+      tasks = data.tasks.map((t) => migrateTaskToV3(t as Record<string, unknown>));
+      this.saveTasks(tasks);
     }
 
-    // Migrate v2 tasks to v3
-    console.log('Migrating tasks to v3 format...');
-    const migratedTasks = data.tasks.map((t) => migrateTaskToV3(t as Record<string, unknown>));
-    this.saveTasks(migratedTasks);
-    return migratedTasks;
+    // Run ID migration
+    this.runTaskIdMigration(tasks);
+
+    return tasks;
   }
 
   saveTasks(tasks: Task[]): void {
@@ -324,6 +361,31 @@ export class LocalKanbanStore {
   createTask(title: string, status: TaskStatus = 'backlog'): Task {
     const tasks = this.getTasks();
     const board = this.getBoard();
+    const state = this.getState();
+
+    // Initialize counter from existing tasks if needed
+    let currentNumber = state.lastTaskNumber || 0;
+    if (currentNumber === 0 && tasks.length > 0) {
+      // Find max task number from existing TSK-XXX IDs
+      const maxExisting = tasks.reduce((max, task) => {
+        const match = task.id.match(/^TSK-(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          return num > max ? num : max;
+        }
+        return max;
+      }, 0);
+      currentNumber = maxExisting;
+      this.setState({ lastTaskNumber: currentNumber });
+    }
+
+    // Generate sequential task ID
+    const nextNumber = currentNumber + 1;
+    const { createTaskId, createTask } = require('../../shared/schemas');
+    const taskId = createTaskId(nextNumber);
+
+    // Update state with new task number
+    this.setState({ lastTaskNumber: nextNumber });
 
     // Find max order for the target column
     const columnTasks = tasks.filter(t => t.status === status);
@@ -331,9 +393,9 @@ export class LocalKanbanStore {
       ? Math.max(...columnTasks.map(t => t.order))
       : -1;
 
-    // Import createTask from schemas at runtime to avoid circular dependency
-    const { createTask } = require('../../shared/schemas');
+    // Create task with sequential ID
     const newTask: Task = createTask({
+      id: taskId,
       title,
       status,
       order: maxOrder + 1,

@@ -400,7 +400,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     </button>
                 </div>
                 <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <span className="uppercase tracking-wider opacity-70">{task.id?.substring(0, 6) ?? 'N/A'}</span>
+                    <span className="uppercase tracking-wider opacity-70 font-mono">{task.id ?? 'N/A'}</span>
                     <span>•</span>
                     <span className="capitalize">{task.status ?? 'unknown'}</span>
                     <span>•</span>
@@ -595,7 +595,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                             onClick={() => handleAddDependency(t.id)}
                                             className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
                                         >
-                                            <span className="text-muted-foreground font-mono text-xs">{t.id.substring(0, 6)}</span>
+                                            <span className="text-muted-foreground font-mono text-xs">{t.id}</span>
                                             <span className="truncate">{t.title}</span>
                                         </button>
                                     ))}
@@ -623,7 +623,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                                 {depTask?.title || depId}
                                             </div>
                                             <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                                <span className="font-mono">{depId.substring(0, 6)}</span>
+                                                <span className="font-mono">{depId}</span>
                                                 {depTask && (
                                                     <>
                                                         <span>•</span>

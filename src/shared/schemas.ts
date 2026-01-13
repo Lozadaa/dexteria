@@ -175,6 +175,7 @@ export const AgentStateSchema = z.object({
   activeChatId: z.union([z.string(), z.null()]).optional(), // Allow string, null, or undefined
   lastUpdated: z.string(),
   ralphMode: RalphModeStateSchema,
+  lastTaskNumber: z.number().int().min(0).default(0), // Counter for sequential task IDs
 });
 
 // ============================================
@@ -337,8 +338,13 @@ export const DEFAULT_COLUMNS: Array<{ id: TaskStatus; title: string }> = [
   { id: 'done', title: 'Done' },
 ];
 
-export function createTaskId(): string {
-  return `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+/**
+ * Create a sequential task ID.
+ * @param number - Task number (e.g., 1 → TSK-001, 42 → TSK-042)
+ * @returns Sequential task ID (TSK-XXX)
+ */
+export function createTaskId(number: number): string {
+  return `TSK-${number.toString().padStart(3, '0')}`;
 }
 
 export function createChatId(): string {
@@ -361,11 +367,10 @@ export function createDefaultRuntime(): TaskRuntimeState {
   };
 }
 
-export function createTask(partial: Partial<Task>): Task {
+export function createTask(partial: Partial<Task> & { id: string }): Task {
   const now = new Date().toISOString();
-  const id = partial.id || createTaskId();
   return {
-    id,
+    id: partial.id, // ID is now required - must be provided by caller
     title: partial.title || 'Untitled Task',
     description: partial.description || '',
     status: partial.status || 'backlog',
@@ -444,6 +449,7 @@ export function createDefaultState(): AgentState {
       processedCount: 0,
       failedCount: 0,
     },
+    lastTaskNumber: 0,
   };
 }
 
@@ -598,7 +604,10 @@ export const LOCAL_KANBAN_PATHS = {
 // ============================================
 
 export function migrateTaskToV3(oldTask: Record<string, unknown>): Task {
-  const id = String(oldTask.id || createTaskId());
+  // Keep existing ID or generate a temporary one (will be replaced on next create)
+  const id = oldTask.id
+    ? String(oldTask.id)
+    : `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   return {
     id,
     title: String(oldTask.title || 'Untitled'),
