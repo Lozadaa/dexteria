@@ -82,7 +82,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, isA
                     <div title={`Priority: ${task.priority}`}>
                         {PriorityIcons[task.priority]}
                     </div>
-                    <span className="uppercase tracking-wider text-[10px] opacity-70">{task.id.substring(0, 4)}</span>
+                    <span className="uppercase tracking-wider text-[10px] opacity-70 font-mono">{task.id}</span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
