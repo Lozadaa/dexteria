@@ -2,7 +2,7 @@ import React from 'react';
 import { Clock } from 'lucide-react';
 import { useNow } from '../hooks/useNow';
 import { formatDoneTime } from '../lib/timeUtils';
-import { cn } from '../lib/utils';
+import { cn, formatDateTime } from '../lib/utils';
 
 interface DoneTimeChipProps {
   /** ISO timestamp string or Unix timestamp (ms) */
@@ -37,7 +37,7 @@ export const DoneTimeChip: React.FC<DoneTimeChipProps> = ({
         "transition-colors",
         className
       )}
-      title={`Completado: ${new Date(completedAt).toLocaleString(locale)}`}
+      title={`Completado: ${formatDateTime(completedAt)}`}
     >
       <Clock className="w-2.5 h-2.5" />
       <span>{formattedTime}</span>

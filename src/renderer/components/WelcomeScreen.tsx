@@ -1,6 +1,7 @@
 import React from 'react';
 import { FolderOpen, FilePlus, Clock } from 'lucide-react';
 import SplashImage from '../../../assets/splash.png';
+import { formatRelativeTime } from '../lib/utils';
 
 interface WelcomeScreenProps {
     onOpenProject: () => void;
@@ -79,7 +80,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                         </div>
                                     </div>
                                     <span className="text-xs text-muted-foreground shrink-0 ml-2">
-                                        {project.lastOpened}
+                                        {formatRelativeTime(project.lastOpened)}
                                     </span>
                                 </button>
                             ))}

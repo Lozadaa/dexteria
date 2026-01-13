@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { cn } from '../lib/utils';
+import { cn, formatDateTime } from '../lib/utils';
 import {
   MessageSquare,
   AlertTriangle,
@@ -229,7 +229,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground/50">
-                        {new Date(comment.createdAt).toLocaleString()}
+                        {formatDateTime(comment.createdAt)}
                       </span>
                     </div>
 
