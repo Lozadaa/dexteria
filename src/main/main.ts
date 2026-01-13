@@ -22,12 +22,18 @@ let mainWindow: BrowserWindow | null = null;
 function createWindow(): void {
   const isMac = process.platform === 'darwin';
 
+  // Get icon path - in dev it's in assets folder, in prod it's bundled
+  const iconPath = isDev
+    ? path.join(process.cwd(), 'assets', 'logoicon.png')
+    : path.join(__dirname, '../../assets/logoicon.png');
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
     title: 'Dexteria',
+    icon: iconPath,
     resizable: true,
     // Frameless window - custom titlebar (disabled temporarily for debugging)
     frame: true,
@@ -84,8 +90,8 @@ function createWindow(): void {
 
 // App lifecycle
 app.whenReady().then(() => {
-  // Initialize IPC handlers with project root
-  initializeIpcHandlers(projectRoot);
+  // Initialize IPC handlers without project (will show welcome screen)
+  initializeIpcHandlers();
 
   createWindow();
 
@@ -99,6 +105,11 @@ app.whenReady().then(() => {
   // Also Ctrl+Shift+I
   globalShortcut.register('CommandOrControl+Shift+I', () => {
     mainWindow?.webContents.toggleDevTools();
+  });
+
+  // Ctrl+O to open project
+  globalShortcut.register('CommandOrControl+O', () => {
+    mainWindow?.webContents.send('shortcut:open-project');
   });
 
   app.on('activate', () => {

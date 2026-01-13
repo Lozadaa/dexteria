@@ -140,6 +140,16 @@ export interface DexteriaAPI {
       message: string;
     }>;
   };
+  project: {
+    open: () => Promise<{ success: boolean; path?: string; error?: string }>;
+    create: () => Promise<{ success: boolean; path?: string; error?: string }>;
+    openPath: (path: string) => Promise<{ success: boolean; error?: string }>;
+    close: () => Promise<void>;
+    getCurrent: () => Promise<string | null>;
+    getRecent: () => Promise<Array<{ path: string; name: string; lastOpened: string }>>;
+    onProjectChanged: (callback: (path: string | null) => void) => () => void;
+    onOpenShortcut: (callback: () => void) => () => void;
+  };
 }
 
 // ============================================
@@ -232,6 +242,24 @@ const api: DexteriaAPI = {
     getProvider: () => ipcRenderer.invoke('settings:getProvider'),
     setApiKey: (apiKey) => ipcRenderer.invoke('settings:setApiKey', apiKey),
     testProvider: () => ipcRenderer.invoke('settings:testProvider'),
+  },
+  project: {
+    open: () => ipcRenderer.invoke('project:open'),
+    create: () => ipcRenderer.invoke('project:create'),
+    openPath: (path) => ipcRenderer.invoke('project:openPath', path),
+    close: () => ipcRenderer.invoke('project:close'),
+    getCurrent: () => ipcRenderer.invoke('project:getCurrent'),
+    getRecent: () => ipcRenderer.invoke('project:getRecent'),
+    onProjectChanged: (callback: (path: string | null) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, path: string | null) => callback(path);
+      ipcRenderer.on('project:changed', handler);
+      return () => ipcRenderer.removeListener('project:changed', handler);
+    },
+    onOpenShortcut: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('shortcut:open-project', handler);
+      return () => ipcRenderer.removeListener('shortcut:open-project', handler);
+    },
   },
 };
 

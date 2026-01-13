@@ -3,7 +3,8 @@ import { useAgentState } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
 import Ralph from '../../../assets/ralph.png'
-import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2 } from 'lucide-react';
+import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown } from 'lucide-react';
+import LogoIcon from '../../../assets/logoicon.png';
 
   interface RalphProgress {
       total: number;
@@ -20,9 +21,11 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
       const { mode, setMode, triggerPlannerBlock } = useMode();
       const [isMaximized, setIsMaximized] = useState(false);
       const [showSettings, setShowSettings] = useState(false);
+      const [showFileMenu, setShowFileMenu] = useState(false);
       const [ralphRunning, setRalphRunning] = useState(false);
       const [ralphProgress, setRalphProgress] = useState<RalphProgress | null>(null);
       const settingsRef = useRef<HTMLDivElement>(null);
+      const fileMenuRef = useRef<HTMLDivElement>(null);
       const ralphIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
       useEffect(() => {
@@ -39,18 +42,21 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
           return () => cleanup?.();
       }, []);
 
-      // Close settings dropdown when clicking outside
+      // Close dropdowns when clicking outside
       useEffect(() => {
           const handleClickOutside = (e: MouseEvent) => {
               if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
                   setShowSettings(false);
               }
+              if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
+                  setShowFileMenu(false);
+              }
           };
-          if (showSettings) {
+          if (showSettings || showFileMenu) {
               document.addEventListener('mousedown', handleClickOutside);
           }
           return () => document.removeEventListener('mousedown', handleClickOutside);
-      }, [showSettings]);
+      }, [showSettings, showFileMenu]);
 
       // Poll Ralph progress when running
       useEffect(() => {
@@ -127,6 +133,33 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
           setShowSettings(false);
       };
 
+      const handleOpenProject = async () => {
+          setShowFileMenu(false);
+          try {
+              await window.dexteria?.project?.open?.();
+          } catch (err) {
+              console.error('Failed to open project:', err);
+          }
+      };
+
+      const handleNewProject = async () => {
+          setShowFileMenu(false);
+          try {
+              await window.dexteria?.project?.create?.();
+          } catch (err) {
+              console.error('Failed to create project:', err);
+          }
+      };
+
+      const handleCloseProject = async () => {
+          setShowFileMenu(false);
+          try {
+              await window.dexteria?.project?.close?.();
+          } catch (err) {
+              console.error('Failed to close project:', err);
+          }
+      };
+
       return (
           <div className="h-10 border-b border-border bg-background flex items-center justify-between select-none">
               {/* Left side - Draggable area with logo */}
@@ -135,8 +168,60 @@ import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Te
                   style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
               >
                   <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-primary" />
+                      <img src={LogoIcon} alt="Dexteria" className="w-5 h-5" />
                       <span className="font-semibold text-sm tracking-tight">Dexteria</span>
+                  </div>
+
+                  {/* File Menu */}
+                  <div
+                      className="relative"
+                      ref={fileMenuRef}
+                      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                  >
+                      <button
+                          onClick={() => setShowFileMenu(!showFileMenu)}
+                          className={cn(
+                              "flex items-center gap-1 px-2 py-1 text-xs font-medium rounded hover:bg-muted transition-colors",
+                              showFileMenu && "bg-muted"
+                          )}
+                      >
+                          File
+                          <ChevronDown size={12} className={cn("transition-transform", showFileMenu && "rotate-180")} />
+                      </button>
+
+                      {showFileMenu && (
+                          <div className="absolute left-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                              <button
+                                  onClick={handleOpenProject}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                              >
+                                  <FolderOpen size={14} />
+                                  Open Project...
+                              </button>
+                              <button
+                                  onClick={handleNewProject}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                              >
+                                  <FilePlus size={14} />
+                                  New Project...
+                              </button>
+                              <button
+                                  onClick={handleCloseProject}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                              >
+                                  <FolderX size={14} />
+                                  Close Project
+                              </button>
+                              <div className="h-px bg-border my-1" />
+                              <button
+                                  onClick={handleClose}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left text-red-400"
+                              >
+                                  <X size={14} />
+                                  Exit
+                              </button>
+                          </div>
+                      )}
                   </div>
 
                   {/* Agent / Planner Toggle - Global Mode */}

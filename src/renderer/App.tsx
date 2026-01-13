@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { KanbanBoard } from './components/KanbanBoard';
 import { ChatPanel } from './components/ChatPanel';
 import { TaskDetail } from './components/TaskDetail';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import { ModeProvider, useMode } from './contexts/ModeContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { useSystemTheme } from './hooks/useTheme';
@@ -60,11 +61,56 @@ const PlannerBlockModal: React.FC = () => {
   );
 };
 
+interface RecentProject {
+  path: string;
+  name: string;
+  lastOpened: string;
+}
+
 function AppContent() {
   // Sync with system theme
   useSystemTheme();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'task'>('chat');
+  const [currentProject, setCurrentProject] = useState<string | null>(null);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check for current project on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const [current, recent] = await Promise.all([
+          window.dexteria?.project?.getCurrent?.(),
+          window.dexteria?.project?.getRecent?.(),
+        ]);
+        setCurrentProject(current ?? null);
+        setRecentProjects(recent ?? []);
+      } catch (err) {
+        console.error('Failed to get project info:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
+
+    // Listen for project changes
+    const cleanupProject = window.dexteria?.project?.onProjectChanged?.((path) => {
+      setCurrentProject(path);
+      // Refresh recent projects
+      window.dexteria?.project?.getRecent?.().then(setRecentProjects);
+    });
+
+    // Listen for Ctrl+O shortcut
+    const cleanupShortcut = window.dexteria?.project?.onOpenShortcut?.(() => {
+      window.dexteria?.project?.open?.();
+    });
+
+    return () => {
+      cleanupProject?.();
+      cleanupShortcut?.();
+    };
+  }, []);
 
   const handleTaskSelect = (task: Task) => {
     setSelectedTask(task);
@@ -75,6 +121,75 @@ function AppContent() {
     setSelectedTask(null);
     setActiveTab('chat'); // Switch back to chat when closing task
   };
+
+  const handleOpenProject = async () => {
+    await window.dexteria?.project?.open?.();
+  };
+
+  const handleNewProject = async () => {
+    await window.dexteria?.project?.create?.();
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Show welcome screen if no project is open
+  if (!currentProject) {
+    return (
+      <div className="h-screen flex flex-col bg-background">
+        {/* Minimal top bar for window controls */}
+        <div className="h-10 border-b border-border flex items-center justify-between select-none">
+          <div
+            className="flex-1 flex items-center h-full px-4"
+            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-primary" />
+              <span className="font-semibold text-sm tracking-tight">Dexteria</span>
+            </div>
+          </div>
+          <div
+            className="flex items-center h-full"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          >
+            <button
+              onClick={() => window.dexteria?.window?.minimize?.()}
+              className="w-11 h-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 6h8" />
+              </svg>
+            </button>
+            <button
+              onClick={() => window.dexteria?.window?.maximize?.()}
+              className="w-11 h-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="1" y="1" width="10" height="10" rx="1" />
+              </svg>
+            </button>
+            <button
+              onClick={() => window.dexteria?.window?.close?.()}
+              className="w-11 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-muted-foreground transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+        <WelcomeScreen
+          onOpenProject={handleOpenProject}
+          onNewProject={handleNewProject}
+          recentProjects={recentProjects}
+        />
+      </div>
+    );
+  }
 
   return (
     <>

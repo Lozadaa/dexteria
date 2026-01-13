@@ -197,13 +197,13 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
   },
   {
     name: 'update_task',
-    description: 'Update an existing task (title, description, status, acceptance criteria)',
+    description: 'Update an existing task. IMPORTANT: taskId must be a real ID from create_task or list_tasks - you cannot invent task IDs.',
     parameters: {
       type: 'object',
       properties: {
         taskId: {
           type: 'string',
-          description: 'ID of the task to update',
+          description: 'ID of the task to update (must be a real ID from create_task result or list_tasks)',
         },
         title: {
           type: 'string',

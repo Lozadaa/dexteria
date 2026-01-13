@@ -54,7 +54,60 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
                 continue;
             }
 
-            // Headers
+            // Horizontal rule ---
+            if (line.trim().match(/^[-*_]{3,}$/)) {
+                elements.push(
+                    <hr key={key++} className="my-3 border-border" />
+                );
+                i++;
+                continue;
+            }
+
+            // Blockquote >
+            if (line.startsWith('> ')) {
+                const quoteLines: string[] = [];
+                while (i < lines.length && lines[i].startsWith('> ')) {
+                    quoteLines.push(lines[i].slice(2));
+                    i++;
+                }
+                elements.push(
+                    <blockquote key={key++} className="border-l-2 border-primary/50 pl-3 my-2 text-muted-foreground italic">
+                        {quoteLines.map((ql, idx) => (
+                            <p key={idx} className="text-sm">{parseInline(ql)}</p>
+                        ))}
+                    </blockquote>
+                );
+                continue;
+            }
+
+            // Headers (check longer patterns first)
+            if (line.startsWith('###### ')) {
+                elements.push(
+                    <h6 key={key++} className="font-medium text-xs mt-2 mb-1 text-muted-foreground">
+                        {parseInline(line.slice(7))}
+                    </h6>
+                );
+                i++;
+                continue;
+            }
+            if (line.startsWith('##### ')) {
+                elements.push(
+                    <h5 key={key++} className="font-medium text-xs mt-2 mb-1">
+                        {parseInline(line.slice(6))}
+                    </h5>
+                );
+                i++;
+                continue;
+            }
+            if (line.startsWith('#### ')) {
+                elements.push(
+                    <h4 key={key++} className="font-semibold text-sm mt-2 mb-1">
+                        {parseInline(line.slice(5))}
+                    </h4>
+                );
+                i++;
+                continue;
+            }
             if (line.startsWith('### ')) {
                 elements.push(
                     <h3 key={key++} className="font-semibold text-sm mt-3 mb-1">

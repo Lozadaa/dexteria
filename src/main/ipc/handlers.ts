@@ -4,7 +4,9 @@
  * All IPC handlers for communication between main and renderer processes.
  */
 
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, dialog, app } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LocalKanbanStore, initStore, getStore } from '../services/LocalKanbanStore';
 import { getCommentService } from '../services/CommentService';
@@ -41,7 +43,57 @@ let agentProvider: AgentProvider | null = null;
 type ProviderType = 'mock' | 'anthropic' | 'claude-code';
 
 // Store project root for ClaudeCodeProvider
-let projectRoot: string = process.cwd();
+let projectRoot: string | null = null;
+
+// Recent projects file path
+const RECENT_PROJECTS_FILE = path.join(app.getPath('userData'), 'recent-projects.json');
+
+interface RecentProject {
+  path: string;
+  name: string;
+  lastOpened: string;
+}
+
+function loadRecentProjects(): RecentProject[] {
+  try {
+    if (fs.existsSync(RECENT_PROJECTS_FILE)) {
+      return JSON.parse(fs.readFileSync(RECENT_PROJECTS_FILE, 'utf-8'));
+    }
+  } catch (err) {
+    console.error('Failed to load recent projects:', err);
+  }
+  return [];
+}
+
+function saveRecentProjects(projects: RecentProject[]): void {
+  try {
+    fs.writeFileSync(RECENT_PROJECTS_FILE, JSON.stringify(projects, null, 2));
+  } catch (err) {
+    console.error('Failed to save recent projects:', err);
+  }
+}
+
+function addToRecentProjects(projectPath: string): void {
+  const projects = loadRecentProjects();
+  const name = path.basename(projectPath);
+  const now = new Date().toISOString();
+
+  // Remove if already exists
+  const filtered = projects.filter(p => p.path !== projectPath);
+
+  // Add at the beginning
+  filtered.unshift({ path: projectPath, name, lastOpened: now });
+
+  // Keep only 10 recent
+  saveRecentProjects(filtered.slice(0, 10));
+}
+
+/**
+ * Check if a project is currently open.
+ */
+function hasProject(): boolean {
+  return projectRoot !== null && store !== null;
+}
 
 /**
  * Initialize or get the agent provider based on configuration.
@@ -54,7 +106,7 @@ function getOrCreateProvider(): AgentProvider {
 
   // Default to Claude Code provider (uses existing Claude Code authentication)
   const claudeCodeProvider = new ClaudeCodeProvider({
-    workingDirectory: projectRoot,
+    workingDirectory: projectRoot || process.cwd(),
   });
 
   if (claudeCodeProvider.isReady()) {
@@ -80,28 +132,33 @@ function getOrCreateProvider(): AgentProvider {
 /**
  * Initialize all IPC handlers.
  */
-export function initializeIpcHandlers(root: string): void {
-  // Set project root for providers
-  projectRoot = root;
+export function initializeIpcHandlers(root?: string): void {
+  // Only initialize project if root is provided
+  if (root) {
+    projectRoot = root;
 
-  // Initialize store and services
-  store = initStore(projectRoot);
-  const policy = store.getPolicy();
+    // Initialize store and services
+    store = initStore(projectRoot);
+    const policy = store.getPolicy();
 
-  // Initialize runner
-  runner = new Runner(projectRoot, policy, store);
+    // Initialize runner
+    runner = new Runner(projectRoot, policy, store);
 
-  // Initialize provider (will use Claude Code by default)
-  agentProvider = getOrCreateProvider();
+    // Initialize provider (will use Claude Code by default)
+    agentProvider = getOrCreateProvider();
 
-  // Initialize Ralph engine with provider
-  initRalphEngine({
-    projectRoot,
-    store,
-    provider: agentProvider,
-  });
+    // Initialize Ralph engine with provider
+    initRalphEngine({
+      projectRoot,
+      store,
+      provider: agentProvider,
+    });
+  } else {
+    // No project - just initialize provider
+    agentProvider = getOrCreateProvider();
+  }
 
-  // Register handlers
+  // Register handlers (always register, even without project)
   registerBoardHandlers();
   registerTaskHandlers();
   registerStateHandlers();
@@ -110,6 +167,7 @@ export function initializeIpcHandlers(root: string): void {
   registerContextHandlers();
   registerChatHandlers();
   registerSettingsHandlers();
+  registerProjectHandlers();
 }
 
 // ============================================
@@ -117,11 +175,13 @@ export function initializeIpcHandlers(root: string): void {
 // ============================================
 
 function registerBoardHandlers(): void {
-  ipcMain.handle('board:get', async (): Promise<Board> => {
+  ipcMain.handle('board:get', async (): Promise<Board | null> => {
+    if (!hasProject()) return null;
     return getStore().getBoard();
   });
 
   ipcMain.handle('board:save', async (_, board: Board): Promise<void> => {
+    if (!hasProject()) return;
     getStore().saveBoard(board);
   });
 }
@@ -132,30 +192,37 @@ function registerBoardHandlers(): void {
 
 function registerTaskHandlers(): void {
   ipcMain.handle('tasks:getAll', async (): Promise<Task[]> => {
+    if (!hasProject()) return [];
     return getStore().getTasks();
   });
 
   ipcMain.handle('tasks:get', async (_, taskId: string): Promise<Task | null> => {
+    if (!hasProject()) return null;
     return getStore().getTask(taskId);
   });
 
-  ipcMain.handle('tasks:create', async (_, title: string, status?: TaskStatus): Promise<Task> => {
+  ipcMain.handle('tasks:create', async (_, title: string, status?: TaskStatus): Promise<Task | null> => {
+    if (!hasProject()) return null;
     return getStore().createTask(title, status || 'backlog');
   });
 
-  ipcMain.handle('tasks:update', async (_, taskId: string, patch: TaskPatch): Promise<Task> => {
+  ipcMain.handle('tasks:update', async (_, taskId: string, patch: TaskPatch): Promise<Task | null> => {
+    if (!hasProject()) return null;
     return getStore().updateTask(taskId, patch);
   });
 
   ipcMain.handle('tasks:delete', async (_, taskId: string): Promise<void> => {
+    if (!hasProject()) return;
     getStore().deleteTask(taskId);
   });
 
   ipcMain.handle('tasks:move', async (_, taskId: string, toColumnId: TaskStatus, newOrder?: number): Promise<void> => {
+    if (!hasProject()) return;
     getStore().moveTask(taskId, toColumnId, newOrder);
   });
 
   ipcMain.handle('tasks:addComment', async (_, taskId: string, comment: TaskComment): Promise<void> => {
+    if (!hasProject()) return;
     getStore().addComment(taskId, comment);
   });
 
@@ -166,11 +233,13 @@ function registerTaskHandlers(): void {
     author: string,
     content: string,
     runId?: string
-  ): Promise<TaskComment> => {
+  ): Promise<TaskComment | null> => {
+    if (!hasProject()) return null;
     return getStore().addTypedComment(taskId, type, author, content, runId);
   });
 
   ipcMain.handle('tasks:getPending', async (_, strategy?: 'fifo' | 'priority' | 'dependency'): Promise<Task[]> => {
+    if (!hasProject()) return [];
     return getStore().getPendingTasks(strategy);
   });
 
@@ -182,9 +251,18 @@ function registerTaskHandlers(): void {
     suggestedStatus: string;
     error?: string;
   }> => {
+    if (!hasProject()) {
+      return {
+        success: false,
+        summary: '',
+        criteria: [],
+        suggestedStatus: '',
+        error: 'No project open',
+      };
+    }
     try {
-      const store = getStore();
-      const task = store.getTask(taskId);
+      const s = getStore();
+      const task = s.getTask(taskId);
 
       if (!task) {
         return {
@@ -288,6 +366,9 @@ Respond in this exact JSON format:
     failureCount: number;
     hasUnresolvedClarifications: boolean;
   }> => {
+    if (!hasProject()) {
+      return { formattedContext: '', failureCount: 0, hasUnresolvedClarifications: false };
+    }
     const service = getCommentService(getStore());
     const context = service.buildRetryContext(taskId);
     return {
@@ -305,12 +386,14 @@ Respond in this exact JSON format:
     timestamp: string;
     resolved: boolean;
   }[]> => {
+    if (!hasProject()) return [];
     const service = getCommentService(getStore());
     return service.getPendingClarifications(taskId);
   });
 
   // Mark failures as addressed
-  ipcMain.handle('tasks:markFailuresAddressed', async (_, taskId: string, note?: string): Promise<TaskComment> => {
+  ipcMain.handle('tasks:markFailuresAddressed', async (_, taskId: string, note?: string): Promise<TaskComment | null> => {
+    if (!hasProject()) return null;
     const service = getCommentService(getStore());
     return service.markFailuresAddressed(taskId, note);
   });
@@ -321,15 +404,18 @@ Respond in this exact JSON format:
 // ============================================
 
 function registerStateHandlers(): void {
-  ipcMain.handle('state:get', async (): Promise<AgentState> => {
+  ipcMain.handle('state:get', async (): Promise<AgentState | null> => {
+    if (!hasProject()) return null;
     return getStore().getState();
   });
 
-  ipcMain.handle('state:set', async (_, patch: Partial<AgentState>): Promise<AgentState> => {
+  ipcMain.handle('state:set', async (_, patch: Partial<AgentState>): Promise<AgentState | null> => {
+    if (!hasProject()) return null;
     return getStore().setState(patch);
   });
 
-  ipcMain.handle('policy:get', async (): Promise<Policy> => {
+  ipcMain.handle('policy:get', async (): Promise<Policy | null> => {
+    if (!hasProject()) return null;
     return getStore().getPolicy();
   });
 }
@@ -342,15 +428,22 @@ function registerAgentHandlers(): void {
   // Run a single task
   ipcMain.handle('agent:runTask', async (_, taskId: string, options?: RunTaskOptions): Promise<{
     success: boolean;
-    run: AgentRun;
+    run: AgentRun | null;
     error?: string;
   }> => {
-    const store = getStore();
-    const projectRoot = (store as unknown as { projectRoot: string }).projectRoot;
+    if (!hasProject() || !projectRoot) {
+      return {
+        success: false,
+        run: null,
+        error: 'No project open',
+      };
+    }
+
+    const s = getStore();
 
     runtime = new AgentRuntime({
       projectRoot,
-      store,
+      store: s,
       provider: getOrCreateProvider(),
     });
 
@@ -389,6 +482,9 @@ function registerAgentHandlers(): void {
     blocked: number;
     stoppedReason?: string;
   }> => {
+    if (!hasProject()) {
+      return { success: false, processed: 0, completed: 0, failed: 0, blocked: 0, stoppedReason: 'No project open' };
+    }
     const result = await getRalphEngine().startRalphMode(options);
     return {
       success: result.success,
@@ -402,16 +498,19 @@ function registerAgentHandlers(): void {
 
   // Stop Ralph Mode
   ipcMain.handle('ralph:stop', async (): Promise<void> => {
+    if (!hasProject()) return;
     getRalphEngine().stopRalphMode();
   });
 
   // Pause Ralph Mode
   ipcMain.handle('ralph:pause', async (): Promise<void> => {
+    if (!hasProject()) return;
     getRalphEngine().pause();
   });
 
   // Resume Ralph Mode
   ipcMain.handle('ralph:resume', async (): Promise<void> => {
+    if (!hasProject()) return;
     getRalphEngine().resume();
   });
 
@@ -425,11 +524,15 @@ function registerAgentHandlers(): void {
     currentTaskTitle: string | null;
     status: string;
   }> => {
+    if (!hasProject()) {
+      return { total: 0, completed: 0, failed: 0, blocked: 0, currentTaskId: null, currentTaskTitle: null, status: 'idle' };
+    }
     return getRalphEngine().getProgress();
   });
 
   // Check if Ralph is running
   ipcMain.handle('ralph:isRunning', async (): Promise<boolean> => {
+    if (!hasProject()) return false;
     return getRalphEngine().isRunning();
   });
 }
@@ -458,20 +561,239 @@ function registerRunLogHandlers(): void {
 
 function registerContextHandlers(): void {
   ipcMain.handle('context:getProject', async (): Promise<ProjectContext | null> => {
+    if (!hasProject()) return null;
     return getStore().getProjectContext();
   });
 
   ipcMain.handle('context:saveProject', async (_, context: ProjectContext): Promise<void> => {
+    if (!hasProject()) return;
     getStore().saveProjectContext(context);
   });
 
   ipcMain.handle('context:getRepoIndex', async (): Promise<RepoIndex | null> => {
+    if (!hasProject()) return null;
     return getStore().getRepoIndex();
   });
 
   ipcMain.handle('context:saveRepoIndex', async (_, index: RepoIndex): Promise<void> => {
+    if (!hasProject()) return;
     getStore().saveRepoIndex(index);
   });
+}
+
+// ============================================
+// Tool Executor for Chat
+// ============================================
+
+interface ToolResult {
+  name: string;
+  success: boolean;
+  result: unknown;
+  error?: string;
+}
+
+/**
+ * Execute a tool call from the agent and return the result.
+ */
+async function executeToolCall(
+  toolName: string,
+  args: Record<string, unknown>,
+  mode: 'planner' | 'agent'
+): Promise<ToolResult> {
+  if (!hasProject()) {
+    return {
+      name: toolName,
+      success: false,
+      result: null,
+      error: 'No project open',
+    };
+  }
+  const s = getStore();
+
+  try {
+    switch (toolName) {
+      // Task management tools (available in both modes)
+      case 'create_task': {
+        const title = args.title as string;
+        const description = args.description as string || '';
+        const acceptanceCriteria = args.acceptanceCriteria as string[] || ['Task completed'];
+        const status = (args.status as TaskStatus) || 'backlog';
+
+        // Create basic task
+        const task = s.createTask(title, status);
+
+        // Update with additional fields
+        const updatedTask = s.updateTask(task.id, {
+          description,
+          acceptanceCriteria,
+          agent: {
+            goal: description,
+            scope: ['*'],
+            definitionOfDone: acceptanceCriteria,
+          }
+        });
+
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            taskId: updatedTask.id,
+            title: updatedTask.title,
+            status: updatedTask.status,
+            message: `Task created! ID: "${updatedTask.id}" - Title: "${updatedTask.title}" - Use this ID for update_task calls.`
+          }
+        };
+      }
+
+      case 'update_task': {
+        const taskId = args.taskId as string;
+        const patch: TaskPatch = {};
+
+        if (args.title) patch.title = args.title as string;
+        if (args.description) patch.description = args.description as string;
+        if (args.status) patch.status = args.status as TaskStatus;
+        if (args.acceptanceCriteria) patch.acceptanceCriteria = args.acceptanceCriteria as string[];
+
+        const task = s.updateTask(taskId, patch);
+
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            taskId: task.id,
+            title: task.title,
+            status: task.status,
+            message: `Task updated: ${task.title}`
+          }
+        };
+      }
+
+      case 'list_tasks': {
+        let tasks = s.getTasks();
+
+        if (args.status) {
+          tasks = tasks.filter(t => t.status === args.status);
+        }
+
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            count: tasks.length,
+            tasks: tasks.map(t => ({
+              id: t.id,
+              title: t.title,
+              status: t.status,
+              priority: t.priority,
+            }))
+          }
+        };
+      }
+
+      case 'task_complete': {
+        // This would typically mark the current task as done
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            message: 'Task marked as complete',
+            summary: args.summary,
+            acceptanceResults: args.acceptanceResults
+          }
+        };
+      }
+
+      case 'task_blocked': {
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            message: 'Task marked as blocked',
+            reason: args.reason,
+            question: args.question
+          }
+        };
+      }
+
+      case 'task_failed': {
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            message: 'Task marked as failed',
+            reason: args.reason,
+            nextSteps: args.nextSteps
+          }
+        };
+      }
+
+      // File/command tools - only in agent mode
+      case 'list_files':
+      case 'read_file':
+      case 'search':
+      case 'write_file':
+      case 'apply_patch':
+      case 'run_command': {
+        if (mode === 'planner') {
+          return {
+            name: toolName,
+            success: false,
+            result: null,
+            error: `Tool '${toolName}' is not available in Planner mode. Switch to Agent mode to execute code changes.`
+          };
+        }
+
+        // In agent mode, these would be executed by the Runner
+        // For now, return a placeholder - Claude Code CLI handles these internally
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            message: `Tool '${toolName}' executed (handled by Claude Code CLI)`
+          }
+        };
+      }
+
+      default:
+        return {
+          name: toolName,
+          success: false,
+          result: null,
+          error: `Unknown tool: ${toolName}`
+        };
+    }
+  } catch (error) {
+    return {
+      name: toolName,
+      success: false,
+      result: null,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Format tool results for display in chat.
+ */
+function formatToolResults(results: ToolResult[]): string {
+  if (results.length === 0) return '';
+
+  const lines: string[] = ['\n\n---\n**Tool Execution Results:**\n'];
+
+  for (const result of results) {
+    if (result.success) {
+      const resultObj = result.result as Record<string, unknown>;
+      if (resultObj.message) {
+        lines.push(`- **${result.name}**: ${resultObj.message}`);
+      } else {
+        lines.push(`- **${result.name}**: Success`);
+      }
+    } else {
+      lines.push(`- **${result.name}**: Failed - ${result.error}`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 // ============================================
@@ -480,6 +802,7 @@ function registerContextHandlers(): void {
 
 function registerChatHandlers(): void {
   ipcMain.handle('chat:getAll', async (): Promise<Chat[]> => {
+    if (!hasProject()) return [];
     const index = getStore().getChatIndex();
     const chats: Chat[] = [];
     for (const entry of index.chats) {
@@ -490,10 +813,12 @@ function registerChatHandlers(): void {
   });
 
   ipcMain.handle('chat:get', async (_, chatId: string): Promise<Chat | null> => {
+    if (!hasProject()) return null;
     return getStore().getChat(chatId);
   });
 
-  ipcMain.handle('chat:create', async (_, title: string): Promise<Chat> => {
+  ipcMain.handle('chat:create', async (_, title: string): Promise<Chat | null> => {
+    if (!hasProject()) return null;
     const newChat: Chat = {
       id: uuidv4(),
       title: title || 'New Chat',
@@ -506,9 +831,10 @@ function registerChatHandlers(): void {
     return newChat;
   });
 
-  ipcMain.handle('chat:sendMessage', async (event, chatId: string, content: string, mode: 'planner' | 'agent' = 'planner'): Promise<ChatMessage> => {
-    const store = getStore();
-    const chat = store.getChat(chatId);
+  ipcMain.handle('chat:sendMessage', async (event, chatId: string, content: string, mode: 'planner' | 'agent' = 'planner'): Promise<ChatMessage | null> => {
+    if (!hasProject()) return null;
+    const s = getStore();
+    const chat = s.getChat(chatId);
 
     if (!chat) {
       throw new Error(`Chat not found: ${chatId}`);
@@ -537,7 +863,7 @@ function registerChatHandlers(): void {
     };
     chat.messages.push(userMsg);
     chat.updatedAt = new Date().toISOString();
-    store.saveChat(chat);
+    s.saveChat(chat);
 
     // 2. Get Agent Response with streaming
     const agentMessages: AgentMessage[] = chat.messages.map(m => ({
@@ -566,20 +892,37 @@ function registerChatHandlers(): void {
         response = await provider.complete(agentMessages, AGENT_TOOLS);
       }
 
-      // Send final update with full content
-      sendUpdate(response.content, true);
+      // 3. Execute tool calls if any
+      let finalContent = response.content;
+      const toolResults: ToolResult[] = [];
 
-      // 3. Add Assistant Message
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        console.log('[Chat] Executing tool calls:', response.toolCalls.map(t => t.name));
+
+        for (const toolCall of response.toolCalls) {
+          const result = await executeToolCall(toolCall.name, toolCall.arguments, mode);
+          toolResults.push(result);
+          console.log(`[Chat] Tool ${toolCall.name} result:`, result.success ? 'success' : result.error);
+        }
+
+        // Append tool results to content
+        finalContent += formatToolResults(toolResults);
+      }
+
+      // Send final update with full content including tool results
+      sendUpdate(finalContent, true);
+
+      // 4. Add Assistant Message
       const assistantMsg: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
-        content: response.content,
+        content: finalContent,
         timestamp: Date.now()
       };
 
       chat.messages.push(assistantMsg);
       chat.updatedAt = new Date().toISOString();
-      store.saveChat(chat);
+      s.saveChat(chat);
 
       return assistantMsg;
     } catch (error) {
@@ -699,4 +1042,140 @@ function registerSettingsHandlers(): void {
       };
     }
   });
+}
+
+// ============================================
+// Project Handlers
+// ============================================
+
+function openProject(projectPath: string, mainWindow: BrowserWindow | null): boolean {
+  try {
+    // Initialize store for this project
+    store = initStore(projectPath);
+    projectRoot = projectPath;
+
+    // Re-initialize provider with new working directory
+    if (agentProvider instanceof ClaudeCodeProvider) {
+      agentProvider.setWorkingDirectory(projectPath);
+    } else {
+      agentProvider = new ClaudeCodeProvider({ workingDirectory: projectPath });
+    }
+
+    // Initialize runner and ralph engine
+    const policy = store.getPolicy();
+    runner = new Runner(projectPath, policy, store);
+    initRalphEngine({
+      projectRoot: projectPath,
+      store,
+      provider: agentProvider,
+    });
+
+    // Add to recent projects
+    addToRecentProjects(projectPath);
+
+    // Notify renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('project:changed', projectPath);
+    }
+
+    console.log('Opened project:', projectPath);
+    return true;
+  } catch (err) {
+    console.error('Failed to open project:', err);
+    return false;
+  }
+}
+
+function registerProjectHandlers(): void {
+  // Open project via dialog
+  ipcMain.handle('project:open', async (event): Promise<{ success: boolean; path?: string; error?: string }> => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+
+    const result = await dialog.showOpenDialog(win!, {
+      properties: ['openDirectory'],
+      title: 'Open Project',
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, error: 'Cancelled' };
+    }
+
+    const projectPath = result.filePaths[0];
+    const success = openProject(projectPath, win);
+
+    return success
+      ? { success: true, path: projectPath }
+      : { success: false, error: 'Failed to open project' };
+  });
+
+  // Create new project via dialog
+  ipcMain.handle('project:create', async (event): Promise<{ success: boolean; path?: string; error?: string }> => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+
+    const result = await dialog.showOpenDialog(win!, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Select Folder for New Project',
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, error: 'Cancelled' };
+    }
+
+    const projectPath = result.filePaths[0];
+    const success = openProject(projectPath, win);
+
+    return success
+      ? { success: true, path: projectPath }
+      : { success: false, error: 'Failed to create project' };
+  });
+
+  // Open project by path
+  ipcMain.handle('project:openPath', async (event, projectPath: string): Promise<{ success: boolean; error?: string }> => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+
+    if (!fs.existsSync(projectPath)) {
+      return { success: false, error: 'Path does not exist' };
+    }
+
+    const success = openProject(projectPath, win);
+    return success
+      ? { success: true }
+      : { success: false, error: 'Failed to open project' };
+  });
+
+  // Close current project
+  ipcMain.handle('project:close', async (event): Promise<void> => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+
+    // Clear project state
+    store = null;
+    projectRoot = null;
+    runner = null;
+
+    // Notify renderer
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('project:changed', null);
+    }
+
+    console.log('Project closed');
+  });
+
+  // Get current project path
+  ipcMain.handle('project:getCurrent', async (): Promise<string | null> => {
+    return projectRoot;
+  });
+
+  // Get recent projects
+  ipcMain.handle('project:getRecent', async (): Promise<RecentProject[]> => {
+    const projects = loadRecentProjects();
+    // Filter out projects that no longer exist
+    return projects.filter(p => fs.existsSync(p.path));
+  });
+}
+
+/**
+ * Get current project root (can be null if no project is open)
+ */
+export function getProjectRoot(): string | null {
+  return projectRoot;
 }
