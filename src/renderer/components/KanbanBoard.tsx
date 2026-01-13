@@ -283,15 +283,27 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onTaskSelect, activeTa
         >
             <div className="h-full w-full flex gap-4 overflow-x-auto p-4">
                 {columns.map((col: any) => {
-                    // Filter tasks for this column.
-                    // IMPORTANT: Store might have order in col.taskIds, or we just filter by status.
-                    // For simplicity in this iteration, filter by status.
-                    const colTasks = tasks.filter(t => t.status === col.id);
+                    // Filter tasks for this column
+                    let colTasks = tasks.filter(t => t.status === col.id);
+
+                    // Sort tasks based on column type
+                    if (col.id === 'done') {
+                        // Done column: sort by completedAt descending (most recent first)
+                        colTasks = colTasks.sort((a, b) => {
+                            const aCompleted = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+                            const bCompleted = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+                            return bCompleted - aCompleted; // Descending order
+                        });
+                    } else {
+                        // Other columns: sort by order field (ascending)
+                        colTasks = colTasks.sort((a, b) => a.order - b.order);
+                    }
+
                     return (
                         <Column
                             key={col.id}
                             column={col}
-                            tasks={colTasks} // Sort by order if available
+                            tasks={colTasks}
                             onTaskClick={onTaskSelect}
                             onTaskDelete={handleDeleteTask}
                             onCreateTask={handleCreateTask}

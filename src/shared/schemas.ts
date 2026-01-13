@@ -86,7 +86,7 @@ export const TaskSchema = z.object({
   status: TaskStatusSchema,
   priority: TaskPrioritySchema,
   order: z.number().int().min(0),
-  acceptanceCriteria: z.array(z.string()).min(1),
+  acceptanceCriteria: z.array(z.string()), // Allow empty array
   tags: z.array(z.string()).optional(),
   dependsOn: z.array(z.string()).optional(),
   comments: z.array(TaskCommentSchema),
@@ -336,7 +336,7 @@ export function createTask(partial: Partial<Task>): Task {
     status: partial.status || 'backlog',
     priority: partial.priority || 'medium',
     order: partial.order ?? 0,
-    acceptanceCriteria: partial.acceptanceCriteria || ['Define acceptance criteria'],
+    acceptanceCriteria: partial.acceptanceCriteria || [], // Allow empty array by default
     tags: partial.tags,
     dependsOn: partial.dependsOn,
     agent: partial.agent || {
@@ -554,7 +554,7 @@ export function migrateTaskToV3(oldTask: Record<string, unknown>): Task {
     order: typeof oldTask.order === 'number' ? oldTask.order : 0,
     acceptanceCriteria: Array.isArray(oldTask.acceptanceCriteria)
       ? oldTask.acceptanceCriteria.map(String)
-      : ['Define acceptance criteria'],
+      : [], // Allow empty array on migration
     tags: Array.isArray(oldTask.tags) ? oldTask.tags.map(String) : undefined,
     dependsOn: Array.isArray(oldTask.dependsOn) ? oldTask.dependsOn.map(String) : undefined,
     agent: {

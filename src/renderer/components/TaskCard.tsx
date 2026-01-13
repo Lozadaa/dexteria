@@ -3,6 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../lib/utils';
 import { GripVertical, AlertCircle, CheckCircle, Clock, Ban, Trash2 } from 'lucide-react';
+import { DoneTimeChip } from './DoneTimeChip';
 import type { Task } from '../../shared/types';
 
 interface TaskCardProps {
@@ -97,17 +98,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, isA
                         </button>
                     )}
 
-                    <div
-                        className={cn(
-                            "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border bg-muted/30",
-                            task.status === 'done' && "bg-green-500/10 text-green-400 border-green-500/20",
-                            task.status === 'blocked' && "bg-red-500/10 text-red-400 border-red-500/20",
-                            task.status === 'doing' && "bg-blue-500/10 text-blue-400 border-blue-500/20",
-                        )}
-                    >
-                        {StatusIcons[task.status] || StatusIcons.todo}
-                        <span className="capitalize">{task.status}</span>
-                    </div>
+                    {/* Show completion time for done tasks */}
+                    {task.status === 'done' && task.completedAt ? (
+                        <DoneTimeChip completedAt={task.completedAt} />
+                    ) : (
+                        <div
+                            className={cn(
+                                "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border bg-muted/30",
+                                task.status === 'blocked' && "bg-red-500/10 text-red-400 border-red-500/20",
+                                task.status === 'doing' && "bg-blue-500/10 text-blue-400 border-blue-500/20",
+                            )}
+                        >
+                            {StatusIcons[task.status] || StatusIcons.todo}
+                            <span className="capitalize">{task.status}</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

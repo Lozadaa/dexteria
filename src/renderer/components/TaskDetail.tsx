@@ -619,60 +619,66 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                 <div>
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Acceptance Criteria</h3>
                     <div className="space-y-2">
-                        {(task.acceptanceCriteria || []).map((ac, i) => (
-                            <div key={i} className="flex gap-2 text-sm p-2 rounded bg-muted/5 border border-border group">
-                                <span className="font-mono text-muted-foreground opacity-50 shrink-0">{i + 1}.</span>
-                                {editingCriterionIndex === i ? (
-                                    <div className="flex-1 flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={editingCriterionText}
-                                            onChange={(e) => setEditingCriterionText(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') handleSaveEditCriterion();
-                                                if (e.key === 'Escape') handleCancelEditCriterion();
-                                            }}
-                                            className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                                            autoFocus
-                                        />
-                                        <button
-                                            onClick={handleSaveEditCriterion}
-                                            className="p-1 hover:bg-green-500/20 rounded text-green-500"
-                                            title="Save"
-                                        >
-                                            <Check size={14} />
-                                        </button>
-                                        <button
-                                            onClick={handleCancelEditCriterion}
-                                            className="p-1 hover:bg-muted rounded text-muted-foreground"
-                                            title="Cancel"
-                                        >
-                                            <X size={14} />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <span className="flex-1">{ac}</span>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {(task.acceptanceCriteria || []).length === 0 ? (
+                            <div className="text-sm text-muted-foreground bg-muted/10 p-3 rounded-lg border border-border">
+                                No acceptance criteria defined
+                            </div>
+                        ) : (
+                            (task.acceptanceCriteria || []).map((ac, i) => (
+                                <div key={i} className="flex gap-2 text-sm p-2 rounded bg-muted/5 border border-border group">
+                                    <span className="font-mono text-muted-foreground opacity-50 shrink-0">{i + 1}.</span>
+                                    {editingCriterionIndex === i ? (
+                                        <div className="flex-1 flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={editingCriterionText}
+                                                onChange={(e) => setEditingCriterionText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleSaveEditCriterion();
+                                                    if (e.key === 'Escape') handleCancelEditCriterion();
+                                                }}
+                                                className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                                autoFocus
+                                            />
                                             <button
-                                                onClick={() => handleStartEditCriterion(i)}
-                                                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                                                title="Edit"
+                                                onClick={handleSaveEditCriterion}
+                                                className="p-1 hover:bg-green-500/20 rounded text-green-500"
+                                                title="Save"
                                             >
-                                                <Edit2 size={12} />
+                                                <Check size={14} />
                                             </button>
                                             <button
-                                                onClick={() => handleRemoveCriterion(i)}
-                                                className="p-1 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-500"
-                                                title="Remove"
+                                                onClick={handleCancelEditCriterion}
+                                                className="p-1 hover:bg-muted rounded text-muted-foreground"
+                                                title="Cancel"
                                             >
-                                                <Trash2 size={12} />
+                                                <X size={14} />
                                             </button>
                                         </div>
-                                    </>
-                                )}
-                            </div>
-                        ))}
+                                    ) : (
+                                        <>
+                                            <span className="flex-1">{ac}</span>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleStartEditCriterion(i)}
+                                                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                                                    title="Edit"
+                                                >
+                                                    <Edit2 size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRemoveCriterion(i)}
+                                                    className="p-1 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-500"
+                                                    title="Remove"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ))
+                        )}
 
                         {/* Add new criterion */}
                         <div className="flex gap-2">
