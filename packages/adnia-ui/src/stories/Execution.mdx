@@ -1,0 +1,169 @@
+{/* Execution Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Execution" />
+
+# Execution Layer
+
+Components for terminal output and log viewing in developer tools.
+
+## Components
+
+### TerminalPanel
+
+A terminal UI wrapper supporting multiple sessions, command history, and interrupt handling.
+
+```tsx
+import { TerminalPanel, type TerminalPanelRef, type TerminalSession } from "@adnia/ui";
+
+const ref = useRef<TerminalPanelRef>(null);
+
+const sessions: TerminalSession[] = [
+  {
+    id: "main",
+    name: "Terminal",
+    cwd: "/project",
+    lines: [
+      { type: "input", content: "npm install" },
+      { type: "output", content: "Installing dependencies..." },
+    ],
+  },
+];
+
+<TerminalPanel
+  ref={ref}
+  sessions={sessions}
+  activeSession="main"
+  onCommand={(cmd, sessionId) => executeCommand(cmd, sessionId)}
+  onSessionChange={(id) => setActiveSession(id)}
+  onInterrupt={() => cancelExecution()}
+/>
+
+// Programmatically append output
+ref.current?.appendOutput("Build complete!", "main");
+```
+
+**Ref Methods:**
+- `appendOutput(text, sessionId?)` - Add output to terminal
+- `clear(sessionId?)` - Clear terminal
+- `focus()` - Focus the input
+- `scrollToBottom()` - Scroll to latest output
+
+**Props:**
+- `sessions` - Array of terminal sessions
+- `activeSession` - Currently active session ID
+- `onCommand` - Command submission handler
+- `onSessionChange` - Session switch handler
+- `onInterrupt` - Ctrl+C handler
+- `showTabs` - Show session tabs (default: true)
+- `className` - Additional CSS classes
+
+**Session Structure:**
+
+```tsx
+interface TerminalSession {
+  id: string;
+  name: string;
+  cwd?: string;
+  lines: TerminalLine[];
+}
+
+interface TerminalLine {
+  type: "input" | "output" | "error" | "system";
+  content: string;
+  timestamp?: Date;
+}
+```
+
+### LogViewer
+
+A log viewer with level filtering, search, and streaming support.
+
+```tsx
+import { LogViewer, type LogEntry, type LogFilter } from "@adnia/ui";
+
+const logs: LogEntry[] = [
+  { id: "1", timestamp: new Date(), level: "info", message: "Server started", source: "app" },
+  { id: "2", timestamp: new Date(), level: "error", message: "Connection failed", source: "db" },
+];
+
+const [filter, setFilter] = useState<LogFilter>({});
+
+<LogViewer
+  entries={logs}
+  filter={filter}
+  onFilterChange={setFilter}
+  onClear={() => clearLogs()}
+  followTail
+/>
+```
+
+**Props:**
+- `entries` - Array of log entries
+- `filter` - Current filter state
+- `onFilterChange` - Filter change handler
+- `onClear` - Clear logs handler
+- `followTail` - Auto-scroll to new entries
+- `compact` - Use compact display
+- `showTimestamp` - Show timestamps (default: true)
+- `showFilters` - Show filter controls (default: true)
+- `className` - Additional CSS classes
+
+**Log Entry Structure:**
+
+```tsx
+interface LogEntry {
+  id: string;
+  timestamp: Date;
+  level: "debug" | "info" | "warn" | "error";
+  message: string;
+  source?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface LogFilter {
+  levels?: LogLevel[];
+  sources?: string[];
+  search?: string;
+}
+```
+
+## Theming
+
+Terminal components use these CSS variables:
+
+```css
+--terminal-background: /* Terminal background */
+--terminal-foreground: /* Terminal text */
+--terminal-cursor: /* Cursor color */
+--terminal-selection: /* Selection background */
+```
+
+## Best Practices
+
+### Streaming Output
+
+```tsx
+const ref = useRef<TerminalPanelRef>(null);
+
+// Handle streaming output from subprocess
+subprocess.stdout.on("data", (chunk) => {
+  ref.current?.appendOutput(chunk.toString());
+});
+
+subprocess.stderr.on("data", (chunk) => {
+  ref.current?.appendOutput(chunk.toString(), undefined, "error");
+});
+```
+
+### Log Level Filtering
+
+```tsx
+// Filter to only show errors and warnings
+const [filter, setFilter] = useState<LogFilter>({
+  levels: ["error", "warn"],
+});
+
+// Or search for specific messages
+setFilter({ search: "connection" });
+```

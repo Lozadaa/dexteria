@@ -6,6 +6,7 @@ import Ralph from '../../../assets/ralph.png'
 import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop } from 'lucide-react';
 import LogoIcon from '../../../assets/logoicon.png';
 import { SettingsModal } from './SettingsModal';
+import { Button, IconButton, ToggleGroup } from 'adnia-ui';
 import type { ProjectProcessStatus } from '../../shared/types';
 
   interface RalphProgress {
@@ -18,7 +19,11 @@ import type { ProjectProcessStatus } from '../../shared/types';
       status: string;
   }
 
-  export const TopBar: React.FC = () => {
+  interface TopBarProps {
+      onOpenThemeEditor?: (themeId: string, themeName?: string) => void;
+  }
+
+  export const TopBar: React.FC<TopBarProps> = ({ onOpenThemeEditor }) => {
       const { state, refresh } = useAgentState();
       const { mode, setMode, triggerPlannerBlock } = useMode();
       const [isMaximized, setIsMaximized] = useState(false);
@@ -264,81 +269,68 @@ import type { ProjectProcessStatus } from '../../shared/types';
                       ref={fileMenuRef}
                       style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                   >
-                      <button
+                      <Button
+                          variant={showFileMenu ? "muted" : "ghost"}
+                          size="xs"
                           onClick={() => setShowFileMenu(!showFileMenu)}
-                          className={cn(
-                              "flex items-center gap-1 px-2 py-1 text-xs font-medium rounded hover:bg-muted transition-colors",
-                              showFileMenu && "bg-muted"
-                          )}
                       >
                           File
                           <ChevronDown size={12} className={cn("transition-transform", showFileMenu && "rotate-180")} />
-                      </button>
+                      </Button>
 
                       {showFileMenu && (
                           <div className="absolute left-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
-                              <button
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={handleOpenProject}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                                  className="w-full justify-start rounded-none"
                               >
                                   <FolderOpen size={14} />
                                   Open Project...
-                              </button>
-                              <button
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={handleNewProject}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                                  className="w-full justify-start rounded-none"
                               >
                                   <FilePlus size={14} />
                                   New Project...
-                              </button>
-                              <button
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={handleCloseProject}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                                  className="w-full justify-start rounded-none"
                               >
                                   <FolderX size={14} />
                                   Close Project
-                              </button>
+                              </Button>
                               <div className="h-px bg-border my-1" />
-                              <button
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={handleClose}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left text-red-400"
+                                  className="w-full justify-start rounded-none text-red-400 hover:text-red-300"
                               >
                                   <X size={14} />
                                   Exit
-                              </button>
+                              </Button>
                           </div>
                       )}
                   </div>
 
                   {/* Agent / Planner Toggle - Global Mode */}
-                  <div
-                      className="flex items-center bg-muted rounded-full p-0.5"
-                      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-                  >
-                      <button
-                          onClick={() => setMode('agent')}
-                          className={cn(
-                              "flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full transition-all",
-                              mode === 'agent'
-                                  ? "bg-primary text-primary-foreground shadow-sm"
-                                  : "text-muted-foreground hover:text-foreground"
-                          )}
-                      >
-                          <Bot size={12} />
-                          Agent
-                      </button>
-                      <button
-                          onClick={() => setMode('planner')}
-                          className={cn(
-                              "flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full transition-all",
-                              mode === 'planner'
-                                  ? "bg-primary text-primary-foreground shadow-sm"
-                                  : "text-muted-foreground hover:text-foreground"
-                          )}
-                      >
-                          <ClipboardList size={12} />
-                          Planner
-                      </button>
+                  <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+                      <ToggleGroup
+                          value={mode}
+                          onValueChange={(value) => setMode(value as 'agent' | 'planner')}
+                          options={[
+                              { value: 'agent', label: 'Agent', icon: <Bot size={12} /> },
+                              { value: 'planner', label: 'Planner', icon: <ClipboardList size={12} /> },
+                          ]}
+                      />
                   </div>
 
                   {state?.activeTaskId && (
@@ -363,44 +355,48 @@ import type { ProjectProcessStatus } from '../../shared/types';
                   <div className="flex items-center gap-1 px-2">
                       {/* Play/Stop Run */}
                       {runStatus?.running ? (
-                          <button
+                          <Button
+                              variant="status-success"
+                              size="xs"
                               onClick={handleStopRun}
-                              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-500/10 border border-green-500/20 text-green-400 rounded hover:bg-green-500/20 transition-colors"
                               title="Stop dev server"
                           >
                               <CircleStop size={12} />
                               <span className="max-w-[60px] truncate">Running</span>
-                          </button>
+                          </Button>
                       ) : (
-                          <button
+                          <Button
+                              variant="muted"
+                              size="xs"
                               onClick={handleStartRun}
-                              className="flex items-center gap-1 px-2 py-1 text-xs bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded transition-colors"
                               title="Start dev server"
                           >
                               <Play size={12} />
                               Run
-                          </button>
+                          </Button>
                       )}
 
                       {/* Build */}
                       {buildStatus?.running ? (
-                          <button
+                          <Button
+                              variant="status-warning"
+                              size="xs"
                               onClick={handleStopBuild}
-                              className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/20 transition-colors"
                               title="Stop build"
                           >
                               <Loader2 size={12} className="animate-spin" />
                               <span>Building</span>
-                          </button>
+                          </Button>
                       ) : (
-                          <button
+                          <Button
+                              variant="muted"
+                              size="xs"
                               onClick={handleStartBuild}
-                              className="flex items-center gap-1 px-2 py-1 text-xs bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded transition-colors"
                               title="Build project"
                           >
                               <Hammer size={12} />
                               Build
-                          </button>
+                          </Button>
                       )}
                   </div>
 
@@ -431,24 +427,27 @@ import type { ProjectProcessStatus } from '../../shared/types';
                                   </span>
                               )}
                           </div>
-                          <button
+                          <IconButton
+                              variant="danger"
+                              size="sm"
                               onClick={handleStopRalph}
                               disabled={stoppingRalph}
-                              className="p-1.5 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title={stoppingRalph ? "Stopping..." : "Stop Ralph"}
                           >
                               <StopCircle size={16} />
-                          </button>
+                          </IconButton>
                       </div>
                   ) : (
-                      <button
+                      <Button
+                          variant="status-success"
+                          size="xs"
                           onClick={handleStartRalph}
-                          className="flex items-center gap-1.5 px-3 !py-1 max-h-[30px] mx-2 text-xs font-medium bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 rounded-lg transition-colors"
+                          className="mx-2"
                           title="Run all pending tasks (Ralph Mode)"
                       >
                           <PlayCircle size={14} />
                           Run All (Ralph mode)<img src={Ralph} width={40} height={20} />
-                      </button>
+                      </Button>
                   )}
 
                   <div className="h-4 w-px bg-border mx-1" />
@@ -471,37 +470,40 @@ import type { ProjectProcessStatus } from '../../shared/types';
 
                   {/* Settings button with dropdown */}
                   <div className="relative" ref={settingsRef}>
-                      <button
+                      <IconButton
+                          variant={showSettings ? "secondary" : "ghost"}
+                          size="lg"
                           onClick={() => setShowSettings(!showSettings)}
-                          className={cn(
-                              "px-3 h-10 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors",
-                              showSettings && "bg-muted text-foreground"
-                          )}
+                          className="rounded-none h-10 w-10"
                       >
                           <Settings size={14} />
-                      </button>
+                      </IconButton>
 
                       {/* Settings Dropdown */}
                       {showSettings && (
                           <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
-                              <button
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => {
                                       setShowSettings(false);
                                       setShowSettingsModal(true);
                                   }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                                  className="w-full justify-start rounded-none"
                               >
                                   <Settings size={14} />
                                   Project Settings
-                              </button>
+                              </Button>
                               <div className="h-px bg-border" />
-                              <button
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={handleOpenDevTools}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                                  className="w-full justify-start rounded-none"
                               >
                                   <Terminal size={14} />
                                   Open DevTools
-                              </button>
+                              </Button>
                           </div>
                       )}
                   </div>
@@ -539,6 +541,7 @@ import type { ProjectProcessStatus } from '../../shared/types';
               <SettingsModal
                   isOpen={showSettingsModal}
                   onClose={() => setShowSettingsModal(false)}
+                  onOpenThemeEditor={onOpenThemeEditor}
               />
           </div>
       );

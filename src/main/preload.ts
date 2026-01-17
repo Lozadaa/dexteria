@@ -132,6 +132,15 @@ export interface DexteriaAPI {
       ready: boolean;
       type: 'mock' | 'anthropic' | 'claude-code';
     }>;
+    getAvailableProviders: () => Promise<{
+      providers: Array<{ type: 'mock' | 'anthropic' | 'claude-code'; name: string; description: string; available: boolean }>;
+      current: 'mock' | 'anthropic' | 'claude-code';
+    }>;
+    setProvider: (providerType: 'mock' | 'anthropic' | 'claude-code', apiKey?: string) => Promise<{
+      success: boolean;
+      provider: string;
+      error?: string;
+    }>;
     setApiKey: (apiKey: string) => Promise<{
       success: boolean;
       provider: string;
@@ -146,6 +155,15 @@ export interface DexteriaAPI {
     updateProject: (patch: unknown) => Promise<{ success: boolean; settings?: unknown; error?: string }>;
     detectCommands: () => Promise<unknown>;
     getEffectiveCommand: (type: 'run' | 'build' | 'install') => Promise<string>;
+    testSound: (preset: 'system' | 'chime' | 'bell' | 'success' | 'ding' | 'complete') => Promise<void>;
+    getSoundPresets: () => Promise<Array<{ id: string; name: string; description: string }>>;
+    getPresetThemes: () => Promise<Array<{
+      id: string;
+      name: string;
+      description?: string;
+      preview: { background: string; foreground: string; primary: string; accent: string };
+    }>>;
+    getPresetTheme: (themeId: string) => Promise<unknown | null>;
   };
   project: {
     open: () => Promise<{ success: boolean; path?: string; error?: string }>;
@@ -164,6 +182,68 @@ export interface DexteriaAPI {
     getAllProcessStatus: () => Promise<unknown[]>;
     onStatusUpdate: (callback: (status: unknown) => void) => () => void;
     onOutput: (callback: (data: { type: string; runId: string; data: string }) => void) => () => void;
+  };
+  theme: {
+    getAll: () => Promise<Array<{ id: string; name: string; isBuiltIn: boolean; path: string }>>;
+    getActive: () => Promise<unknown | null>;
+    load: (themeId: string) => Promise<unknown | null>;
+    setActive: (themeId: string) => Promise<{ success: boolean; theme?: unknown; css?: { light: string; dark: string } }>;
+    save: (theme: unknown) => Promise<{ success: boolean }>;
+    create: (name: string, baseThemeId?: string) => Promise<unknown | null>;
+    delete: (themeId: string) => Promise<boolean>;
+    import: (jsonString: string) => Promise<unknown | null>;
+    export: (themeId: string) => Promise<string | null>;
+    getFilePath: (themeId: string) => Promise<string | null>;
+    openInEditor: (themeId: string) => Promise<boolean>;
+    getCSS: (themeId: string) => Promise<{ light: string; dark: string } | null>;
+    onChanged: (callback: (data: { theme: unknown; css: { light: string; dark: string } }) => void) => () => void;
+  };
+  plugin: {
+    getAll: () => Promise<unknown[]>;
+    get: (pluginId: string) => Promise<unknown | null>;
+    enable: (pluginId: string) => Promise<boolean>;
+    disable: (pluginId: string) => Promise<boolean>;
+    getSettings: (pluginId: string) => Promise<Record<string, unknown>>;
+    setSettings: (pluginId: string, settings: Record<string, unknown>) => Promise<void>;
+    // UI Extensions
+    getTabs: () => Promise<Array<{
+      id: string;
+      pluginId: string;
+      label: string;
+      icon?: string;
+      position: 'left' | 'right' | 'bottom';
+      order?: number;
+      component: string;
+      componentType: 'html' | 'url' | 'iframe';
+    }>>;
+    getTabsByPosition: (position: 'left' | 'right' | 'bottom') => Promise<Array<{
+      id: string;
+      pluginId: string;
+      label: string;
+      icon?: string;
+      position: 'left' | 'right' | 'bottom';
+      order?: number;
+      component: string;
+      componentType: 'html' | 'url' | 'iframe';
+    }>>;
+    getContextMenuItems: () => Promise<Array<{
+      id: string;
+      pluginId: string;
+      label: string;
+      icon?: string;
+      location: 'task' | 'board' | 'column';
+      order?: number;
+    }>>;
+    getContextMenuItemsByLocation: (location: 'task' | 'board' | 'column') => Promise<Array<{
+      id: string;
+      pluginId: string;
+      label: string;
+      icon?: string;
+      location: 'task' | 'board' | 'column';
+      order?: number;
+    }>>;
+    executeContextMenuItem: (itemId: string, context: unknown) => Promise<void>;
+    callApi: (pluginId: string, methodName: string, ...args: unknown[]) => Promise<unknown>;
   };
 }
 
@@ -261,6 +341,8 @@ const api: DexteriaAPI = {
   },
   settings: {
     getProvider: () => ipcRenderer.invoke('settings:getProvider'),
+    getAvailableProviders: () => ipcRenderer.invoke('settings:getAvailableProviders'),
+    setProvider: (providerType, apiKey) => ipcRenderer.invoke('settings:setProvider', providerType, apiKey),
     setApiKey: (apiKey) => ipcRenderer.invoke('settings:setApiKey', apiKey),
     testProvider: () => ipcRenderer.invoke('settings:testProvider'),
     getProject: () => ipcRenderer.invoke('settings:getProject'),
@@ -268,6 +350,10 @@ const api: DexteriaAPI = {
     updateProject: (patch) => ipcRenderer.invoke('settings:updateProject', patch),
     detectCommands: () => ipcRenderer.invoke('settings:detectCommands'),
     getEffectiveCommand: (type) => ipcRenderer.invoke('settings:getEffectiveCommand', type),
+    testSound: (preset) => ipcRenderer.invoke('settings:testSound', preset),
+    getSoundPresets: () => ipcRenderer.invoke('settings:getSoundPresets'),
+    getPresetThemes: () => ipcRenderer.invoke('settings:getPresetThemes'),
+    getPresetTheme: (themeId) => ipcRenderer.invoke('settings:getPresetTheme', themeId),
   },
   project: {
     open: () => ipcRenderer.invoke('project:open'),
@@ -302,6 +388,40 @@ const api: DexteriaAPI = {
       ipcRenderer.on('project:output', handler);
       return () => ipcRenderer.removeListener('project:output', handler);
     },
+  },
+  theme: {
+    getAll: () => ipcRenderer.invoke('theme:getAll'),
+    getActive: () => ipcRenderer.invoke('theme:getActive'),
+    load: (themeId) => ipcRenderer.invoke('theme:load', themeId),
+    setActive: (themeId) => ipcRenderer.invoke('theme:setActive', themeId),
+    save: (theme) => ipcRenderer.invoke('theme:save', theme),
+    create: (name, baseThemeId) => ipcRenderer.invoke('theme:create', name, baseThemeId),
+    delete: (themeId) => ipcRenderer.invoke('theme:delete', themeId),
+    import: (jsonString) => ipcRenderer.invoke('theme:import', jsonString),
+    export: (themeId) => ipcRenderer.invoke('theme:export', themeId),
+    getFilePath: (themeId) => ipcRenderer.invoke('theme:getFilePath', themeId),
+    openInEditor: (themeId) => ipcRenderer.invoke('theme:openInEditor', themeId),
+    getCSS: (themeId) => ipcRenderer.invoke('theme:getCSS', themeId),
+    onChanged: (callback: (data: { theme: unknown; css: { light: string; dark: string } }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { theme: unknown; css: { light: string; dark: string } }) => callback(data);
+      ipcRenderer.on('theme:changed', handler);
+      return () => ipcRenderer.removeListener('theme:changed', handler);
+    },
+  },
+  plugin: {
+    getAll: () => ipcRenderer.invoke('plugin:getAll'),
+    get: (pluginId) => ipcRenderer.invoke('plugin:get', pluginId),
+    enable: (pluginId) => ipcRenderer.invoke('plugin:enable', pluginId),
+    disable: (pluginId) => ipcRenderer.invoke('plugin:disable', pluginId),
+    getSettings: (pluginId) => ipcRenderer.invoke('plugin:getSettings', pluginId),
+    setSettings: (pluginId, settings) => ipcRenderer.invoke('plugin:setSettings', pluginId, settings),
+    // UI Extensions
+    getTabs: () => ipcRenderer.invoke('plugin:getTabs'),
+    getTabsByPosition: (position) => ipcRenderer.invoke('plugin:getTabsByPosition', position),
+    getContextMenuItems: () => ipcRenderer.invoke('plugin:getContextMenuItems'),
+    getContextMenuItemsByLocation: (location) => ipcRenderer.invoke('plugin:getContextMenuItemsByLocation', location),
+    executeContextMenuItem: (itemId, context) => ipcRenderer.invoke('plugin:executeContextMenuItem', itemId, context),
+    callApi: (pluginId, methodName, ...args) => ipcRenderer.invoke('plugin:callApi', pluginId, methodName, ...args),
   },
 };
 

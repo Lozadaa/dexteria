@@ -343,9 +343,12 @@ export interface ProjectCommand {
   includesInstall?: boolean;
 }
 
+export type NotificationSound = 'system' | 'chime' | 'bell' | 'success' | 'ding' | 'complete';
+
 export interface NotificationSettings {
   soundOnTaskComplete: boolean;
   badgeOnTaskComplete: boolean;
+  sound: NotificationSound; // Selected notification sound preset
 }
 
 export interface ProjectCommandsSettings {
@@ -408,3 +411,542 @@ export const IPC_CHANNELS = {
   SEND_MESSAGE: 'chat:sendMessage',
   GET_STATE: 'agent:getState',
 } as const;
+
+// ============================================
+// Theme Types
+// ============================================
+
+/**
+ * HSL color value without the hsl() wrapper
+ * Format: "hue saturation% lightness%"
+ * Example: "221.2 83.2% 53.3%"
+ */
+export type HSLValue = string;
+
+/**
+ * Core color tokens for the UI
+ */
+export interface ThemeColorTokens {
+  background: HSLValue;
+  foreground: HSLValue;
+  card: HSLValue;
+  cardForeground: HSLValue;
+  popover: HSLValue;
+  popoverForeground: HSLValue;
+  primary: HSLValue;
+  primaryForeground: HSLValue;
+  secondary: HSLValue;
+  secondaryForeground: HSLValue;
+  muted: HSLValue;
+  mutedForeground: HSLValue;
+  accent: HSLValue;
+  accentForeground: HSLValue;
+  destructive: HSLValue;
+  destructiveForeground: HSLValue;
+  border: HSLValue;
+  input: HSLValue;
+  ring: HSLValue;
+}
+
+/**
+ * Code editor color tokens
+ */
+export interface ThemeCodeTokens {
+  background: HSLValue;
+  foreground: HSLValue;
+  comment: HSLValue;
+  keyword: HSLValue;
+  string: HSLValue;
+  number: HSLValue;
+  function: HSLValue;
+  operator: HSLValue;
+  variable: HSLValue;
+  class: HSLValue;
+}
+
+/**
+ * Diff viewer color tokens
+ */
+export interface ThemeDiffTokens {
+  addBackground: HSLValue;
+  addForeground: HSLValue;
+  removeBackground: HSLValue;
+  removeForeground: HSLValue;
+  changeBackground: HSLValue;
+  changeForeground: HSLValue;
+}
+
+/**
+ * Terminal color tokens
+ */
+export interface ThemeTerminalTokens {
+  background: HSLValue;
+  foreground: HSLValue;
+  cursor: HSLValue;
+  selection: HSLValue;
+}
+
+/**
+ * Complete color palette for a theme mode (light/dark)
+ */
+export interface ThemeColors {
+  core: ThemeColorTokens;
+  code: ThemeCodeTokens;
+  diff: ThemeDiffTokens;
+  terminal: ThemeTerminalTokens;
+  lineNumber: HSLValue;
+  lineHighlight: HSLValue;
+}
+
+/**
+ * Font configuration
+ */
+export interface ThemeFonts {
+  sans: string;
+  mono: string;
+  display: string;
+  baseFontSize: string;
+  codeFontSize: string;
+}
+
+/**
+ * Complete theme definition
+ * Note: Themes no longer have separate light/dark modes.
+ * Each theme defines its own colors directly.
+ */
+export interface CustomTheme {
+  id: string;
+  name: string;
+  version: number;
+  author?: string;
+  description?: string;
+  colors: ThemeColors;
+  fonts: ThemeFonts;
+  radius: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Theme index stored in .local-kanban/themes/index.json
+ */
+export interface ThemeIndex {
+  version: number;
+  activeThemeId: string | null;
+  themes: Array<{
+    id: string;
+    name: string;
+    isBuiltIn: boolean;
+    path: string;
+  }>;
+}
+
+/**
+ * Simplified theme preset for quick selection
+ */
+export interface ThemePreset {
+  id: string;
+  name: string;
+  preview: {
+    primary: HSLValue;
+    background: HSLValue;
+    foreground: HSLValue;
+  };
+}
+
+// ============================================
+// Plugin System Types
+// ============================================
+
+/**
+ * Plugin permission levels for different resources
+ */
+export type PluginPermissionLevel = 'none' | 'read' | 'write' | 'full';
+export type PluginAgentPermission = 'none' | 'read' | 'execute';
+export type PluginTerminalPermission = 'none' | 'read' | 'execute';
+export type PluginNetworkPermission = 'none' | 'local' | 'restricted' | 'full';
+
+/**
+ * UI permissions for plugins
+ */
+export interface PluginUIPermissions {
+  tabs?: boolean;
+  sidebars?: boolean;
+  modals?: boolean;
+  contextMenus?: boolean;
+  notifications?: boolean;
+}
+
+/**
+ * Complete plugin permissions definition
+ */
+export interface PluginPermissions {
+  tasks?: PluginPermissionLevel;
+  chat?: PluginPermissionLevel;
+  agent?: PluginAgentPermission;
+  files?: PluginPermissionLevel;
+  terminal?: PluginTerminalPermission;
+  settings?: PluginPermissionLevel;
+  ui?: PluginUIPermissions;
+  network?: PluginNetworkPermission;
+}
+
+/**
+ * Command contribution from a plugin
+ */
+export interface PluginCommandContribution {
+  id: string;
+  title: string;
+  description?: string;
+  shortcut?: string;
+}
+
+/**
+ * Tab contribution from a plugin
+ */
+export interface PluginTabContribution {
+  id: string;
+  title: string;
+  icon: string;
+  component: string;
+  position?: 'before' | 'after';
+}
+
+/**
+ * Context menu contribution from a plugin
+ */
+export interface PluginContextMenuContribution {
+  location: 'task-card' | 'chat-message' | 'board-column' | 'file';
+  items: {
+    id: string;
+    label: string;
+    icon?: string;
+    shortcut?: string;
+    action: string;
+    when?: string;
+  }[];
+}
+
+/**
+ * Hook contribution from a plugin
+ */
+export interface PluginHookContribution {
+  hook: string;
+  handler: string;
+  priority?: number;
+}
+
+/**
+ * Setting contribution from a plugin
+ */
+export interface PluginSettingContribution {
+  id: string;
+  title: string;
+  type: 'string' | 'number' | 'boolean' | 'select';
+  default: unknown;
+  description?: string;
+  options?: { label: string; value: unknown }[];
+}
+
+/**
+ * Plugin contributions (extensions to the app)
+ */
+export interface PluginContributions {
+  commands?: PluginCommandContribution[];
+  tabs?: PluginTabContribution[];
+  contextMenus?: PluginContextMenuContribution[];
+  hooks?: PluginHookContribution[];
+  settings?: PluginSettingContribution[];
+}
+
+/**
+ * Plugin manifest - describes a plugin's capabilities
+ */
+export interface PluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  author?: string;
+  description?: string;
+  main?: string;
+  renderer?: string;
+  permissions: PluginPermissions;
+  contributes?: PluginContributions;
+}
+
+/**
+ * Plugin state during runtime
+ */
+export type PluginState = 'installed' | 'disabled' | 'enabled' | 'active' | 'error';
+
+/**
+ * Runtime information about a loaded plugin
+ */
+export interface PluginInfo {
+  manifest: PluginManifest;
+  state: PluginState;
+  path: string;
+  error?: string;
+  loadedAt?: string;
+  activatedAt?: string;
+}
+
+/**
+ * Plugin index stored in .local-kanban/plugins/index.json
+ */
+export interface PluginIndex {
+  version: number;
+  enabled: string[];
+  disabled: string[];
+  settings: Record<string, Record<string, unknown>>;
+}
+
+/**
+ * Hook context for chat:beforeSend
+ */
+export interface ChatBeforeSendContext {
+  message: string;
+  chatId: string;
+  mode: 'agent' | 'planner';
+}
+
+/**
+ * Hook result for chat:beforeSend
+ */
+export interface ChatBeforeSendResult {
+  message: string;
+  cancel?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Hook context for chat:afterResponse
+ */
+export interface ChatAfterResponseContext {
+  response: string;
+  chatId: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Hook result for chat:afterResponse
+ */
+export interface ChatAfterResponseResult {
+  response: string;
+}
+
+// ============================================
+// Task/Kanban Hook Types
+// ============================================
+
+/**
+ * Task priority type
+ */
+export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Task creation input for beforeCreate hook
+ */
+export interface TaskCreateInput {
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: TaskPriority;
+  acceptanceCriteria?: string[];
+  dependencies?: string[];
+  tags?: string[];
+}
+
+// Note: TaskPatch is already defined above in the Task-related types section
+
+/**
+ * Hook context for task:beforeCreate
+ */
+export interface TaskBeforeCreateContext {
+  input: TaskCreateInput;
+}
+
+/**
+ * Hook result for task:beforeCreate
+ */
+export interface TaskBeforeCreateResult {
+  input: TaskCreateInput;
+  cancel?: boolean;
+}
+
+/**
+ * Hook context for task:afterCreate
+ */
+export interface TaskAfterCreateContext {
+  task: Task;
+}
+
+/**
+ * Hook context for task:beforeUpdate
+ */
+export interface TaskBeforeUpdateContext {
+  taskId: string;
+  patch: TaskPatch;
+  task: Task;
+}
+
+/**
+ * Hook result for task:beforeUpdate
+ */
+export interface TaskBeforeUpdateResult {
+  patch: TaskPatch;
+  cancel?: boolean;
+}
+
+/**
+ * Hook context for task:afterUpdate
+ */
+export interface TaskAfterUpdateContext {
+  task: Task;
+  previousTask: Task;
+}
+
+/**
+ * Hook context for task:beforeMove
+ */
+export interface TaskBeforeMoveContext {
+  taskId: string;
+  task: Task;
+  fromColumn: string;
+  toColumn: string;
+}
+
+/**
+ * Hook result for task:beforeMove
+ */
+export interface TaskBeforeMoveResult {
+  toColumn: string;
+  cancel?: boolean;
+}
+
+/**
+ * Hook context for task:afterMove
+ */
+export interface TaskAfterMoveContext {
+  task: Task;
+  fromColumn: string;
+}
+
+/**
+ * Hook context for task:beforeDelete
+ */
+export interface TaskBeforeDeleteContext {
+  taskId: string;
+  task: Task;
+}
+
+/**
+ * Hook result for task:beforeDelete
+ */
+export interface TaskBeforeDeleteResult {
+  cancel?: boolean;
+}
+
+/**
+ * Hook context for board:refresh
+ */
+export interface BoardRefreshContext {
+  board: Board;
+  tasks: Task[];
+}
+
+// ============================================
+// Agent Execution Hook Types
+// ============================================
+
+/**
+ * Hook context for agent:beforeRun
+ */
+export interface AgentBeforeRunContext {
+  taskId: string;
+  task: Task;
+  runId: string;
+  mode: 'agent' | 'planner';
+}
+
+/**
+ * Hook result for agent:beforeRun
+ */
+export interface AgentBeforeRunResult {
+  cancel?: boolean;
+  modifiedTask?: Partial<Task>;
+}
+
+/**
+ * Hook context for agent:afterRun
+ */
+export interface AgentAfterRunContext {
+  taskId: string;
+  task: Task;
+  runId: string;
+  success: boolean;
+  error?: string;
+  filesModified?: string[];
+  summary?: string;
+}
+
+/**
+ * Hook context for agent:onToolCall
+ */
+export interface AgentToolCallContext {
+  taskId: string;
+  runId: string;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  stepNumber: number;
+}
+
+/**
+ * Hook result for agent:onToolCall
+ */
+export interface AgentToolCallResult {
+  cancel?: boolean;
+  modifiedInput?: Record<string, unknown>;
+}
+
+/**
+ * Hook context for agent:onStep
+ */
+export interface AgentStepContext {
+  taskId: string;
+  runId: string;
+  stepNumber: number;
+  content: string;
+  isComplete: boolean;
+}
+
+// ============================================
+// Plugin UI Extension Types
+// ============================================
+
+/**
+ * Plugin-registered custom tab
+ */
+export interface PluginTab {
+  id: string;
+  pluginId: string;
+  label: string;
+  icon?: string;
+  position: 'left' | 'right' | 'bottom';
+  order?: number;
+  component: string; // Path to the component file or inline HTML
+  componentType: 'html' | 'url' | 'iframe';
+}
+
+/**
+ * Plugin-registered context menu item
+ */
+export interface PluginContextMenuItem {
+  id: string;
+  pluginId: string;
+  label: string;
+  icon?: string;
+  target: 'task' | 'board' | 'column';
+  action: string; // Handler function name
+  order?: number;
+}

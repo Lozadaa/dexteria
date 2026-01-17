@@ -13,6 +13,7 @@ import {
   getOrCreateProvider,
   ClaudeCodeProvider,
 } from './shared';
+import { getPluginManager } from '../../services/PluginManager';
 import type { ToolResult } from './types';
 import type {
   Chat,
@@ -21,6 +22,13 @@ import type {
   TaskStatus,
   TaskPatch,
 } from '../../../shared/types';
+
+/**
+ * Message boundary delimiter.
+ * AI can use this to split responses into multiple distinct messages.
+ * Usage: AI outputs "---MSG---" to indicate a new message should start.
+ */
+const MSG_DELIMITER = '---MSG---';
 
 /**
  * Filter tool JSON blocks from streaming content and replace with friendly indicators.
@@ -376,25 +384,62 @@ export function registerChatHandlers(): void {
       throw new Error(`Chat not found: ${chatId}`);
     }
 
+    // Execute chat:beforeSend hooks
+    let processedContent = content;
+    const pluginManager = getPluginManager();
+    if (pluginManager) {
+      const hookResult = await pluginManager.executeBeforeSendHooks({
+        message: content,
+        chatId,
+        mode,
+      });
+
+      // Check if a plugin cancelled the message
+      if (hookResult.cancel) {
+        console.log('[Chat] Message cancelled by plugin hook');
+        return null;
+      }
+
+      // Use potentially modified message
+      processedContent = hookResult.message;
+    }
+
     // Get the window to send streaming updates
     const win = BrowserWindow.fromWebContents(event.sender);
 
+    // Track completed messages from delimiter splits
+    const completedMessages: string[] = [];
+
     // Helper to send stream updates
-    const sendUpdate = (text: string, done: boolean) => {
+    const sendUpdate = (text: string, done: boolean, isNewMessage: boolean = false) => {
       if (win && !win.isDestroyed()) {
         win.webContents.send('chat:stream-update', {
           chatId,
           content: text,
           done,
+          isNewMessage, // Indicates a new message bubble should be created
+          messageIndex: completedMessages.length, // Which message we're on
         });
       }
+    };
+
+    // Helper to process content and detect message boundaries
+    const processContentWithDelimiters = (fullContent: string): { current: string; completed: string[] } => {
+      const parts = fullContent.split(MSG_DELIMITER);
+      if (parts.length === 1) {
+        return { current: parts[0], completed: [] };
+      }
+      // All parts except the last are completed messages
+      const completed = parts.slice(0, -1).map(p => p.trim()).filter(p => p.length > 0);
+      const current = parts[parts.length - 1].trim();
+      return { current, completed };
     };
 
     // 1. Add User Message
     const userMsg: ChatMessage = {
       id: uuidv4(),
       role: 'user',
-      content,
+      content: processedContent,
       timestamp: Date.now()
     };
 
@@ -402,7 +447,7 @@ export function registerChatHandlers(): void {
     const isFirstMessage = chat.messages.length === 0;
     if (isFirstMessage) {
       // Create a short title from the user's message (max 50 chars)
-      const titleWords = content.trim().split(/\s+/).slice(0, 8).join(' ');
+      const titleWords = processedContent.trim().split(/\s+/).slice(0, 8).join(' ');
       chat.title = titleWords.length > 50 ? titleWords.substring(0, 47) + '...' : titleWords;
     }
 
@@ -453,8 +498,24 @@ export function registerChatHandlers(): void {
         if (provider instanceof ClaudeCodeProvider) {
           const onChunk = (chunk: string) => {
             accumulated += chunk;
-            // Filter tool JSON before sending to frontend to avoid flash
-            sendUpdate(filterToolJsonForStreaming(accumulated), false);
+
+            // Check for message boundaries
+            const { current, completed } = processContentWithDelimiters(accumulated);
+
+            // If we have newly completed messages, emit them
+            while (completed.length > completedMessages.length) {
+              const newCompletedIdx = completedMessages.length;
+              const completedContent = completed[newCompletedIdx];
+              completedMessages.push(completedContent);
+
+              // Send the completed message
+              sendUpdate(filterToolJsonForStreaming(completedContent), true, true);
+            }
+
+            // Send current (in-progress) message
+            if (current) {
+              sendUpdate(filterToolJsonForStreaming(current), false, completedMessages.length > 0);
+            }
           };
           response = await provider.complete(conversationMessages, AGENT_TOOLS, onChunk, mode);
         } else {
@@ -515,22 +576,63 @@ export function registerChatHandlers(): void {
 
       const finalContent = finalResponse?.content || accumulated;
 
-      // Send final update with cleaned content
-      sendUpdate(filterToolJsonForStreaming(finalContent), true);
+      // Process final content for any remaining delimiters
+      const { current: lastMessageContent, completed: finalCompleted } = processContentWithDelimiters(finalContent);
 
-      // 4. Add Assistant Message
-      const assistantMsg: ChatMessage = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: finalContent,
-        timestamp: Date.now()
-      };
+      // Add any remaining completed messages we haven't processed yet
+      for (let i = completedMessages.length; i < finalCompleted.length; i++) {
+        completedMessages.push(finalCompleted[i]);
+      }
 
-      chat.messages.push(assistantMsg);
+      // Add the last message content if not empty
+      if (lastMessageContent.trim()) {
+        completedMessages.push(lastMessageContent.trim());
+      }
+
+      // If no messages were split, treat the whole content as one message
+      if (completedMessages.length === 0 && finalContent.trim()) {
+        completedMessages.push(finalContent.trim());
+      }
+
+      // Send final update
+      sendUpdate(filterToolJsonForStreaming(completedMessages[completedMessages.length - 1] || ''), true, completedMessages.length > 1);
+
+      // Execute chat:afterResponse hooks on each completed message
+      const processedMessages: string[] = [];
+      for (const msgContent of completedMessages) {
+        if (msgContent.trim()) {
+          let processedResponse = msgContent;
+          if (pluginManager) {
+            const hookResult = await pluginManager.executeAfterResponseHooks({
+              response: msgContent,
+              chatId,
+            });
+            processedResponse = hookResult.response;
+          }
+          processedMessages.push(processedResponse);
+        }
+      }
+
+      // 4. Add Assistant Messages (one for each split message)
+      const assistantMessages: ChatMessage[] = [];
+      for (const msgContent of processedMessages) {
+        if (msgContent.trim()) {
+          const assistantMsg: ChatMessage = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: msgContent,
+            timestamp: Date.now()
+          };
+          assistantMessages.push(assistantMsg);
+          chat.messages.push(assistantMsg);
+        }
+      }
+
       chat.updatedAt = new Date().toISOString();
       s.saveChat(chat);
 
-      return assistantMsg;
+      // Return the last assistant message (for backwards compatibility)
+      return assistantMessages[assistantMessages.length - 1] || null;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error('Chat error:', errorMsg);

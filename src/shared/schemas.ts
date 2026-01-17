@@ -303,9 +303,12 @@ export const ProjectCommandSchema = z.object({
   includesInstall: z.boolean().optional(),
 });
 
+export const NotificationSoundSchema = z.enum(['system', 'chime', 'bell', 'success', 'ding', 'complete']);
+
 export const NotificationSettingsSchema = z.object({
   soundOnTaskComplete: z.boolean(),
   badgeOnTaskComplete: z.boolean(),
+  sound: NotificationSoundSchema.default('system'),
 });
 
 export const ProjectCommandsSettingsSchema = z.object({
@@ -483,6 +486,7 @@ export function createDefaultSettings(): ProjectSettings {
     notifications: {
       soundOnTaskComplete: true,
       badgeOnTaskComplete: true,
+      sound: 'system',
     },
     projectCommands: {
       run: { cmd: '', cwd: '.', autoDetect: true },

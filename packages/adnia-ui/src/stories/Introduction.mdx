@@ -1,0 +1,331 @@
+{/* Dev Components Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Dev Components" />
+
+# Dev Components Layer
+
+UI primitives for building AI-powered developer tools, IDE-like workflows, streaming AI output, markdown/code rendering, and file/diff workflows.
+
+## Overview
+
+The Dev Components Layer provides a comprehensive set of components designed for:
+
+- **AI-powered code tools** - Response cards, patch review, inline comments
+- **IDE-like workflows** - File trees, tabs, split panes, terminals
+- **Streaming AI output** - Typewriter effects, streaming markdown
+- **Markdown/code rendering** - Syntax highlighting, diff viewers
+- **File/diff workflows** - File navigation, patch review, diff comparison
+
+## Architecture
+
+All components are:
+- **Multi-theme compatible** - Work seamlessly with light, dark, blue, green, and purple themes
+- **Framework-agnostic** - No hard dependencies on specific editors or renderers
+- **Desktop-first** - Optimized for Electron apps with keyboard shortcuts
+- **Composable** - Can be combined to create complex IDE-like layouts
+
+## Component Index
+
+### Content Components
+| Component | Description |
+|-----------|-------------|
+| `CodeBlock` | Syntax-highlighted code display with line numbers, copy button, collapsible sections |
+| `MarkdownViewer` | GFM markdown rendering with tables, task lists, code blocks |
+
+### Streaming Components
+| Component | Description |
+|-----------|-------------|
+| `StreamingTypewriter` | Typewriter effect with adaptive speed buffering for token feeds |
+| `StreamingMarkdown` | Combines streaming text with live markdown rendering |
+
+### Code Editing Components
+| Component | Description |
+|-----------|-------------|
+| `CodeEditor` | Editor wrapper with keyboard shortcuts (Ctrl+S, Ctrl+Shift+F, Ctrl+Enter) |
+| `DiffViewer` | Side-by-side and unified diff views with accept/reject actions |
+
+### Execution Components
+| Component | Description |
+|-----------|-------------|
+| `TerminalPanel` | Multi-session terminal UI with command history and Ctrl+C interrupt |
+| `LogViewer` | Streaming log viewer with level filtering, search, and auto-scroll |
+
+### Navigation Components
+| Component | Description |
+|-----------|-------------|
+| `FileTree` | Project file explorer with expandable folders and status indicators |
+| `FileTabs` | Editor-style tabs with dirty, pinned, and preview states |
+
+### Review & AI Components
+| Component | Description |
+|-----------|-------------|
+| `PatchReviewPanel` | AI patch review panel with accept/reject per file |
+| `InlineComment` | Code comment threads with resolve/reply functionality |
+| `AIResponseCard` | AI response container with status, feedback, and actions |
+
+### Layout Components
+| Component | Description |
+|-----------|-------------|
+| `SplitPane` | Resizable split layouts (horizontal/vertical) with min/max sizes |
+| `Drawer` | Slide-out panels from any side (left, right, top, bottom) |
+| `PanelGroup` | Composable panel system with resize handles and layout persistence |
+| `ResizablePanel` | Individual panel within a PanelGroup |
+| `PanelResizeHandle` | Drag handle for resizing panels |
+
+### Theme & Font Components
+| Component | Description |
+|-----------|-------------|
+| `FontProvider` | Context provider for font configuration |
+| `FontSelector` | UI component for selecting fonts |
+
+## CSS Variables
+
+The dev components use dedicated CSS variables for theming:
+
+```css
+/* Code highlighting */
+--code-background
+--code-foreground
+--code-comment
+--code-keyword
+--code-string
+--code-function
+--code-number
+--code-operator
+
+/* Diff colors */
+--diff-add-background
+--diff-add-foreground
+--diff-remove-background
+--diff-remove-foreground
+--diff-change-background
+--diff-gutter-background
+
+/* Terminal colors */
+--terminal-background
+--terminal-foreground
+--terminal-cursor
+--terminal-selection
+
+/* Typography */
+--font-family-sans
+--font-family-mono
+--font-family-display
+```
+
+## Theme Typography
+
+All dev components automatically inherit typography from the active theme. The `FontProvider` context allows themes to customize:
+
+- **Sans-serif font** (`--font-family-sans`) - Used for UI text, labels, and general content
+- **Monospace font** (`--font-family-mono`) - Used for code blocks, terminals, diffs, and logs
+- **Display font** (`--font-family-display`) - Used for headings and titles
+
+Components that use monospace fonts (CodeBlock, CodeEditor, DiffViewer, TerminalPanel, LogViewer) automatically apply `var(--font-family-mono)`, ensuring consistent typography across themes.
+
+To customize fonts in a theme:
+
+```tsx
+// In your theme CSS or FontProvider configuration
+:root {
+  --font-family-sans: "Inter", system-ui, sans-serif;
+  --font-family-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-family-display: "Cal Sans", "Inter", sans-serif;
+}
+
+// Or use FontProvider programmatically
+<FontProvider
+  fonts={{
+    sans: "Inter",
+    mono: "JetBrains Mono",
+    display: "Cal Sans"
+  }}
+>
+  {children}
+</FontProvider>
+```
+
+The `FontSelector` component provides a UI for users to change fonts at runtime:
+
+```tsx
+<FontSelector
+  onFontChange={(category, font) => {
+    console.log(`Changed ${category} font to ${font}`);
+  }}
+/>
+```
+
+## Quick Start
+
+```tsx
+import {
+  // Content
+  CodeBlock,
+  MarkdownViewer,
+
+  // Streaming
+  StreamingTypewriter,
+  StreamingMarkdown,
+
+  // Code Editing
+  CodeEditor,
+  DiffViewer,
+
+  // Execution
+  TerminalPanel,
+  LogViewer,
+
+  // Navigation
+  FileTree,
+  FileTabs,
+
+  // Review & AI
+  PatchReviewPanel,
+  InlineComment,
+  AIResponseCard,
+
+  // Layout
+  SplitPane,
+  Drawer,
+  PanelGroup,
+  ResizablePanel,
+  PanelResizeHandle,
+
+  // Font
+  FontProvider,
+  FontSelector,
+} from "@adnia/ui";
+```
+
+## Example: IDE-Like Layout
+
+```tsx
+function IDELayout() {
+  return (
+    <PanelGroup direction="horizontal" autoSaveId="ide-layout">
+      {/* File Explorer */}
+      <ResizablePanel defaultSize={20} minSize={15}>
+        <FileTree
+          files={files}
+          onSelect={handleFileSelect}
+          onOpen={handleFileOpen}
+        />
+      </ResizablePanel>
+
+      <PanelResizeHandle />
+
+      {/* Main Editor Area */}
+      <ResizablePanel defaultSize={80}>
+        <PanelGroup direction="vertical">
+          {/* Editor with Tabs */}
+          <ResizablePanel defaultSize={70}>
+            <FileTabs
+              tabs={openFiles}
+              activeTab={activeFile}
+              onTabSelect={setActiveFile}
+              onTabClose={closeFile}
+            />
+            <CodeEditor
+              value={code}
+              language={language}
+              onChange={setCode}
+              onSave={saveFile}
+            />
+          </ResizablePanel>
+
+          <PanelResizeHandle />
+
+          {/* Terminal */}
+          <ResizablePanel defaultSize={30} collapsible>
+            <TerminalPanel
+              sessions={sessions}
+              onCommand={handleCommand}
+            />
+          </ResizablePanel>
+        </PanelGroup>
+      </ResizablePanel>
+    </PanelGroup>
+  );
+}
+```
+
+## Example: AI Chat Interface
+
+```tsx
+function AIChatInterface() {
+  const markdownRef = useRef<StreamingMarkdownRef>(null);
+  const [status, setStatus] = useState<AIResponseStatus>("complete");
+
+  const handleStream = async (prompt: string) => {
+    setStatus("streaming");
+    markdownRef.current?.clear();
+
+    for await (const token of streamResponse(prompt)) {
+      markdownRef.current?.append(token);
+    }
+
+    markdownRef.current?.flush();
+    setStatus("complete");
+  };
+
+  return (
+    <AIResponseCard
+      status={status}
+      model="Claude 3.5"
+      onCancel={() => {
+        cancelStream();
+        markdownRef.current?.flush();
+        setStatus("cancelled");
+      }}
+      onCopy={() => copyToClipboard()}
+      onFeedback={(type) => submitFeedback(type)}
+    >
+      <StreamingMarkdown ref={markdownRef} />
+    </AIResponseCard>
+  );
+}
+```
+
+## Hooks
+
+### useStreamingText
+Hook for managing streaming text with typewriter effect.
+
+```tsx
+const { ref, append, flush, clear, isStreaming } = useStreamingText();
+```
+
+### useStreamingMarkdown
+Hook for streaming markdown content.
+
+```tsx
+const { ref, append, setContent, flush, clear } = useStreamingMarkdown();
+```
+
+### usePanelGroup
+Hook for accessing panel group context (used internally by ResizablePanel).
+
+### useFonts
+Hook for accessing and modifying font configuration.
+
+```tsx
+const { fonts, setFont, resetFonts } = useFonts();
+```
+
+## Utilities
+
+### computeDiff
+Compute diff lines between two strings.
+
+```tsx
+const diffLines = computeDiff(original, modified);
+```
+
+### getDiffStats
+Get statistics from diff lines.
+
+```tsx
+const stats = getDiffStats(diffLines);
+// { additions: 5, deletions: 3, changes: 2 }
+```

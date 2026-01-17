@@ -1,0 +1,97 @@
+{/* Content Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Content" />
+
+# Content Layer
+
+Components for displaying code and markdown content with syntax highlighting and rich formatting.
+
+## Components
+
+### CodeBlock
+
+A syntax-highlighted code block with features like:
+- Line numbers (toggleable)
+- Copy to clipboard button
+- Collapsible sections
+- Line highlighting
+- Filename header
+- Max height with scroll
+- Word wrapping
+
+```tsx
+import { CodeBlock } from "@adnia/ui";
+
+<CodeBlock
+  code={`function hello() {
+  console.log("Hello!");
+}`}
+  language="typescript"
+  filename="hello.ts"
+  showLineNumbers
+  highlightLines={[2]}
+  copyable
+/>
+```
+
+**Props:**
+- `code` - The source code to display
+- `language` - Programming language for highlighting
+- `filename` - Optional filename header
+- `showLineNumbers` - Show line numbers (default: true)
+- `highlightLines` - Array of line numbers to highlight
+- `collapsible` - Allow collapsing the code block
+- `defaultCollapsed` - Start collapsed
+- `copyable` - Show copy button (default: true)
+- `wrapLines` - Wrap long lines
+- `maxHeight` - Maximum height before scrolling
+- `highlighter` - Custom syntax highlighter function
+
+### MarkdownViewer
+
+A markdown renderer with built-in GFM support:
+- Tables
+- Task lists
+- Code blocks with syntax highlighting
+- Links
+- Headings with anchors
+- Block quotes
+- Lists (ordered/unordered)
+
+```tsx
+import { MarkdownViewer } from "@adnia/ui";
+
+<MarkdownViewer
+  content={`# Hello World
+
+This is **bold** and this is *italic*.
+
+\`\`\`typescript
+const x = 42;
+\`\`\`
+`}
+/>
+```
+
+**Props:**
+- `content` - Markdown content string
+- `renderCodeBlock` - Custom code block renderer
+- `onLinkClick` - Link click handler
+- `parser` - Custom markdown parser
+- `components` - Override default components
+
+## Theming
+
+These components use the following CSS variables:
+
+```css
+--code-background: /* Code block background */
+--code-foreground: /* Code text color */
+--code-comment: /* Comment color */
+--code-keyword: /* Keyword color */
+--code-string: /* String color */
+--code-function: /* Function name color */
+--code-number: /* Number color */
+--code-operator: /* Operator color */
+```

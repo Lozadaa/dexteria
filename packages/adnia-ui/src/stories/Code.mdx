@@ -1,0 +1,139 @@
+{/* Code Editing Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Code" />
+
+# Code Editing Layer
+
+Components for code editing and diff viewing with IDE-like features.
+
+## Components
+
+### CodeEditor
+
+A framework-agnostic code editor wrapper that provides a consistent interface regardless of the underlying editor (Monaco, CodeMirror, etc.).
+
+```tsx
+import { CodeEditor } from "@adnia/ui";
+
+<CodeEditor
+  value={code}
+  onChange={setCode}
+  language="typescript"
+  onSave={() => saveFile()}
+  onFormat={() => formatCode()}
+  onRun={() => runCode()}
+/>
+```
+
+**Keyboard Shortcuts:**
+- `Ctrl+S` / `Cmd+S` - Save
+- `Ctrl+Shift+F` / `Cmd+Shift+F` - Format
+- `Ctrl+Enter` / `Cmd+Enter` - Run
+
+**Props:**
+- `value` - The code content
+- `onChange` - Change handler
+- `language` - Programming language
+- `readOnly` - Disable editing
+- `showLineNumbers` - Show line numbers
+- `showMinimap` - Show minimap (if supported)
+- `theme` - Editor theme
+- `wordWrap` - Enable word wrapping
+- `decorations` - Line decorations (errors, warnings, etc.)
+- `onSave` - Save handler
+- `onFormat` - Format handler
+- `onRun` - Run handler
+- `editor` - Custom editor renderer
+
+**Decorations:**
+
+```tsx
+const decorations: CodeDecoration[] = [
+  { line: 5, type: "error", message: "Type error: expected string" },
+  { line: 10, type: "warning", message: "Unused variable" },
+  { line: 15, type: "info", message: "Consider refactoring" },
+];
+
+<CodeEditor decorations={decorations} />
+```
+
+### DiffViewer
+
+A diff viewer supporting both split (side-by-side) and unified views.
+
+```tsx
+import { DiffViewer } from "@adnia/ui";
+
+<DiffViewer
+  original={originalCode}
+  modified={modifiedCode}
+  language="typescript"
+  filename="app.ts"
+  mode="split"
+  onAccept={() => acceptChanges()}
+  onReject={() => rejectChanges()}
+/>
+```
+
+**Props:**
+- `original` - Original code
+- `modified` - Modified code
+- `language` - Programming language
+- `filename` - File name to display
+- `mode` - "split" or "unified" (default: "split")
+- `onAccept` - Accept changes handler
+- `onReject` - Reject changes handler
+- `className` - Additional CSS classes
+
+**Utilities:**
+
+```tsx
+import { computeDiff, getDiffStats } from "@adnia/ui";
+
+// Compute diff lines
+const diffLines = computeDiff(original, modified);
+
+// Get statistics
+const stats = getDiffStats(diffLines);
+// { additions: 5, deletions: 3, changes: 2 }
+```
+
+## Theming
+
+The diff viewer uses these CSS variables:
+
+```css
+--diff-add-background: /* Added line background */
+--diff-add-foreground: /* Added line text */
+--diff-remove-background: /* Removed line background */
+--diff-remove-foreground: /* Removed line text */
+--diff-change-background: /* Changed line background */
+--diff-gutter-background: /* Gutter background */
+```
+
+## Custom Editor Integration
+
+To use a specific editor library like Monaco:
+
+```tsx
+import { CodeEditor, type EditorRenderProps } from "@adnia/ui";
+import MonacoEditor from "@monaco-editor/react";
+
+const MonacoRenderer = ({ value, onChange, language, ...props }: EditorRenderProps) => (
+  <MonacoEditor
+    value={value}
+    onChange={(v) => onChange?.(v || "")}
+    language={language}
+    theme="vs-dark"
+    {...props}
+  />
+);
+
+<CodeEditor
+  value={code}
+  onChange={setCode}
+  language="typescript"
+  editor={MonacoRenderer}
+/>
+```

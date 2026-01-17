@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../lib/utils';
+import { Badge, Button } from 'adnia-ui';
 import { GripVertical, AlertCircle, CheckCircle, Clock, Ban, Trash2, Loader2, StopCircle, Play } from 'lucide-react';
 import { DoneTimeChip } from './DoneTimeChip';
 import type { Task } from '../../shared/types';
@@ -29,6 +30,18 @@ const StatusIcons = {
     done: <CheckCircle className="w-3 h-3" />,
     blocked: <Ban className="w-3 h-3 text-red-400" />,
     backlog: <div className="w-3 h-3 rounded-full border border-current opacity-50" />,
+};
+
+// Map task status to badge variant
+const getStatusBadgeClasses = (status: Task['status']) => {
+    switch (status) {
+        case 'blocked':
+            return "bg-red-500/10 text-red-400 border-red-500/20";
+        case 'doing':
+            return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+        default:
+            return "bg-muted/30 border-border";
+    }
 };
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onStop, onRun, isActive }) => {
@@ -101,23 +114,26 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
             onClick={() => onClick(task)}
             onContextMenu={handleContextMenu}
             className={cn(
-                "group relative flex flex-col gap-2 p-3 rounded-lg border bg-card/50 backdrop-blur-sm shadow-sm transition-all hover:bg-card/70 hover:shadow-md cursor-grab active:cursor-grabbing",
+                "group relative flex flex-col gap-2 p-3 rounded-lg border bg-card/50 backdrop-blur-sm shadow-sm cursor-grab active:cursor-grabbing",
+                "transition-all duration-200 ease-out hover:bg-card/70 hover:shadow-md hover:-translate-y-0.5",
+                "animate-fade-in-up animate-fill-both",
                 isActive && "ring-2 ring-primary border-primary",
-                isRunning && "ring-2 ring-green-500/50 border-green-500/50 bg-green-500/5",
+                isRunning && "ring-2 ring-green-500/50 border-green-500/50 bg-green-500/5 animate-glow-pulse",
                 "border-white/5"
             )}
         >
             {/* Running indicator overlay with stop button */}
             {isRunning && (
                 <div className="absolute top-2 right-2 flex items-center gap-1">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/20 border border-green-500/30">
-                        <Loader2 className="w-3 h-3 text-green-400 animate-spin" />
-                        <span className="text-[10px] font-medium text-green-400">
-                            {isStopping ? 'Stopping...' : 'Running'}
-                        </span>
-                    </div>
+                    <Badge className="bg-green-500/20 border-green-500/30 text-green-400 text-[10px] px-2 py-1">
+                        <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        {isStopping ? 'Stopping...' : 'Running'}
+                    </Badge>
                     {onStop && !isStopping && (
-                        <button
+                        <Button
+                            variant="danger-soft"
+                            size="icon-sm"
+                            className="h-6 w-6"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -132,14 +148,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                                 e.stopPropagation();
                                 e.preventDefault();
                             }}
-                            onTouchStart={(e) => {
-                                e.stopPropagation();
-                            }}
-                            className="p-1.5 rounded-full bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 transition-colors z-50"
                             title="Stop execution"
                         >
-                            <StopCircle className="w-3 h-3 text-red-400" />
-                        </button>
+                            <StopCircle className="w-3 h-3" />
+                        </Button>
                     )}
                 </div>
             )}
@@ -170,30 +182,32 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                 <div className="flex items-center gap-1.5">
                     {/* Delete button - appears on hover */}
                     {onDelete && (
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-500"
                             onClick={handleDelete}
                             onPointerDown={(e) => e.stopPropagation()}
-                            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all"
                             title="Delete task"
                         >
                             <Trash2 className="w-3 h-3" />
-                        </button>
+                        </Button>
                     )}
 
                     {/* Show completion time for done tasks */}
                     {task.status === 'done' && task.completedAt ? (
                         <DoneTimeChip completedAt={task.completedAt} />
                     ) : (
-                        <div
+                        <Badge
+                            variant="outline"
                             className={cn(
-                                "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border bg-muted/30",
-                                task.status === 'blocked' && "bg-red-500/10 text-red-400 border-red-500/20",
-                                task.status === 'doing' && "bg-blue-500/10 text-blue-400 border-blue-500/20",
+                                "text-[10px] px-1.5 py-0.5 font-normal",
+                                getStatusBadgeClasses(task.status)
                             )}
                         >
                             {StatusIcons[task.status] || StatusIcons.todo}
-                            <span className="capitalize">{task.status}</span>
-                        </div>
+                            <span className="ml-1 capitalize">{task.status}</span>
+                        </Badge>
                     )}
                 </div>
             </div>
@@ -203,26 +217,28 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
         {contextMenu && (
             <div
                 ref={menuRef}
-                className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px]"
+                className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px] animate-scale-in"
                 style={{ left: contextMenu.x, top: contextMenu.y }}
             >
                 {onRun && !isRunning && (
-                    <button
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start rounded-none h-9 px-3"
                         onClick={handleRun}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
                     >
-                        <Play size={14} className="text-green-500" />
+                        <Play size={14} className="mr-2 text-green-500" />
                         Ejecutar tarea
-                    </button>
+                    </Button>
                 )}
                 {onDelete && (
-                    <button
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start rounded-none h-9 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                         onClick={handleDelete}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left text-red-400 hover:text-red-300"
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} className="mr-2" />
                         Borrar
-                    </button>
+                    </Button>
                 )}
             </div>
         )}

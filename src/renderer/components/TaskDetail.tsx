@@ -5,6 +5,7 @@ import { useConfirm } from '../contexts/ConfirmContext';
 import { cn } from '../lib/utils';
 import { Play, RotateCw, Plus, X, Link, ChevronDown, Search, CheckCircle, XCircle, AlertCircle, Edit2, Trash2, Check, AlertTriangle, Ban, GripHorizontal } from 'lucide-react';
 import { TaskComments } from './TaskComments';
+import { Button, IconButton, Input, Textarea, ScrollArea } from 'adnia-ui';
 import type { RunTaskOptions, AcceptanceCriterionResult } from '../../shared/types';
 
 interface AnalysisResult {
@@ -363,23 +364,22 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                 <div className="flex items-start justify-between gap-2">
                     {isEditingTitle ? (
                         <div className="flex-1 flex gap-2">
-                            <input
-                                type="text"
+                            <Input
                                 value={titleText}
                                 onChange={(e) => setTitleText(e.target.value)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleSaveTitle();
                                     if (e.key === 'Escape') setIsEditingTitle(false);
                                 }}
-                                className="flex-1 text-lg font-semibold bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="flex-1 text-lg font-semibold"
                                 autoFocus
                             />
-                            <button onClick={handleSaveTitle} className="p-1 hover:bg-green-500/20 rounded text-green-500">
+                            <IconButton variant="ghost" size="sm" onClick={handleSaveTitle} className="text-green-500 hover:bg-green-500/20">
                                 <Check size={16} />
-                            </button>
-                            <button onClick={() => setIsEditingTitle(false)} className="p-1 hover:bg-muted rounded text-muted-foreground">
+                            </IconButton>
+                            <IconButton variant="ghost" size="sm" onClick={() => setIsEditingTitle(false)}>
                                 <X size={16} />
-                            </button>
+                            </IconButton>
                         </div>
                     ) : (
                         <h2
@@ -391,13 +391,15 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                             <Edit2 size={14} className="opacity-0 group-hover:opacity-50" />
                         </h2>
                     )}
-                    <button
+                    <IconButton
+                        variant="ghost"
+                        size="sm"
                         onClick={handleDeleteTask}
-                        className="p-1.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-500 transition-colors"
+                        className="text-muted-foreground hover:text-red-500 hover:bg-red-500/20"
                         title="Delete task"
                     >
                         <Trash2 size={16} />
-                    </button>
+                    </IconButton>
                 </div>
                 <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                     <span className="uppercase tracking-wider opacity-70 font-mono">{task.id ?? 'N/A'}</span>
@@ -409,33 +411,36 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
             </div>
 
             {/* Content Scroller */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <ScrollArea className="flex-1 p-4 space-y-6">
 
                 {/* Actions */}
                 <div className="flex gap-2 flex-wrap">
-                    <button
+                    <Button
                         onClick={() => handleRun('manual')}
                         disabled={isRunning || task.runtime?.status === 'running'}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                        size="sm"
                     >
                         {isRunning || task.runtime?.status === 'running' ? <RotateCw className="animate-spin w-4 h-4" /> : <Play className="w-4 h-4" />}
                         Run Task
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="secondary"
                         onClick={handleAnalyzeState}
                         disabled={analysis?.status === 'analyzing'}
-                        className="flex items-center gap-2 px-3 py-1.5 border border-border hover:bg-muted text-sm font-medium rounded transition-colors disabled:opacity-50"
+                        size="sm"
                     >
                         {analysis?.status === 'analyzing' ? <RotateCw className="animate-spin w-4 h-4" /> : <Search className="w-4 h-4" />}
                         Analyze State
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="secondary"
                         onClick={handleMarkBlocked}
-                        className="flex items-center gap-2 px-3 py-1.5 border border-border hover:bg-yellow-500/20 hover:border-yellow-500/50 text-sm font-medium rounded transition-colors cursor-pointer"
+                        size="sm"
+                        className="hover:bg-yellow-500/20 hover:border-yellow-500/50"
                     >
                         <Ban className="w-4 h-4" />
                         Mark Blocked
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Analysis Results */}
@@ -453,12 +458,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                 {analysis.status === 'error' && <XCircle className="w-3 h-3 text-red-500" />}
                                 State Analysis
                             </h3>
-                            <button
-                                onClick={() => setAnalysis(null)}
-                                className="text-muted-foreground hover:text-foreground"
-                            >
+                            <IconButton variant="ghost" size="xs" onClick={() => setAnalysis(null)}>
                                 <X size={14} />
-                            </button>
+                            </IconButton>
                         </div>
 
                         {analysis.status === 'analyzing' && (
@@ -526,36 +528,31 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</h3>
                         {!isEditingDescription && (
-                            <button
+                            <IconButton
+                                variant="ghost"
+                                size="xs"
                                 onClick={handleStartEditDescription}
-                                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
                                 title="Edit description"
                             >
                                 <Edit2 size={12} />
-                            </button>
+                            </IconButton>
                         )}
                     </div>
                     {isEditingDescription ? (
                         <div className="space-y-2">
-                            <textarea
+                            <Textarea
                                 value={descriptionText}
                                 onChange={(e) => setDescriptionText(e.target.value)}
-                                className="w-full min-h-[100px] bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                                className="w-full min-h-[100px] resize-y"
                                 autoFocus
                             />
                             <div className="flex gap-2 justify-end">
-                                <button
-                                    onClick={() => setIsEditingDescription(false)}
-                                    className="px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded transition-colors"
-                                >
+                                <Button variant="ghost" size="sm" onClick={() => setIsEditingDescription(false)}>
                                     Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveDescription}
-                                    className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                                >
+                                </Button>
+                                <Button size="sm" onClick={handleSaveDescription}>
                                     Save
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     ) : (
@@ -576,28 +573,31 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                             Dependencies
                         </h3>
                         <div className="relative">
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setShowDepDropdown(!showDepDropdown)}
-                                className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
                                 disabled={availableTasks.length === 0}
+                                className="text-xs"
                             >
                                 <Plus size={12} />
                                 Add
                                 <ChevronDown size={12} />
-                            </button>
+                            </Button>
 
                             {/* Dropdown */}
                             {showDepDropdown && availableTasks.length > 0 && (
                                 <div className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                                     {availableTasks.map(t => (
-                                        <button
+                                        <Button
                                             key={t.id}
+                                            variant="ghost"
                                             onClick={() => handleAddDependency(t.id)}
-                                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                                            className="w-full justify-start rounded-none"
                                         >
                                             <span className="text-muted-foreground font-mono text-xs">{t.id}</span>
                                             <span className="truncate">{t.title}</span>
-                                        </button>
+                                        </Button>
                                     ))}
                                 </div>
                             )}
@@ -637,13 +637,15 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                                 )}
                                             </div>
                                         </div>
-                                        <button
+                                        <IconButton
+                                            variant="ghost"
+                                            size="xs"
                                             onClick={() => handleRemoveDependency(depId)}
-                                            className="p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="opacity-0 group-hover:opacity-100"
                                             title="Remove dependency"
                                         >
-                                            <X size={14} className="text-muted-foreground" />
-                                        </button>
+                                            <X size={14} />
+                                        </IconButton>
                                     </div>
                                 );
                             })}
@@ -665,50 +667,55 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                     <span className="font-mono text-muted-foreground opacity-50 shrink-0">{i + 1}.</span>
                                     {editingCriterionIndex === i ? (
                                         <div className="flex-1 flex gap-2">
-                                            <input
-                                                type="text"
+                                            <Input
                                                 value={editingCriterionText}
                                                 onChange={(e) => setEditingCriterionText(e.target.value)}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') handleSaveEditCriterion();
                                                     if (e.key === 'Escape') handleCancelEditCriterion();
                                                 }}
-                                                className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                                className="flex-1"
                                                 autoFocus
                                             />
-                                            <button
+                                            <IconButton
+                                                variant="ghost"
+                                                size="xs"
                                                 onClick={handleSaveEditCriterion}
-                                                className="p-1 hover:bg-green-500/20 rounded text-green-500"
+                                                className="text-green-500 hover:bg-green-500/20"
                                                 title="Save"
                                             >
                                                 <Check size={14} />
-                                            </button>
-                                            <button
+                                            </IconButton>
+                                            <IconButton
+                                                variant="ghost"
+                                                size="xs"
                                                 onClick={handleCancelEditCriterion}
-                                                className="p-1 hover:bg-muted rounded text-muted-foreground"
                                                 title="Cancel"
                                             >
                                                 <X size={14} />
-                                            </button>
+                                            </IconButton>
                                         </div>
                                     ) : (
                                         <>
                                             <span className="flex-1">{ac}</span>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
+                                                <IconButton
+                                                    variant="ghost"
+                                                    size="xs"
                                                     onClick={() => handleStartEditCriterion(i)}
-                                                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
                                                     title="Edit"
                                                 >
                                                     <Edit2 size={12} />
-                                                </button>
-                                                <button
+                                                </IconButton>
+                                                <IconButton
+                                                    variant="ghost"
+                                                    size="xs"
                                                     onClick={() => handleRemoveCriterion(i)}
-                                                    className="p-1 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-500"
+                                                    className="hover:bg-red-500/20 hover:text-red-500"
                                                     title="Remove"
                                                 >
                                                     <Trash2 size={12} />
-                                                </button>
+                                                </IconButton>
                                             </div>
                                         </>
                                     )}
@@ -718,23 +725,22 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
 
                         {/* Add new criterion */}
                         <div className="flex gap-2">
-                            <input
-                                type="text"
+                            <Input
                                 value={newCriterion}
                                 onChange={(e) => setNewCriterion(e.target.value)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleAddCriterion();
                                 }}
                                 placeholder="Add acceptance criterion..."
-                                className="flex-1 bg-muted border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="flex-1"
                             />
-                            <button
+                            <Button
                                 onClick={handleAddCriterion}
                                 disabled={!newCriterion.trim()}
-                                className="px-3 py-2 bg-primary text-primary-foreground text-sm rounded hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                size="sm"
                             >
                                 <Plus size={14} />
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -744,49 +750,42 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agent Plan</h3>
                         {!isEditingAgentPlan && (
-                            <button
+                            <IconButton
+                                variant="ghost"
+                                size="xs"
                                 onClick={handleStartEditAgentPlan}
-                                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
                                 title="Edit agent plan"
                             >
                                 <Edit2 size={12} />
-                            </button>
+                            </IconButton>
                         )}
                     </div>
                     {isEditingAgentPlan ? (
                         <div className="space-y-3 bg-muted/10 p-3 rounded border border-border">
                             <div>
                                 <label className="text-xs font-medium text-muted-foreground block mb-1">Goal</label>
-                                <input
-                                    type="text"
+                                <Input
                                     value={agentGoalText}
                                     onChange={(e) => setAgentGoalText(e.target.value)}
-                                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                                     placeholder="What should the agent accomplish?"
                                 />
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-muted-foreground block mb-1">Scope (one per line)</label>
-                                <textarea
+                                <Textarea
                                     value={agentScopeText}
                                     onChange={(e) => setAgentScopeText(e.target.value)}
-                                    className="w-full min-h-[80px] bg-background border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                                    className="min-h-[80px] resize-y"
                                     placeholder="Files or areas the agent should focus on..."
                                 />
                             </div>
                             <div className="flex gap-2 justify-end">
-                                <button
-                                    onClick={() => setIsEditingAgentPlan(false)}
-                                    className="px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded transition-colors"
-                                >
+                                <Button variant="ghost" size="sm" onClick={() => setIsEditingAgentPlan(false)}>
                                     Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveAgentPlan}
-                                    className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                                >
+                                </Button>
+                                <Button size="sm" onClick={handleSaveAgentPlan}>
                                     Save
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     ) : task.agent ? (
@@ -816,7 +815,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     )}
                 </div>
 
-            </div>
+            </ScrollArea>
 
             {/* Comments Section - Resizable panel */}
             <div

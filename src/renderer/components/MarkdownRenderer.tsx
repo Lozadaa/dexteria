@@ -1,5 +1,551 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { cn } from '../lib/utils';
+import * as LucideIcons from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+// Destructure commonly used icons
+const {
+    ChevronDown,
+    ChevronRight,
+} = LucideIcons;
+
+/**
+ * Emoji to Lucide icon name mapping
+ * Comprehensive mapping of emojis to their icon equivalents
+ */
+const EMOJI_TO_ICON_NAME: Record<string, string> = {
+    // Symbols
+    "*️⃣": "Asterisk",
+    "#️⃣": "Hash",
+    "↔️": "ArrowLeftRight",
+    "↕️": "ArrowUpDown",
+    "↖️": "ArrowUpLeft",
+    "↗️": "ArrowUpRight",
+    "↘️": "ArrowDownRight",
+    "↙️": "ArrowDownLeft",
+    "↩️": "CornerDownLeft",
+    "↪️": "CornerDownRight",
+    "⤴️": "CornerRightUp",
+    "⤵️": "CornerRightDown",
+
+    // Time
+    "⌚": "Watch",
+    "⌛": "Hourglass",
+    "⏭️": "SkipForward",
+    "⏮️": "SkipBack",
+    "⏰": "AlarmClock",
+    "⏱️": "Timer",
+    "⏱": "Timer",
+    "⏲️": "Timer",
+    "⏳": "Hourglass",
+    "⏸️": "Pause",
+    "⏹️": "Square",
+    "▶️": "Play",
+    "🕐": "Clock",
+
+    // Weather & Nature
+    "☀️": "Sun",
+    "☁️": "Cloud",
+    "☕": "Coffee",
+    "☘️": "Clover",
+    "☘": "Clover",
+    "⛅": "Cloud",
+    "⛈️": "CloudLightning",
+    "❄️": "Snowflake",
+    "🌈": "Rainbow",
+    "🌊": "Waves",
+    "🌍": "Globe",
+    "🌎": "Globe",
+    "🌏": "Globe",
+    "🌐": "Globe",
+    "🌙": "Moon",
+    "🌧️": "CloudRain",
+    "🌱": "Sprout",
+    "🌲": "TreePine",
+    "🌳": "TreeDeciduous",
+    "🌴": "TreePalm",
+    "🌵": "TreePalm",
+    "🌶️": "Flame",
+    "🌶": "Flame",
+    "🌷": "Flower",
+    "🌸": "Flower",
+    "🌹": "Flower",
+    "🌺": "Flower",
+    "🌻": "Flower2",
+    "🌼": "Flower",
+    "🌽": "Wheat",
+    "🌾": "Wheat",
+    "🌿": "Leaf",
+    "🍀": "Clover",
+    "🍁": "Leaf",
+    "🍂": "Leaf",
+    "🍃": "Leaf",
+
+    // Food & Drink
+    "🍇": "Grape",
+    "🍊": "Citrus",
+    "🍋": "Citrus",
+    "🍌": "Banana",
+    "🍎": "Apple",
+    "🍏": "Apple",
+    "🍒": "Cherry",
+    "🍔": "Sandwich",
+    "🍕": "Pizza",
+    "🍖": "Drumstick",
+    "🍗": "Drumstick",
+    "🍘": "Cookie",
+    "🍚": "Soup",
+    "🍛": "Soup",
+    "🍜": "Soup",
+    "🍝": "Utensils",
+    "🍞": "Sandwich",
+    "🍣": "Fish",
+    "🍤": "Fish",
+    "🍦": "IceCreamCone",
+    "🍧": "IceCream",
+    "🍨": "IceCream",
+    "🍩": "Donut",
+    "🍪": "Cookie",
+    "🍫": "Candy",
+    "🍬": "Candy",
+    "🍭": "Lollipop",
+    "🍰": "CakeSlice",
+    "🍱": "Box",
+    "🍲": "Soup",
+    "🍳": "EggFried",
+    "🍴": "Utensils",
+    "🍵": "CupSoda",
+    "🍶": "Wine",
+    "🍷": "Wine",
+    "🍸": "Martini",
+    "🍹": "CupSoda",
+    "🍺": "Beer",
+    "🍻": "Beer",
+    "🍼": "Baby",
+    "🍾": "Wine",
+    "🍿": "Popcorn",
+    "🥂": "Wine",
+    "🥃": "GlassWater",
+    "🥄": "Utensils",
+    "🥐": "Croissant",
+    "🥑": "Salad",
+    "🥒": "Carrot",
+    "🥓": "Beef",
+    "🥔": "Apple",
+    "🥕": "Carrot",
+    "🥖": "Sandwich",
+    "🥗": "Salad",
+    "🥘": "Soup",
+    "🥙": "Sandwich",
+    "🥚": "Egg",
+    "🥛": "Milk",
+    "🥜": "Nut",
+    "🥞": "Layers",
+    "🥟": "Donut",
+    "🥠": "Cookie",
+    "🥡": "Box",
+    "🥢": "Utensils",
+    "🥣": "Soup",
+    "🥤": "CupSoda",
+    "🥦": "TreeDeciduous",
+    "🥧": "CakeSlice",
+    "🥨": "Donut",
+    "🥩": "Beef",
+    "🥫": "Package",
+    "🥬": "Salad",
+    "🥯": "Donut",
+    "🧀": "Triangle",
+    "🧁": "Cake",
+    "🧂": "Pipette",
+    "🧃": "Milk",
+    "🧇": "Grid3x3",
+    "🧈": "Package",
+    "🧉": "CupSoda",
+    "🧊": "Snowflake",
+    "🫖": "Coffee",
+
+    // Celebrations & Activities
+    "🎁": "Gift",
+    "🎂": "Cake",
+    "🎆": "Sparkles",
+    "🎇": "Sparkle",
+    "🎉": "PartyPopper",
+    "🎊": "Sparkles",
+    "🎞️": "Film",
+    "🎞": "Film",
+    "🎤": "Mic",
+    "🎥": "Video",
+    "🎧": "Headphones",
+    "🎨": "Palette",
+    "🎪": "Aperture",
+    "🎬": "Clapperboard",
+    "🎭": "Drama",
+    "🎮": "Gamepad2",
+    "🎯": "Target",
+    "🎲": "Dice6",
+    "🎵": "Music",
+    "🎶": "Music",
+    "🏆": "Trophy",
+    "🕹️": "Gamepad2",
+    "🕹": "Gamepad2",
+    "👾": "Gamepad2",
+
+    // Buildings & Places
+    "🏗️": "Construction",
+    "🏗": "Construction",
+    "🏠": "Home",
+    "🏡": "Home",
+    "🏢": "Building2",
+    "🏥": "Hospital",
+    "🏪": "Store",
+    "🏫": "School",
+    "🏬": "Store",
+    "🏭": "Factory",
+    "🏛": "Landmark",
+
+    // Animals
+    "🐋": "Fish",
+    "🐌": "Turtle",
+    "🐍": "Worm",
+    "🐔": "Egg",
+    "🐙": "Squirrel",
+    "🐚": "Shell",
+    "🐛": "Bug",
+    "🐝": "Bug",
+    "🐟": "Fish",
+    "🐠": "Fish",
+    "🐡": "Fish",
+    "🐢": "Turtle",
+    "🐦": "Bird",
+    "🐧": "Bird",
+    "🐨": "Cat",
+    "🐬": "Fish",
+    "🐭": "Rat",
+    "🐮": "Beef",
+    "🐯": "Cat",
+    "🐰": "Rabbit",
+    "🐱": "Cat",
+    "🐳": "Fish",
+    "🐵": "Squirrel",
+    "🐶": "Dog",
+    "🐷": "PiggyBank",
+    "🐸": "Squirrel",
+    "🐹": "Rat",
+    "🐻": "Squirrel",
+    "🐼": "Squirrel",
+    "🦀": "Fish",
+    "🦁": "Cat",
+    "🦅": "Bird",
+    "🦆": "Bird",
+    "🦈": "Fish",
+    "🦉": "Bird",
+    "🦊": "Squirrel",
+    "🦋": "Bug",
+    "🦎": "Worm",
+    "🦐": "Fish",
+    "🦑": "Squirrel",
+    "🦕": "Bone",
+    "🦖": "Bone",
+    "🦞": "Fish",
+    "🦪": "Shell",
+
+    // Hands & Gestures
+    "☝️": "ArrowUp",
+    "☝": "ArrowUp",
+    "✊": "Hand",
+    "✋": "Hand",
+    "✌️": "Hand",
+    "✌": "Hand",
+    "👆": "ArrowUp",
+    "👇": "ArrowDown",
+    "👈": "ArrowLeft",
+    "👉": "ArrowRight",
+    "👊": "Hand",
+    "👋": "Hand",
+    "👌": "Hand",
+    "👍": "ThumbsUp",
+    "👎": "ThumbsDown",
+    "👏": "Hand",
+    "👐": "Handshake",
+    "🖐️": "Hand",
+    "🖐": "Hand",
+    "🖕": "Hand",
+    "🙌": "Hand",
+    "🙏": "Hand",
+    "🤘": "Hand",
+    "🤙": "Phone",
+    "🤚": "Hand",
+    "🤛": "Hand",
+    "🤜": "Hand",
+    "🤝": "Handshake",
+    "🤞": "Hand",
+    "🤟": "Hand",
+    "🤲": "Hand",
+    "🦾": "Hand",
+    "🦿": "Footprints",
+
+    // Faces & Emotions
+    "😀": "Smile",
+    "😁": "Smile",
+    "😂": "Laugh",
+    "😃": "Smile",
+    "😄": "Smile",
+    "😇": "Smile",
+    "😈": "Angry",
+    "😊": "Smile",
+    "😍": "Heart",
+    "😎": "Glasses",
+    "😘": "Heart",
+    "😜": "Smile",
+    "😡": "Angry",
+    "😢": "Frown",
+    "😭": "Frown",
+    "😱": "AlertTriangle",
+    "😴": "Moon",
+    "😵": "CircleOff",
+    "😷": "Shield",
+    "🙈": "EyeOff",
+    "🙉": "VolumeX",
+    "🙊": "VolumeX",
+    "🤒": "Thermometer",
+    "🤔": "HelpCircle",
+    "🤕": "Bandage",
+    "🤖": "Bot",
+    "🤗": "Smile",
+    "🤠": "Smile",
+    "🤢": "Frown",
+    "🤣": "Laugh",
+    "🤤": "Droplet",
+    "🤥": "AlertCircle",
+    "🤧": "Wind",
+    "🤪": "Smile",
+    "🤫": "VolumeX",
+    "🤭": "Smile",
+    "🤮": "Frown",
+    "🤯": "Zap",
+    "🥰": "Heart",
+    "🥳": "PartyPopper",
+    "🥵": "Flame",
+    "🥶": "Snowflake",
+    "🥺": "Frown",
+    "👻": "Ghost",
+    "👿": "Angry",
+    "💀": "Skull",
+    "☠️": "Skull",
+    "☠": "Skull",
+
+    // Objects & Tech
+    "⌨️": "Keyboard",
+    "⚙️": "Settings",
+    "⚛️": "Atom",
+    "⚛": "Atom",
+    "⚖️": "Scale",
+    "⚖": "Scale",
+    "⛓️": "Link",
+    "✂️": "Scissors",
+    "✂": "Scissors",
+    "✍️": "Pen",
+    "✏️": "Pencil",
+    "✏": "Pencil",
+    "💉": "Syringe",
+    "💊": "Pill",
+    "💎": "Gem",
+    "💡": "Lightbulb",
+    "💧": "Droplet",
+    "💪": "TrendingUp",
+    "💫": "Sparkles",
+    "💬": "MessageCircle",
+    "💭": "MessageCircle",
+    "💰": "Coins",
+    "💳": "CreditCard",
+    "💵": "Banknote",
+    "💻": "Laptop",
+    "💼": "Briefcase",
+    "💾": "Save",
+    "💿": "Disc",
+    "📀": "Disc",
+    "📁": "Folder",
+    "📂": "FolderOpen",
+    "📃": "FileText",
+    "📄": "FileText",
+    "📅": "Calendar",
+    "📆": "CalendarDays",
+    "📈": "TrendingUp",
+    "📉": "TrendingDown",
+    "📊": "BarChart",
+    "📋": "ClipboardList",
+    "📌": "Pin",
+    "📍": "MapPin",
+    "📎": "Paperclip",
+    "📏": "Ruler",
+    "📐": "Triangle",
+    "📑": "Files",
+    "📘": "Book",
+    "📜": "Scroll",
+    "📝": "FileEdit",
+    "📞": "Phone",
+    "📟": "Smartphone",
+    "📠": "Printer",
+    "📢": "Megaphone",
+    "📣": "Megaphone",
+    "📤": "Upload",
+    "📥": "Download",
+    "📦": "Package",
+    "📧": "Mail",
+    "📨": "Mail",
+    "📩": "MailOpen",
+    "📪": "Mailbox",
+    "📫": "Mailbox",
+    "📬": "Mailbox",
+    "📭": "Mailbox",
+    "📮": "Mailbox",
+    "📱": "Smartphone",
+    "📲": "Smartphone",
+    "📷": "Camera",
+    "📸": "Camera",
+    "📹": "Video",
+    "📺": "Tv",
+    "📻": "Radio",
+    "📡": "RadioTower",
+    "📶": "SignalHigh",
+    "🔀": "Shuffle",
+    "🔁": "Repeat",
+    "🔃": "RefreshCcw",
+    "🔄": "RefreshCw",
+    "🔋": "Battery",
+    "🔌": "Plug",
+    "🔍": "Search",
+    "🔎": "Search",
+    "🔐": "LockKeyhole",
+    "🔑": "Key",
+    "🔒": "Lock",
+    "🔓": "Unlock",
+    "🔔": "Bell",
+    "🔕": "BellOff",
+    "🔗": "Link",
+    "🔟": "CircleDot",
+    "🔢": "Hash",
+    "🔥": "Flame",
+    "🔦": "Flashlight",
+    "🔧": "Wrench",
+    "🔨": "Hammer",
+    "🔩": "Bolt",
+    "🔬": "Microscope",
+    "🕯️": "Flame",
+    "🕯": "Flame",
+    "🕵️": "UserSearch",
+    "🖤": "Heart",
+    "🖥️": "Monitor",
+    "🖥": "Monitor",
+    "🖨️": "Printer",
+    "🖱️": "Mouse",
+    "🖲️": "Mouse",
+    "🖲": "Mouse",
+    "🖼️": "Image",
+    "🗂️": "Folders",
+    "🗃️": "Archive",
+    "🗄️": "Archive",
+    "🗑": "Trash2",
+    "🗓️": "Calendar",
+    "🗨️": "MessageSquare",
+    "🗺️": "Map",
+    "🧠": "Brain",
+    "🧨": "Bomb",
+    "🧩": "Puzzle",
+    "🧪": "FlaskConical",
+    "🧬": "Dna",
+    "🧭": "Compass",
+    "🧱": "BrickWall",
+    "🩺": "Stethoscope",
+    "🪛": "Wrench",
+    "☎": "Phone",
+    "🛟": "LifeBuoy",
+
+    // Transport
+    "✈️": "Plane",
+    "🏃": "Activity",
+    "🏍": "Bike",
+    "🚀": "Rocket",
+    "🚗": "Car",
+    "🚌": "Bus",
+    "🚎": "Bus",
+    "🚕": "Car",
+    "🚙": "Car",
+    "🚲": "Bike",
+    "🚫": "Ban",
+    "🚨": "Siren",
+    "🛠️": "Settings",
+    "🛡️": "Shield",
+    "🛸": "Disc",
+
+    // Status & Indicators
+    "✅": "CheckCircle",
+    "✔️": "Check",
+    "✖️": "X",
+    "✨": "Sparkles",
+    "❌": "X",
+    "❓": "HelpCircle",
+    "❗": "AlertCircle",
+    "❤️": "Heart",
+    "💔": "HeartCrack",
+    "💙": "Heart",
+    "💚": "Heart",
+    "💛": "Heart",
+    "💜": "Heart",
+    "🤍": "Heart",
+    "🧡": "Heart",
+    "⚠️": "AlertTriangle",
+    "⚠": "AlertTriangle",
+    "⚡": "Zap",
+    "👀": "Eye",
+    "👁️": "Eye",
+    "👥": "Users",
+    "👨‍💼": "Briefcase",
+    "🌟": "Sparkles",
+    "⭐": "Star",
+    "🟦": "Square",
+
+    // Arrows
+    "➕": "Plus",
+    "➖": "Minus",
+    "➗": "Divide",
+    "➡️": "ArrowRight",
+    "⬅️": "ArrowLeft",
+    "⬆️": "ArrowUp",
+    "⬇️": "ArrowDown",
+    "→": "ArrowRight",
+    "←": "ArrowLeft",
+    "↑": "ArrowUp",
+    "↓": "ArrowDown",
+
+    // Numbers
+    "0️⃣": "CircleDot",
+    "1️⃣": "CircleDot",
+    "2️⃣": "CircleDot",
+    "3️⃣": "CircleDot",
+    "4️⃣": "CircleDot",
+    "5️⃣": "CircleDot",
+    "6️⃣": "CircleDot",
+    "7️⃣": "CircleDot",
+    "8️⃣": "CircleDot",
+    "9️⃣": "CircleDot",
+};
+
+/**
+ * Get Lucide icon component by name
+ */
+function getIconByName(name: string): LucideIcon | null {
+    return (LucideIcons as Record<string, LucideIcon>)[name] || null;
+}
+
+/**
+ * Icon component that renders a Lucide icon inline
+ */
+const InlineIcon: React.FC<{ iconName: string }> = ({ iconName }) => {
+    const Icon = getIconByName(iconName);
+    if (!Icon) return null;
+    return <Icon size={14} className="inline-block align-text-bottom mx-0.5 text-primary/80" />;
+};
 
 interface MarkdownRendererProps {
     content: string;
@@ -7,15 +553,82 @@ interface MarkdownRendererProps {
 }
 
 /**
+ * Thinking block component - shows AI reasoning as a collapsible toggle above the message
+ */
+const ThinkingBlock: React.FC<{ content: string; isComplete: boolean }> = ({ content, isComplete }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+        <div className="mb-1">
+            {/* Toggle button - minimal, above the message */}
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors mb-1"
+            >
+                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                <span>Reasoning</span>
+                {!isComplete && (
+                    <span className="flex gap-0.5 ml-1">
+                        <span className="w-1 h-1 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1 h-1 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1 h-1 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
+                )}
+            </button>
+
+            {/* Expandable content - light gray text */}
+            {isExpanded && (
+                <div className="mb-2 px-3 py-2 text-xs text-muted-foreground/50 bg-muted/20 rounded-lg whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-border/30">
+                    {content}
+                </div>
+            )}
+        </div>
+    );
+};
+
+/**
  * Simple Markdown renderer for chat messages.
- * Supports: code blocks, inline code, bold, italic, lists, links
+ * Supports: code blocks, inline code, bold, italic, lists, links, tables, thinking blocks
  * Handles incomplete/streaming content gracefully
  */
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
     const rendered = useMemo(() => {
         if (!content) return null;
 
-        const lines = content.split('\n');
+        // First, extract thinking blocks
+        const thinkingRegex = /<(?:antml:)?thinking>([\s\S]*?)(?:<\/(?:antml:)?thinking>|$)/gi;
+        const parts: { type: 'text' | 'thinking'; content: string; isComplete: boolean }[] = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = thinkingRegex.exec(content)) !== null) {
+            // Add text before thinking block
+            if (match.index > lastIndex) {
+                parts.push({ type: 'text', content: content.slice(lastIndex, match.index), isComplete: true });
+            }
+            // Check if thinking block is complete
+            const isComplete = match[0].includes('</thinking>') || match[0].includes('</thinking>');
+            parts.push({ type: 'thinking', content: match[1].trim(), isComplete });
+            lastIndex = match.index + match[0].length;
+        }
+
+        // Add remaining text
+        if (lastIndex < content.length) {
+            parts.push({ type: 'text', content: content.slice(lastIndex), isComplete: true });
+        }
+
+        // If no thinking blocks found, process as normal
+        if (parts.length === 0) {
+            parts.push({ type: 'text', content, isComplete: true });
+        }
+
+        return parts.map((part, partIndex) => {
+            if (part.type === 'thinking') {
+                return <ThinkingBlock key={`thinking-${partIndex}`} content={part.content} isComplete={part.isComplete} />;
+            }
+
+            // Process markdown for text parts
+            const lines = part.content.split('\n');
         const elements: React.ReactNode[] = [];
         let i = 0;
         let key = 0;
@@ -175,6 +788,62 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
                 continue;
             }
 
+            // Markdown table (| cell | cell |)
+            if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+                const tableRows: string[][] = [];
+                let hasHeader = false;
+
+                // Collect all table rows
+                while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+                    const rowContent = lines[i].trim();
+                    // Check if this is a separator row (|---|---|)
+                    if (rowContent.match(/^\|[\s-:|]+\|$/)) {
+                        hasHeader = true;
+                        i++;
+                        continue;
+                    }
+                    // Parse cells: split by | and filter empty strings from edges
+                    const cells = rowContent.split('|').slice(1, -1).map(cell => cell.trim());
+                    tableRows.push(cells);
+                    i++;
+                }
+
+                if (tableRows.length > 0) {
+                    const headerRow = hasHeader ? tableRows[0] : null;
+                    const bodyRows = hasHeader ? tableRows.slice(1) : tableRows;
+
+                    elements.push(
+                        <div key={key++} className="my-2 overflow-x-auto rounded-lg border border-border">
+                            <table className="w-full text-sm">
+                                {headerRow && (
+                                    <thead className="bg-muted/50">
+                                        <tr>
+                                            {headerRow.map((cell, cellIdx) => (
+                                                <th key={cellIdx} className="px-3 py-2 text-left font-semibold border-b border-border">
+                                                    {parseInline(cell)}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                )}
+                                <tbody>
+                                    {bodyRows.map((row, rowIdx) => (
+                                        <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                                            {row.map((cell, cellIdx) => (
+                                                <td key={cellIdx} className="px-3 py-2 border-b border-border/50">
+                                                    {parseInline(cell)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    );
+                }
+                continue;
+            }
+
             // Regular paragraph
             elements.push(
                 <p key={key++} className="text-sm leading-relaxed">
@@ -184,7 +853,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             i++;
         }
 
-        return elements;
+            return <React.Fragment key={`text-${partIndex}`}>{elements}</React.Fragment>;
+        });
     }, [content]);
 
     return (
@@ -195,7 +865,53 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
 };
 
 /**
- * Parse inline markdown: bold, italic, code, links
+ * Build regex pattern for emoji matching
+ */
+const EMOJI_PATTERN = new RegExp(
+    `(${Object.keys(EMOJI_TO_ICON_NAME).map(e => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+    'g'
+);
+
+/**
+ * Replace emojis with Lucide icons in text
+ */
+function replaceEmojisWithIcons(text: string, keyOffset: number): { nodes: React.ReactNode[]; nextKey: number } {
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let key = keyOffset;
+    let match;
+
+    // Reset regex lastIndex
+    EMOJI_PATTERN.lastIndex = 0;
+
+    while ((match = EMOJI_PATTERN.exec(text)) !== null) {
+        // Add text before the emoji
+        if (match.index > lastIndex) {
+            nodes.push(text.slice(lastIndex, match.index));
+        }
+
+        // Add the icon
+        const emoji = match[1];
+        const iconName = EMOJI_TO_ICON_NAME[emoji];
+        if (iconName) {
+            nodes.push(<InlineIcon key={`emoji-${key++}`} iconName={iconName} />);
+        } else {
+            nodes.push(emoji);
+        }
+
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+        nodes.push(text.slice(lastIndex));
+    }
+
+    return { nodes: nodes.length > 0 ? nodes : [text], nextKey: key };
+}
+
+/**
+ * Parse inline markdown: bold, italic, code, links, emojis
  * Handles incomplete/streaming content gracefully
  */
 function parseInline(text: string): React.ReactNode {
@@ -236,7 +952,9 @@ function parseInline(text: string): React.ReactNode {
         // Bold **text**
         const boldMatch = remaining.match(/^\*\*([^*]+)\*\*/);
         if (boldMatch) {
-            parts.push(<strong key={key++} className="font-semibold">{boldMatch[1]}</strong>);
+            const { nodes, nextKey } = replaceEmojisWithIcons(boldMatch[1], key);
+            parts.push(<strong key={key++} className="font-semibold">{nodes}</strong>);
+            key = nextKey;
             remaining = remaining.slice(boldMatch[0].length);
             continue;
         }
@@ -244,14 +962,18 @@ function parseInline(text: string): React.ReactNode {
         // Unclosed bold - show as-is
         const unclosedBoldMatch = remaining.match(/^\*\*([^*]*)$/);
         if (unclosedBoldMatch) {
-            parts.push(<strong key={key++} className="font-semibold">{unclosedBoldMatch[1]}</strong>);
+            const { nodes, nextKey } = replaceEmojisWithIcons(unclosedBoldMatch[1], key);
+            parts.push(<strong key={key++} className="font-semibold">{nodes}</strong>);
+            key = nextKey;
             break;
         }
 
         // Italic *text* or _text_
         const italicMatch = remaining.match(/^(\*|_)([^*_]+)\1/);
         if (italicMatch) {
-            parts.push(<em key={key++} className="italic">{italicMatch[2]}</em>);
+            const { nodes, nextKey } = replaceEmojisWithIcons(italicMatch[2], key);
+            parts.push(<em key={key++} className="italic">{nodes}</em>);
+            key = nextKey;
             remaining = remaining.slice(italicMatch[0].length);
             continue;
         }
@@ -259,6 +981,7 @@ function parseInline(text: string): React.ReactNode {
         // Link [text](url)
         const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/);
         if (linkMatch) {
+            const { nodes, nextKey } = replaceEmojisWithIcons(linkMatch[1], key);
             parts.push(
                 <a
                     key={key++}
@@ -267,9 +990,10 @@ function parseInline(text: string): React.ReactNode {
                     rel="noopener noreferrer"
                     className="text-primary hover:underline"
                 >
-                    {linkMatch[1]}
+                    {nodes}
                 </a>
             );
+            key = nextKey;
             remaining = remaining.slice(linkMatch[0].length);
             continue;
         }
@@ -281,18 +1005,45 @@ function parseInline(text: string): React.ReactNode {
             break;
         }
 
-        // Regular text - find next special character
+        // Check for emoji at current position
+        EMOJI_PATTERN.lastIndex = 0;
+        const emojiMatch = remaining.match(EMOJI_PATTERN);
+        if (emojiMatch && remaining.startsWith(emojiMatch[0])) {
+            const emoji = emojiMatch[0];
+            const iconName = EMOJI_TO_ICON_NAME[emoji];
+            if (iconName) {
+                parts.push(<InlineIcon key={`emoji-${key++}`} iconName={iconName} />);
+                remaining = remaining.slice(emoji.length);
+                continue;
+            }
+        }
+
+        // Regular text - find next special character or emoji
         const nextSpecial = remaining.search(/[`*_\[]/);
-        if (nextSpecial === -1) {
+        EMOJI_PATTERN.lastIndex = 0;
+        const nextEmojiMatch = EMOJI_PATTERN.exec(remaining);
+        const nextEmojiIndex = nextEmojiMatch ? nextEmojiMatch.index : -1;
+
+        // Find the earliest special position
+        let nextPos = -1;
+        if (nextSpecial !== -1 && nextEmojiIndex !== -1) {
+            nextPos = Math.min(nextSpecial, nextEmojiIndex);
+        } else if (nextSpecial !== -1) {
+            nextPos = nextSpecial;
+        } else if (nextEmojiIndex !== -1) {
+            nextPos = nextEmojiIndex;
+        }
+
+        if (nextPos === -1) {
             parts.push(remaining);
             break;
-        } else if (nextSpecial === 0) {
+        } else if (nextPos === 0) {
             // Special char but didn't match pattern, treat as regular
             parts.push(remaining[0]);
             remaining = remaining.slice(1);
         } else {
-            parts.push(remaining.slice(0, nextSpecial));
-            remaining = remaining.slice(nextSpecial);
+            parts.push(remaining.slice(0, nextPos));
+            remaining = remaining.slice(nextPos);
         }
     }
 

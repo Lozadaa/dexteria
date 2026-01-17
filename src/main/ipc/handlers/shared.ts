@@ -14,6 +14,7 @@ import { AgentProvider, MockAgentProvider } from '../../agent/AgentProvider';
 import { AnthropicProvider } from '../../agent/providers/AnthropicProvider';
 import { ClaudeCodeProvider } from '../../agent/providers/ClaudeCodeProvider';
 import { initRalphEngine } from '../../agent/RalphEngine';
+import { initThemeService } from '../../services/ThemeService';
 import type { RecentProject, HandlerState } from './types';
 
 // Shared state
@@ -192,7 +193,7 @@ export function addToRecentProjects(projectPath: string): void {
 /**
  * Initialize project-related state.
  */
-export function initializeProjectState(root: string): void {
+export async function initializeProjectState(root: string): Promise<void> {
   state.projectRoot = root;
   state.store = initStore(root);
   const policy = state.store.getPolicy();
@@ -209,6 +210,15 @@ export function initializeProjectState(root: string): void {
     store: state.store,
     provider: state.agentProvider instanceof ClaudeCodeProvider ? state.agentProvider : undefined,
   });
+
+  // Initialize theme service (wait for it to complete)
+  const themeService = initThemeService(root);
+  try {
+    await themeService.init();
+    console.log('Theme service initialized');
+  } catch (err) {
+    console.error('Failed to init theme service:', err);
+  }
 }
 
 /**

@@ -13,7 +13,8 @@ try {
   // electron-squirrel-startup not installed, skip
 }
 
-const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
+// Use app.isPackaged as the source of truth for production detection
+const isDev = !app.isPackaged;
 
 // Get project root - in dev it's the current working directory
 const projectRoot = isDev ? process.cwd() : path.dirname(app.getPath('exe'));
@@ -23,10 +24,10 @@ let mainWindow: BrowserWindow | null = null;
 function createWindow(): void {
   const isMac = process.platform === 'darwin';
 
-  // Get icon path - in dev it's in assets folder, in prod it's bundled
+  // Get icon path - in dev it's in assets folder, in prod it's in resources
   const iconPath = isDev
     ? path.join(process.cwd(), 'assets', 'logoicon.png')
-    : path.join(__dirname, '../../assets/logoicon.png');
+    : path.join(process.resourcesPath, 'assets', 'logoicon.ico');
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -65,14 +66,27 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
+  // Debug listeners for load failures
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
+    console.error('[did-fail-load]', { code, desc, url, isMainFrame });
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[did-finish-load]', mainWindow?.webContents.getURL());
+  });
+
   // Load the app
   if (isDev) {
     // In development, load from Vite dev server
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built files
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // In production, load the built files from asar
+    const indexPath = path.join(__dirname, '../renderer/index.html');
+    console.log('[main] Loading index from:', indexPath);
+    console.log('[main] __dirname:', __dirname);
+    console.log('[main] app.isPackaged:', app.isPackaged);
+    mainWindow.loadFile(indexPath);
   }
 
   mainWindow.on('closed', () => {
@@ -93,9 +107,9 @@ function createWindow(): void {
 }
 
 // App lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Initialize IPC handlers without project (will show welcome screen)
-  initializeIpcHandlers();
+  await initializeIpcHandlers();
 
   createWindow();
 

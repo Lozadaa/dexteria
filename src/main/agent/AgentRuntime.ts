@@ -8,6 +8,7 @@
 import { LocalKanbanStore } from '../services/LocalKanbanStore';
 import { PolicyGuard } from '../services/PolicyGuard';
 import { CommentService, getCommentService } from '../services/CommentService';
+import { getPluginManager } from '../services/PluginManager';
 import { RepoTools } from './tools/RepoTools';
 import { Runner } from './tools/Runner';
 import { AgentRunRecorder } from './AgentRunRecorder';
@@ -91,7 +92,7 @@ export class AgentRuntime {
     this.cancelled = false;
 
     // Load task
-    const task = this.store.getTask(taskId);
+    let task = this.store.getTask(taskId);
     if (!task) {
       throw new Error(`Task not found: ${taskId}`);
     }
@@ -103,6 +104,27 @@ export class AgentRuntime {
 
     // Start recording
     const run = this.recorder.start(taskId, options.mode);
+
+    // Execute beforeRun hooks
+    const pluginManager = getPluginManager();
+    if (pluginManager) {
+      const hookResult = await pluginManager.executeAgentBeforeRunHooks({
+        taskId,
+        task,
+        runId: run.id,
+        mode: 'agent',
+      });
+
+      if (hookResult.cancel) {
+        return this.handleCancelled(task, run);
+      }
+
+      // Apply any task modifications from plugins
+      if (hookResult.modifiedTask) {
+        this.store.updateTask(taskId, hookResult.modifiedTask);
+        task = this.store.getTask(taskId)!;
+      }
+    }
 
     try {
       // Load context
@@ -149,7 +171,9 @@ export class AgentRuntime {
         });
 
         if (!runtimeCheck.allowed) {
-          return this.handleFailure(task, run, runtimeCheck.reason || 'Runtime limit exceeded');
+          const result = this.handleFailure(task, run, runtimeCheck.reason || 'Runtime limit exceeded');
+          await this.executeAfterRunHook(result);
+          return result;
         }
 
         // Get agent response (with streaming callback if available)
@@ -161,31 +185,71 @@ export class AgentRuntime {
           content: response.content,
         });
 
+        // Execute onStep hook
+        if (pluginManager) {
+          await pluginManager.executeAgentStepHooks({
+            taskId,
+            runId: run.id,
+            stepNumber: stepCount,
+            content: response.content,
+            isComplete: response.finishReason === 'stop' && !response.toolCalls?.length,
+          });
+        }
+
         // Handle finish reasons
         if (response.finishReason === 'stop') {
           // Agent finished without tool calls - check if stuck
           if (!response.content.toLowerCase().includes('complete')) {
-            return this.handleFailure(task, run, 'Agent stopped without completing the task');
+            const result = this.handleFailure(task, run, 'Agent stopped without completing the task');
+            await this.executeAfterRunHook(result);
+            return result;
           }
         }
 
         if (response.finishReason === 'error') {
-          return this.handleFailure(task, run, 'Agent provider error');
+          const result = this.handleFailure(task, run, 'Agent provider error');
+          await this.executeAfterRunHook(result);
+          return result;
         }
 
         if (response.finishReason === 'length') {
-          return this.handleFailure(task, run, 'Agent response exceeded max length');
+          const result = this.handleFailure(task, run, 'Agent response exceeded max length');
+          await this.executeAfterRunHook(result);
+          return result;
         }
 
         // Process tool calls
         if (response.toolCalls && response.toolCalls.length > 0) {
           for (const toolCall of response.toolCalls) {
             if (this.cancelled) {
-              return this.handleCancelled(task, run);
+              const result = this.handleCancelled(task, run);
+              await this.executeAfterRunHook(result);
+              return result;
             }
 
+            // Execute onToolCall hook
+            let toolInput = toolCall.arguments;
+            if (pluginManager) {
+              const hookResult = await pluginManager.executeAgentToolCallHooks({
+                taskId,
+                runId: run.id,
+                toolName: toolCall.name,
+                toolInput: toolCall.arguments,
+                stepNumber: stepCount,
+              });
+
+              if (hookResult.cancel) {
+                continue; // Skip this tool call
+              }
+
+              if (hookResult.modifiedInput) {
+                toolInput = hookResult.modifiedInput;
+              }
+            }
+
+            const modifiedToolCall = { ...toolCall, arguments: toolInput };
             const toolStartTime = Date.now();
-            const result = await this.executeTool(toolCall, taskId, run.id);
+            const result = await this.executeTool(modifiedToolCall, taskId, run.id);
             const toolDuration = Date.now() - toolStartTime;
 
             // Record tool call
@@ -204,17 +268,41 @@ export class AgentRuntime {
 
             // Check if tool indicates stop
             if (result.shouldStop) {
-              return this.handleToolStop(task, run, result);
+              const stopResult = this.handleToolStop(task, run, result);
+              await this.executeAfterRunHook(stopResult);
+              return stopResult;
             }
           }
         }
       }
 
       // Max steps reached
-      return this.handleFailure(task, run, `Maximum steps (${effectiveMaxSteps}) reached without completion`);
+      const result = this.handleFailure(task, run, `Maximum steps (${effectiveMaxSteps}) reached without completion`);
+      await this.executeAfterRunHook(result);
+      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return this.handleFailure(task, run, errorMessage);
+      const result = this.handleFailure(task, run, errorMessage);
+      await this.executeAfterRunHook(result);
+      return result;
+    }
+  }
+
+  /**
+   * Execute afterRun hook with run result
+   */
+  private async executeAfterRunHook(result: RunResult): Promise<void> {
+    const pluginManager = getPluginManager();
+    if (pluginManager) {
+      await pluginManager.executeAgentAfterRunHooks({
+        taskId: result.task.id,
+        task: result.task,
+        runId: result.run.id,
+        success: result.success,
+        error: result.error,
+        filesModified: result.run.filesModified,
+        summary: result.run.summary,
+      });
     }
   }
 

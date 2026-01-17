@@ -1,0 +1,134 @@
+{/* Streaming Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Streaming" />
+
+# Streaming Layer
+
+Components for displaying streaming text with typewriter effects, optimized for AI token streams.
+
+## Components
+
+### StreamingTypewriter
+
+A typewriter effect component with adaptive speed buffering for high-frequency token feeds.
+
+```tsx
+import { StreamingTypewriter, type StreamingTypewriterRef } from "@adnia/ui";
+
+const ref = useRef<StreamingTypewriterRef>(null);
+
+// Append tokens as they arrive
+ref.current?.append("Hello ");
+ref.current?.append("World!");
+
+// Flush remaining buffer
+ref.current?.flush();
+
+<StreamingTypewriter
+  ref={ref}
+  speed={30}
+  showCursor
+  cursorChar="|"
+/>
+```
+
+**Ref Methods:**
+- `append(text)` - Add text to the buffer
+- `setText(text)` - Replace all content
+- `flush()` - Immediately display buffered text
+- `pause()` - Pause the typewriter
+- `resume()` - Resume typing
+- `clear()` - Clear all content
+
+**Props:**
+- `speed` - Typing speed in ms per character (default: 30)
+- `showCursor` - Show blinking cursor
+- `cursorChar` - Custom cursor character
+- `onComplete` - Callback when typing finishes
+- `className` - Additional CSS classes
+
+### useStreamingText Hook
+
+```tsx
+import { useStreamingText } from "@adnia/ui";
+
+const { ref, append, setText, flush, pause, resume, clear, isStreaming } = useStreamingText();
+
+// In your streaming handler
+onToken((token) => append(token));
+```
+
+### StreamingMarkdown
+
+Combines streaming text with live markdown rendering for AI responses.
+
+```tsx
+import { StreamingMarkdown, type StreamingMarkdownRef } from "@adnia/ui";
+
+const ref = useRef<StreamingMarkdownRef>(null);
+
+// Stream markdown content
+ref.current?.append("# Hello\n\n");
+ref.current?.append("This is **bold** text.");
+
+<StreamingMarkdown
+  ref={ref}
+  showCursor
+/>
+```
+
+**Ref Methods:**
+- `append(text)` - Add text to buffer
+- `setContent(markdown)` - Replace all content
+- `flush()` - Render remaining buffer
+- `clear()` - Clear all content
+- `pause()` / `resume()` - Control streaming
+
+**Props:**
+- `showCursor` - Show cursor during streaming
+- `cursorChar` - Custom cursor character
+- `renderCodeBlock` - Custom code block renderer
+- `className` - Additional CSS classes
+
+### useStreamingMarkdown Hook
+
+```tsx
+import { useStreamingMarkdown } from "@adnia/ui";
+
+const { ref, append, setContent, flush, clear, isStreaming } = useStreamingMarkdown();
+```
+
+## Best Practices
+
+### Handling High-Frequency Token Streams
+
+The streaming components use adaptive buffering to handle fast token feeds without visual jitter:
+
+```tsx
+// AI SDKs often emit tokens very quickly
+aiStream.on("token", (token) => {
+  // The component buffers and renders smoothly
+  ref.current?.append(token);
+});
+
+aiStream.on("complete", () => {
+  // Flush any remaining buffered content
+  ref.current?.flush();
+});
+```
+
+### Pausing and Resuming
+
+```tsx
+// User cancels generation
+onCancel={() => {
+  ref.current?.pause();
+  ref.current?.flush(); // Show what's buffered
+}};
+
+// User continues
+onResume(() => {
+  ref.current?.resume();
+});
+```

@@ -3,12 +3,15 @@ import { Layout } from './components/Layout';
 import { KanbanBoard } from './components/KanbanBoard';
 import { ChatPanel } from './components/ChatPanel';
 import { TaskDetail } from './components/TaskDetail';
+import { ThemeEditor } from './components/ThemeEditor';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
+import { SetupWizard } from './components/SetupWizard';
 import { ModeProvider, useMode } from './contexts/ModeContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { useSystemTheme } from './hooks/useTheme';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, LayoutGrid, FileJson } from 'lucide-react';
 import type { Task } from '../shared/types';
 import './index.css';
 
@@ -19,8 +22,8 @@ const PlannerBlockModal: React.FC = () => {
   if (!showPlannerBlockModal) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+      <div className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden animate-scale-in">
         <div className="flex items-center justify-between p-4 border-b border-border bg-yellow-500/10">
           <div className="flex items-center gap-2 text-yellow-500">
             <AlertTriangle size={20} />
@@ -72,23 +75,37 @@ function AppContent() {
   useSystemTheme();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'task'>('chat');
+  const [leftPanelTab, setLeftPanelTab] = useState<'board' | 'theme'>('board');
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+  const [editingThemeName, setEditingThemeName] = useState<string | null>(null);
   const [currentProject, setCurrentProject] = useState<string | null>(null);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpeningProject, setIsOpeningProject] = useState(false);
+  const [providerReady, setProviderReady] = useState<boolean | null>(null);
+  const [pendingThemeId, setPendingThemeId] = useState<string | null>(null);
 
-  // Check for current project on mount
+  // Check for provider and project on mount
   useEffect(() => {
     const init = async () => {
       try {
-        const [current, recent] = await Promise.all([
-          window.dexteria?.project?.getCurrent?.(),
-          window.dexteria?.project?.getRecent?.(),
-        ]);
-        setCurrentProject(current ?? null);
-        setRecentProjects(recent ?? []);
+        // First check if we have a ready provider
+        const provider = await window.dexteria?.settings?.getProvider?.();
+        const isProviderReady = provider?.ready ?? false;
+        setProviderReady(isProviderReady);
+
+        // Only load project info if provider is ready
+        if (isProviderReady) {
+          const [current, recent] = await Promise.all([
+            window.dexteria?.project?.getCurrent?.(),
+            window.dexteria?.project?.getRecent?.(),
+          ]);
+          setCurrentProject(current ?? null);
+          setRecentProjects(recent ?? []);
+        }
       } catch (err) {
-        console.error('Failed to get project info:', err);
+        console.error('Failed to init app:', err);
+        setProviderReady(false);
       } finally {
         setIsLoading(false);
       }
@@ -124,6 +141,18 @@ function AppContent() {
     setActiveTab('chat'); // Switch back to chat when closing task
   };
 
+  const handleOpenThemeEditor = (themeId: string, themeName?: string) => {
+    setEditingThemeId(themeId);
+    setEditingThemeName(themeName || themeId);
+    setLeftPanelTab('theme');
+  };
+
+  const handleCloseThemeEditor = () => {
+    setEditingThemeId(null);
+    setEditingThemeName(null);
+    setLeftPanelTab('board');
+  };
+
   const handleOpenProject = async () => {
     setIsOpeningProject(true);
     try {
@@ -154,16 +183,67 @@ function AppContent() {
     }
   };
 
+  // Handler for when setup wizard completes
+  const handleSetupComplete = async (selectedThemeId?: string) => {
+    setProviderReady(true);
+    // Store selected theme ID to apply when project opens
+    if (selectedThemeId) {
+      setPendingThemeId(selectedThemeId);
+    }
+    // Load project info now that provider is ready
+    try {
+      const [current, recent] = await Promise.all([
+        window.dexteria?.project?.getCurrent?.(),
+        window.dexteria?.project?.getRecent?.(),
+      ]);
+      setCurrentProject(current ?? null);
+      setRecentProjects(recent ?? []);
+    } catch (err) {
+      console.error('Failed to load project info:', err);
+    }
+  };
+
+  // Apply pending theme when project opens
+  useEffect(() => {
+    const applyPendingTheme = async () => {
+      if (currentProject && pendingThemeId) {
+        try {
+          // Get the preset theme content
+          const presetTheme = await window.dexteria?.settings?.getPresetTheme?.(pendingThemeId);
+          if (presetTheme) {
+            // Import the preset theme to the project's theme service
+            const imported = await window.dexteria?.theme?.import?.(JSON.stringify(presetTheme));
+            if (imported) {
+              // Set it as the active theme
+              await window.dexteria?.theme?.setActive?.((imported as { id: string }).id);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to apply preset theme:', err);
+        }
+        // Clear pending theme regardless of success
+        setPendingThemeId(null);
+      }
+    };
+
+    applyPendingTheme();
+  }, [currentProject, pendingThemeId]);
+
   // Show loading state
   if (isLoading || isOpeningProject) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="h-screen flex flex-col items-center justify-center bg-background gap-4 animate-fade-in">
+        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         {isOpeningProject && (
-          <p className="text-sm text-muted-foreground">Opening project...</p>
+          <p className="text-sm text-muted-foreground animate-fade-in-up animate-fill-both animate-stagger-2">Opening project...</p>
         )}
       </div>
     );
+  }
+
+  // Show setup wizard if no provider is ready
+  if (!providerReady) {
+    return <SetupWizard onComplete={handleSetupComplete} />;
   }
 
   // Show welcome screen if no project is open
@@ -221,13 +301,72 @@ function AppContent() {
   return (
     <>
       <Layout
+        onOpenThemeEditor={handleOpenThemeEditor}
         boardSlot={
-          <div className="h-full w-full">
+          <div className="h-full w-full flex flex-col">
             <ErrorBoundary>
-              <KanbanBoard
-                onTaskSelect={handleTaskSelect}
-                activeTaskId={selectedTask?.id}
-              />
+              {/* Tabs for Board / Theme Editor */}
+              <div className="flex border-b border-border bg-background">
+                <button
+                  onClick={() => setLeftPanelTab('board')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
+                    leftPanelTab === 'board'
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <LayoutGrid size={14} />
+                  <span>Board</span>
+                  {leftPanelTab === 'board' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                  )}
+                </button>
+                {editingThemeId && (
+                  <button
+                    onClick={() => setLeftPanelTab('theme')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
+                      leftPanelTab === 'theme'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <FileJson size={14} />
+                    <span className="truncate max-w-[140px]">{editingThemeName}.json</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseThemeEditor();
+                      }}
+                      className="ml-1 p-0.5 hover:bg-muted rounded"
+                    >
+                      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M2 2l8 8M10 2l-8 8" />
+                      </svg>
+                    </button>
+                    {leftPanelTab === 'theme' && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-hidden relative">
+                <div className={`absolute inset-0 ${leftPanelTab === 'board' ? '' : 'hidden'}`}>
+                  <KanbanBoard
+                    onTaskSelect={handleTaskSelect}
+                    activeTaskId={selectedTask?.id}
+                  />
+                </div>
+                {editingThemeId && (
+                  <div className={`absolute inset-0 ${leftPanelTab === 'theme' ? '' : 'hidden'}`}>
+                    <ThemeEditor
+                      themeId={editingThemeId}
+                      themeName={editingThemeName || undefined}
+                    />
+                  </div>
+                )}
+              </div>
             </ErrorBoundary>
           </div>
         }
@@ -306,7 +445,9 @@ function App() {
     <ErrorBoundary>
       <ConfirmProvider>
         <ModeProvider>
-          <AppContent />
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
         </ModeProvider>
       </ConfirmProvider>
     </ErrorBoundary>

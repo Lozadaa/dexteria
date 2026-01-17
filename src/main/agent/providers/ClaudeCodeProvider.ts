@@ -12,7 +12,9 @@ import type {
   AgentToolDefinition,
   AgentResponse,
   AgentToolCall,
+  ProjectContext,
 } from '../../../shared/types';
+import { formatContextForPrompt } from '../../services/ProjectAnalyzer';
 
 export interface ClaudeCodeProviderConfig extends AgentProviderConfig {
   claudePath?: string; // Path to claude executable, defaults to 'claude'
@@ -30,6 +32,7 @@ export class ClaudeCodeProvider extends AgentProvider {
   private ready: boolean = false;
   private currentProcess: ReturnType<typeof spawn> | null = null;
   private cancelled: boolean = false;
+  private projectContext: ProjectContext | null = null;
 
   constructor(config: ClaudeCodeProviderConfig = {}) {
     super(config);
@@ -319,6 +322,25 @@ export class ClaudeCodeProvider extends AgentProvider {
   private getSystemPrompt(mode: 'planner' | 'agent'): string {
     const basePrompt = `You are Dexter, an AI assistant integrated into a Kanban-style task management app called Dexteria.
 
+## CRITICAL FIRST STEP - Always Analyze Existing Tasks
+
+**BEFORE doing anything else**, you MUST call the \`list_tasks\` tool to see all existing tasks.
+
+This tells you:
+- What tasks exist (by status: backlog, todo, doing, review, done)
+- What work is already planned or in progress
+- Whether you're starting from scratch or continuing work
+
+If tasks already exist:
+- Review ALL existing tasks to understand the full picture
+- Identify which tasks are completed, in progress, or pending
+- Determine what gaps remain before creating new tasks
+- Avoid duplicating existing tasks
+
+If no tasks exist:
+- This is a fresh start - break down the problem from the beginning
+- Create a comprehensive task list covering the full scope
+
 ## Context
 
 You are executing a task that has already been assigned to you. The task has been automatically moved to "doing" status.
@@ -352,33 +374,44 @@ Execute the task described in the user message. You have full access to:
       return basePrompt + `
 ## PLANNER MODE (Current Mode)
 
-You are in **PLANNER MODE**. This is a READ-ONLY analysis mode.
+You are in **PLANNER MODE**. This is an ANALYSIS mode for understanding and planning.
 
-### What you CAN do:
-- Analyze code and the codebase
-- Read files and search for patterns
-- Explain how things work
-- Suggest what should be done
-- Answer questions about the code
+### FIRST: Analyze Before Responding
+
+Before giving advice, you SHOULD:
+1. **Check existing tasks** - Use tools to see what work exists
+2. **Read relevant code** - Understand the current implementation
+3. **Search the codebase** - Find related files and patterns
+
+### What you CAN do (READ-ONLY tools):
+- ✅ Read files (\`Read\` tool)
+- ✅ Search for patterns (\`Grep\`, \`Glob\` tools)
+- ✅ Explore the codebase
+- ✅ Analyze code structure
+- ✅ Explain how things work
+- ✅ Suggest what should be done
+- ✅ Identify potential challenges
 
 ### What you CANNOT do:
-- **DO NOT create tasks** - no create_task tool calls
-- **DO NOT execute code** - no file writes or commands
-- **DO NOT modify anything** - read-only mode
+- ❌ **DO NOT create tasks** - no create_task tool calls
+- ❌ **DO NOT write files** - no Write or Edit tools
+- ❌ **DO NOT run commands** - no Bash tool
+- ❌ **DO NOT modify anything**
 
-### Your job:
-1. Analyze and understand what the user needs
-2. Explain what would need to be done
-3. Identify potential challenges
-4. Provide recommendations
+### Your workflow:
+1. **Analyze first**: Read files, search codebase, understand context
+2. **Explain findings**: What you discovered about the code
+3. **Provide recommendations**: What should be done and why
+4. **Identify challenges**: Potential issues or considerations
 
 When the user wants to actually DO something (create tasks or make changes), tell them:
 "Switch to **Agent Mode** to create tasks for this work."
 
 ### Rules:
-- NO tool calls allowed (no create_task, no write, no commands)
-- Only analyze, explain, and recommend
-- This mode is for discussion and planning only
+- ALWAYS analyze the codebase before giving advice
+- USE read-only tools (Read, Grep, Glob) to understand the code
+- DO NOT use write tools (Write, Edit, Bash, create_task)
+- Provide informed, context-aware recommendations
 `;
     } else {
       return basePrompt + `
@@ -386,7 +419,23 @@ When the user wants to actually DO something (create tasks or make changes), tel
 
 You are in **AGENT MODE**. Your job is to CREATE TASKS for the user's request.
 
-## CRITICAL: Create Tasks Only - Do NOT Execute Code
+## CRITICAL FIRST STEP: Check Existing Tasks
+
+**BEFORE creating any new tasks**, you MUST:
+1. Call the \`list_tasks\` tool to see ALL existing tasks
+2. Determine if we're starting fresh or continuing existing work
+3. Only create tasks for work that ISN'T already covered
+
+If tasks already exist:
+- List what tasks are already there (done, doing, todo)
+- Identify gaps - what's missing from the existing plan?
+- Only create NEW tasks for missing work
+- Do NOT duplicate existing tasks
+
+If no tasks exist:
+- This is a fresh start - create comprehensive task breakdown
+
+## Create Tasks Only - Do NOT Execute Code
 
 **IMPORTANT**: In this chat, you plan work by creating tasks. You do NOT execute them directly.
 
@@ -405,30 +454,35 @@ Output each task as a JSON code block. The system will automatically parse and c
 
 **IMPORTANT**: You CAN and SHOULD output these JSON blocks. The Dexteria system intercepts them and creates the tasks automatically. This is YOUR way of creating tasks.
 
-### Example
+### Example (Fresh Start)
 
 User: "Add a login page with validation"
 
 Your response:
-1. Analyze what's needed
-2. Output task JSON blocks (system creates them):
+1. First, call \`list_tasks\` to check existing tasks
+2. If no tasks exist, create the full plan:
 
 \`\`\`json
 {"tool": "create_task", "arguments": {"title": "Create login page component", "description": "Create the React component for the login form with email and password fields", "status": "todo", "acceptanceCriteria": ["Component renders correctly", "Has email and password inputs", "Has submit button"]}}
 \`\`\`
 
-\`\`\`json
-{"tool": "create_task", "arguments": {"title": "Add form validation", "description": "Add client-side validation for login form", "status": "todo", "acceptanceCriteria": ["Email format validated", "Password minimum 8 characters", "Shows error messages"]}}
-\`\`\`
+### Example (Continuing Work)
+
+User: "Add a login page with validation"
+
+Your response:
+1. First, call \`list_tasks\` to check existing tasks
+2. Found: "Create login form" (done), "Add validation" (todo)
+3. Say: "I see there are already 2 tasks for this. The login form is done, validation is pending. I'll only add what's missing:"
 
 \`\`\`json
-{"tool": "create_task", "arguments": {"title": "Connect login to auth API", "description": "Integrate the login form with the authentication API", "status": "todo", "acceptanceCriteria": ["Calls auth endpoint on submit", "Handles success/error responses", "Redirects on success"]}}
+{"tool": "create_task", "arguments": {"title": "Connect login to auth API", "description": "Integrate the login form with the authentication API", "status": "todo", "acceptanceCriteria": ["Calls auth endpoint on submit", "Handles success/error responses"]}}
 \`\`\`
-
-3. Tell user: "I've created X tasks. Run Ralph Mode to execute them."
 
 ### Rules:
+- **ALWAYS** check existing tasks FIRST before creating new ones
 - **DO** output JSON blocks with create_task - the system handles them
+- **DO NOT** duplicate tasks that already exist
 - **DO NOT** write code or make file changes in this mode
 - **DO NOT** run commands in this mode
 - **ALWAYS** set status to "todo" for new tasks
@@ -449,6 +503,12 @@ You ARE able to create tasks by outputting the JSON format above. The Dexteria a
     // Add default system prompt based on mode
     prompt += this.getSystemPrompt(mode);
     prompt += '\n\n---\n\n';
+
+    // Add project context if available
+    if (this.projectContext) {
+      prompt += formatContextForPrompt(this.projectContext);
+      prompt += '\n\n---\n\n';
+    }
 
     // Add any additional system messages
     const systemMessages = messages.filter(m => m.role === 'system');
@@ -653,6 +713,21 @@ You ARE able to create tasks by outputting the JSON format above. The Dexteria a
    */
   setWorkingDirectory(dir: string): void {
     this.workingDirectory = dir;
+  }
+
+  /**
+   * Set project context to include in prompts.
+   */
+  setProjectContext(context: ProjectContext | null): void {
+    this.projectContext = context;
+    console.log('[ClaudeCode] Project context set:', context?.name || 'null');
+  }
+
+  /**
+   * Get current project context.
+   */
+  getProjectContext(): ProjectContext | null {
+    return this.projectContext;
   }
 }
 

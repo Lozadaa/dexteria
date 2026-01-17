@@ -16,6 +16,7 @@ import { useConfirm } from '../contexts/ConfirmContext';
 import { TaskCard } from './TaskCard';
 import { BoardSkeleton } from './LoadingSpinner';
 import { ErrorDisplay } from './ErrorDisplay';
+import { Button, IconButton, Input } from 'adnia-ui';
 import type { Task, Column as ColumnType, TaskStatus } from '../../shared/types';
 import { Plus } from 'lucide-react';
 
@@ -35,6 +36,8 @@ interface ColumnProps {
     onNewTaskTitleChange: (title: string) => void;
     onSubmitNewTask: () => void;
     onCancelCreate: () => void;
+    isDraggingOver?: boolean;
+    draggedTask?: Task | null;
 }
 
 const Column: React.FC<ColumnProps> = ({
@@ -51,17 +54,20 @@ const Column: React.FC<ColumnProps> = ({
     newTaskTitle,
     onNewTaskTitleChange,
     onSubmitNewTask,
-    onCancelCreate
+    onCancelCreate,
+    isDraggingOver,
+    draggedTask
 }) => {
-    const { setNodeRef } = useDroppable({
+    const { setNodeRef, isOver } = useDroppable({
         id: column.id,
         data: { type: 'Column', column }
     });
 
     const isCreatingInThisColumn = isCreating && creatingColumnId === column.id;
+    const showDropIndicator = (isDraggingOver || isOver) && draggedTask && draggedTask.status !== column.id;
 
     return (
-        <div className="flex flex-col h-full min-w-[280px] w-[280px] rounded-xl bg-muted/10 border border-white/5 overflow-hidden">
+        <div className={`flex flex-col h-full min-w-[280px] w-[280px] rounded-xl bg-muted/10 border overflow-hidden animate-fade-in-up animate-fill-both transition-all duration-200 ${showDropIndicator ? 'border-primary/50 bg-primary/5' : 'border-white/5'}`}>
             {/* Column Header */}
             <div className="p-3 border-b border-white/5 bg-background/20 backdrop-blur-md flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -73,13 +79,15 @@ const Column: React.FC<ColumnProps> = ({
                     </span>
                 </div>
                 {/* Add button */}
-                <button
+                <IconButton
+                    variant="ghost"
+                    size="xs"
                     onClick={() => onCreateTask(column.id)}
-                    className="p-1 hover:bg-white/10 rounded opacity-50 hover:opacity-100 transition"
+                    className="opacity-50 hover:opacity-100 hover:bg-white/10"
                     title="Crear nueva tarea"
                 >
                     <Plus className="w-3.5 h-3.5" />
-                </button>
+                </IconButton>
             </div>
 
             {/* Tasks Area */}
@@ -89,9 +97,8 @@ const Column: React.FC<ColumnProps> = ({
             >
                 {/* New Task Input Form */}
                 {isCreatingInThisColumn && (
-                    <div className="p-3 rounded-lg bg-card border border-primary/50 shadow-lg">
-                        <input
-                            type="text"
+                    <div className="p-3 rounded-lg bg-card border border-primary/50 shadow-lg animate-scale-in">
+                        <Input
                             value={newTaskTitle}
                             onChange={(e) => onNewTaskTitleChange(e.target.value)}
                             onKeyDown={(e) => {
@@ -102,23 +109,25 @@ const Column: React.FC<ColumnProps> = ({
                                 }
                             }}
                             placeholder="Nombre de la tarea..."
-                            className="w-full px-2 py-1.5 text-sm bg-background border border-white/10 rounded focus:outline-none focus:border-primary/50"
+                            className="h-8 text-sm bg-background border-white/10"
                             autoFocus
                         />
                         <div className="flex gap-2 mt-2">
-                            <button
+                            <Button
                                 onClick={onSubmitNewTask}
                                 disabled={!newTaskTitle.trim()}
-                                className="flex-1 px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                size="xs"
+                                className="flex-1"
                             >
                                 Crear
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant="muted"
+                                size="xs"
                                 onClick={onCancelCreate}
-                                className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80"
                             >
                                 Cancelar
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -134,6 +143,18 @@ const Column: React.FC<ColumnProps> = ({
                         isActive={activeTaskId === task.id}
                     />
                 ))}
+
+                {/* Drop placeholder - shows ghost of dragged card */}
+                {showDropIndicator && draggedTask && (
+                    <div className="p-3 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 opacity-60 animate-pulse">
+                        <div className="text-sm font-medium text-primary/70 truncate">
+                            {draggedTask.title}
+                        </div>
+                        <div className="text-xs text-primary/50 mt-1">
+                            Drop here to move
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -306,7 +327,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onTaskSelect, activeTa
             onDragEnd={handleDragEnd}
         >
             <div className="h-full w-full flex gap-4 overflow-x-auto p-4">
-                {columns.map((col: any) => {
+                {columns.map((col: any, index: number) => {
                     // Filter tasks for this column
                     let colTasks = tasks.filter(t => t.status === col.id);
 
@@ -324,23 +345,25 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onTaskSelect, activeTa
                     }
 
                     return (
-                        <Column
-                            key={col.id}
-                            column={col}
-                            tasks={colTasks}
-                            onTaskClick={onTaskSelect}
-                            onTaskDelete={handleDeleteTask}
-                            onTaskStop={handleStopTask}
-                            onTaskRun={handleRunTask}
-                            onCreateTask={handleCreateTask}
-                            activeTaskId={activeTaskId}
-                            isCreating={isCreating}
-                            creatingColumnId={creatingColumnId || undefined}
-                            newTaskTitle={newTaskTitle}
-                            onNewTaskTitleChange={setNewTaskTitle}
-                            onSubmitNewTask={handleSubmitNewTask}
-                            onCancelCreate={handleCancelCreate}
-                        />
+                        <div key={col.id} className={`animate-stagger-${index + 1}`}>
+                            <Column
+                                column={col}
+                                tasks={colTasks}
+                                onTaskClick={onTaskSelect}
+                                onTaskDelete={handleDeleteTask}
+                                onTaskStop={handleStopTask}
+                                onTaskRun={handleRunTask}
+                                onCreateTask={handleCreateTask}
+                                activeTaskId={activeTaskId}
+                                isCreating={isCreating}
+                                creatingColumnId={creatingColumnId || undefined}
+                                newTaskTitle={newTaskTitle}
+                                onNewTaskTitleChange={setNewTaskTitle}
+                                onSubmitNewTask={handleSubmitNewTask}
+                                onCancelCreate={handleCancelCreate}
+                                draggedTask={activeDragTask}
+                            />
+                        </div>
                     );
                 })}
             </div>

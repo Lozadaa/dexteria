@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { Button, Textarea } from 'adnia-ui';
 import type { TaskComment, Task } from '../../shared/types';
 
 interface TaskCommentsProps {
@@ -126,10 +127,11 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
               )}
             </div>
             {onRetryWithContext && (
-              <button
+              <Button
+                variant="status-danger"
+                size="xs"
                 onClick={onRetryWithContext}
                 disabled={isRetrying}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-medium rounded transition-colors disabled:opacity-50"
               >
                 {isRetrying ? (
                   <RotateCw size={12} className="animate-spin" />
@@ -137,7 +139,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                   <RotateCw size={12} />
                 )}
                 Retry
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -258,35 +260,28 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
           <div className="p-3 border-t border-border space-y-2">
             {/* Type Selector */}
             <div className="flex gap-2">
-              <button
+              <Button
+                variant={commentType === 'instruction' ? "status-info" : "ghost"}
+                size="xs"
                 onClick={() => setCommentType('instruction')}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 text-xs rounded transition-colors",
-                  commentType === 'instruction'
-                    ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                    : "text-muted-foreground hover:bg-muted border border-transparent"
-                )}
               >
                 <Info size={12} />
                 Instruction
-              </button>
-              <button
+              </Button>
+              <Button
+                variant={commentType === 'note' ? "muted" : "ghost"}
+                size="xs"
                 onClick={() => setCommentType('note')}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 text-xs rounded transition-colors",
-                  commentType === 'note'
-                    ? "bg-muted text-foreground border border-border"
-                    : "text-muted-foreground hover:bg-muted border border-transparent"
-                )}
+                className={commentType === 'note' ? "border border-border" : ""}
               >
                 <MessageSquare size={12} />
                 Note
-              </button>
+              </Button>
             </div>
 
             {/* Input Area */}
             <div className="flex gap-2">
-              <textarea
+              <Textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -295,19 +290,20 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                     ? "Add instructions for the agent..."
                     : "Add a note..."
                 }
-                className="flex-1 bg-muted border border-border rounded-lg p-2.5 text-sm resize-none h-20 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                className="flex-1 resize-none h-20"
               />
-              <button
+              <Button
                 onClick={handleSubmit}
                 disabled={!newComment.trim() || isSubmitting}
-                className="self-end px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="self-end"
+                size="sm"
               >
                 {isSubmitting ? (
                   <RotateCw size={16} className="animate-spin" />
                 ) : (
                   <Send size={16} />
                 )}
-              </button>
+              </Button>
             </div>
             <div className="text-xs text-muted-foreground/50">
               Press Cmd/Ctrl + Enter to send

@@ -10,6 +10,7 @@ import { ipcMain, BrowserWindow, dialog } from 'electron';
 import { initStore } from '../../services/LocalKanbanStore';
 import { Runner } from '../../agent/tools/Runner';
 import { initRalphEngine } from '../../agent/RalphEngine';
+import { analyzeProject } from '../../services/ProjectAnalyzer';
 import {
   getProjectRoot,
   setProjectRoot,
@@ -21,6 +22,8 @@ import {
   ClaudeCodeProvider,
   setAgentProvider,
 } from './shared';
+import { initThemeService } from '../../services/ThemeService';
+import { initPluginManager } from '../../services/PluginManager';
 import {
   startRun,
   stopRun,
@@ -30,12 +33,12 @@ import {
   getAllProcessStatus,
   setMainWindow as setProcessManagerWindow,
 } from '../../services/ProjectProcessManager';
-import type { ProjectProcessStatus, ProjectRunResult, ProjectProcessType } from '../../../shared/types';
+import type { ProjectProcessStatus, ProjectRunResult, ProjectProcessType, ProjectContext } from '../../../shared/types';
 
 /**
  * Open a project at the given path.
  */
-function openProject(projectPath: string, mainWindow: BrowserWindow | null, projectName?: string): boolean {
+async function openProject(projectPath: string, mainWindow: BrowserWindow | null, projectName?: string): Promise<boolean> {
   try {
     // Initialize store for this project (will create .local-kanban defaults if needed)
     const store = initStore(projectPath, projectName);
@@ -50,6 +53,9 @@ function openProject(projectPath: string, mainWindow: BrowserWindow | null, proj
       setAgentProvider(new ClaudeCodeProvider({ workingDirectory: projectPath }));
     }
 
+    // Analyze project and set context on provider
+    await analyzeAndSetProjectContext(projectPath, store);
+
     // Initialize runner and ralph engine
     const policy = store.getPolicy();
     const runner = new Runner(projectPath, policy, store);
@@ -61,6 +67,16 @@ function openProject(projectPath: string, mainWindow: BrowserWindow | null, proj
       store,
       provider: agentProvider instanceof ClaudeCodeProvider ? agentProvider : undefined,
     });
+
+    // Initialize theme service
+    const themeService = initThemeService(projectPath);
+    await themeService.init();
+    console.log('Theme service initialized for project');
+
+    // Initialize plugin manager
+    const pluginManager = initPluginManager(projectPath);
+    await pluginManager.init();
+    console.log('Plugin manager initialized for project');
 
     // Add to recent projects
     addToRecentProjects(projectPath);
@@ -75,6 +91,53 @@ function openProject(projectPath: string, mainWindow: BrowserWindow | null, proj
   } catch (err) {
     console.error('Failed to open project:', err);
     return false;
+  }
+}
+
+/**
+ * Analyze project and set context on the AI provider.
+ */
+async function analyzeAndSetProjectContext(projectPath: string, store: ReturnType<typeof initStore>): Promise<void> {
+  try {
+    // Check if we have cached context that's still fresh (less than 1 hour old)
+    const existingContext = store.getProjectContext();
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    if (existingContext && existingContext.updatedAt) {
+      const lastUpdate = new Date(existingContext.updatedAt).getTime();
+      const now = Date.now();
+
+      if (now - lastUpdate < ONE_HOUR) {
+        console.log('[Project] Using cached project context');
+        setContextOnProvider(existingContext);
+        return;
+      }
+    }
+
+    // Analyze the project
+    console.log('[Project] Analyzing project context...');
+    const context = await analyzeProject(projectPath);
+
+    // Save to store
+    store.saveProjectContext(context);
+
+    // Set on provider
+    setContextOnProvider(context);
+
+    console.log('[Project] Project context analyzed and set');
+  } catch (err) {
+    console.error('[Project] Failed to analyze project context:', err);
+    // Continue without context - not a fatal error
+  }
+}
+
+/**
+ * Set project context on the current AI provider.
+ */
+function setContextOnProvider(context: ProjectContext): void {
+  const provider = getOrCreateProvider();
+  if (provider instanceof ClaudeCodeProvider) {
+    provider.setProjectContext(context);
   }
 }
 
@@ -96,7 +159,7 @@ export function registerProjectHandlers(): void {
     }
 
     const projectPath = result.filePaths[0];
-    const success = openProject(projectPath, win);
+    const success = await openProject(projectPath, win);
 
     return success
       ? { success: true, path: projectPath }
@@ -127,14 +190,14 @@ export function registerProjectHandlers(): void {
     const kanbanPath = path.join(projectPath, '.local-kanban');
     if (fs.existsSync(kanbanPath)) {
       // Just open it as existing project
-      const success = openProject(projectPath, win, projectName);
+      const success = await openProject(projectPath, win, projectName);
       return success
         ? { success: true, path: projectPath }
         : { success: false, error: 'Failed to open existing project' };
     }
 
     // Initialize as new project
-    const success = openProject(projectPath, win, projectName);
+    const success = await openProject(projectPath, win, projectName);
 
     return success
       ? { success: true, path: projectPath }
@@ -149,7 +212,7 @@ export function registerProjectHandlers(): void {
       return { success: false, error: 'Path does not exist' };
     }
 
-    const success = openProject(projectPath, win);
+    const success = await openProject(projectPath, win);
     return success
       ? { success: true }
       : { success: false, error: 'Failed to open project' };

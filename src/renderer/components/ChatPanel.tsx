@@ -1,10 +1,53 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChats } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
-import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2 } from 'lucide-react';
+import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2, Cpu, ChevronDown } from 'lucide-react';
 import { MarkdownRenderer, ThinkingIndicator } from './MarkdownRenderer';
+import {
+    Button,
+    IconButton,
+    Textarea,
+    ScrollArea,
+    DialogRoot,
+    DialogContent,
+    DialogHeader,
+    DialogFooter,
+    DialogTitle,
+    Switch,
+    DropdownMenuRoot,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+} from 'adnia-ui';
 import type { Chat, ChatMessage } from '../../shared/types';
+
+// Creative placeholders for the chat input
+const CHAT_PLACEHOLDERS = [
+    "Ask me to build something amazing...",
+    "What shall we create today?",
+    "Describe your next feature...",
+    "Tell me about that bug you're hunting...",
+    "What code needs my attention?",
+    "Ready to ship something cool?",
+    "Let's turn your idea into code...",
+    "What's on your dev wishlist?",
+    "Paint me a picture of your next feature...",
+    "Got a challenge for me?",
+    "What should we refactor today?",
+    "Bring me your wildest requirements...",
+    "Let's squash some bugs together...",
+    "What's blocking your progress?",
+    "Describe the dream feature...",
+    "What would make your life easier?",
+    "Got an idea brewing?",
+    "Let's architect something great...",
+    "What needs fixing?",
+    "How can I help ship faster?",
+];
 
 interface ChatPanelProps {
     className?: string;
@@ -19,8 +62,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     const [isSending, setIsSending] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [streamingContent, setStreamingContent] = useState<string>('');
+    const [streamingMessages, setStreamingMessages] = useState<string[]>([]); // Completed messages during streaming
     const [pendingMessage, setPendingMessage] = useState<string | null>(null);
     const [dontShowAgainChecked, setDontShowAgainChecked] = useState(false);
+    const [currentProvider, setCurrentProvider] = useState<string>('claude-code');
+    const [providerName, setProviderName] = useState<string>('Claude Code');
     const {
         mode,
         showFirstMessageWarning,
@@ -28,12 +74,27 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         dismissFirstMessageWarning,
         switchToAgentAndClose
     } = useMode();
+
+    // Load provider info on mount
+    useEffect(() => {
+        window.dexteria?.settings?.getProvider?.().then((info) => {
+            if (info) {
+                setCurrentProvider(info.type);
+                setProviderName(info.name);
+            }
+        });
+    }, []);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const historyRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
     const userScrolledUpRef = useRef(false);
+
+    // Random placeholder that changes when chat changes
+    const randomPlaceholder = useMemo(() => {
+        return CHAT_PLACEHOLDERS[Math.floor(Math.random() * CHAT_PLACEHOLDERS.length)];
+    }, [activeChatId]);
 
     // Filter chats to only show ones with messages (non-empty)
     const chatsWithMessages = chats.filter(c => c.messages && c.messages.length > 0);
@@ -109,11 +170,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     // Listen for streaming updates
     useEffect(() => {
         const cleanup = window.dexteria?.chat?.onStreamUpdate?.((data) => {
-            console.log('Stream update:', data.chatId, 'active:', activeChatId, 'done:', data.done);
+            console.log('Stream update:', data.chatId, 'active:', activeChatId, 'done:', data.done, 'isNewMessage:', data.isNewMessage);
             if (data.chatId === activeChatId) {
                 if (data.done) {
                     // Reset streaming content when done
                     setStreamingContent('');
+                    setStreamingMessages([]);
+                } else if (data.isNewMessage) {
+                    // A new message was completed - add it to streaming messages
+                    setStreamingMessages(prev => {
+                        // Only add if content is different from last message
+                        if (prev.length === 0 || prev[prev.length - 1] !== data.content) {
+                            return [...prev, data.content];
+                        }
+                        return prev;
+                    });
+                    setStreamingContent(''); // Reset current streaming for next message
                 } else {
                     // Replace streaming content with latest (backend filters JSON before sending)
                     setStreamingContent(data.content);
@@ -132,6 +204,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         setMessages(prev => prev.filter(m => m.id !== 'streaming-response'));
         setIsSending(false);
         setStreamingContent('');
+        setStreamingMessages([]);
         abortControllerRef.current = null;
     }, []);
 
@@ -151,6 +224,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         setInputValue('');
         setIsSending(true);
         setStreamingContent('');
+        setStreamingMessages([]);
         setPendingMessage(null);
 
         // Create abort controller for this request
@@ -275,30 +349,29 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                 <div className="flex items-center gap-2">
                     {/* History button on the left */}
                     <div className="relative" ref={historyRef}>
-                        <button
+                        <IconButton
+                            variant={showHistory ? "secondary" : "ghost"}
+                            size="sm"
                             onClick={() => setShowHistory(!showHistory)}
-                            className={cn(
-                                "p-2 hover:bg-muted rounded-lg transition-colors",
-                                showHistory && "bg-muted"
-                            )}
                             title="Chat History"
                         >
                             <History size={16} />
-                        </button>
+                        </IconButton>
 
                         {/* History Popup */}
                         {showHistory && (
-                            <div className="absolute left-0 top-full mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                            <div className="absolute left-0 top-full mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden animate-scale-in origin-top-left">
                                 <div className="p-2 border-b border-border flex items-center justify-between">
                                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                         History
                                     </span>
-                                    <button
+                                    <IconButton
+                                        variant="ghost"
+                                        size="xs"
                                         onClick={() => setShowHistory(false)}
-                                        className="p-1 hover:bg-muted rounded"
                                     >
                                         <X size={12} />
-                                    </button>
+                                    </IconButton>
                                 </div>
                                 <div className="max-h-64 overflow-y-auto">
                                     {chatsWithMessages.length === 0 ? (
@@ -324,13 +397,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                                         {chat.messages?.length || 0} messages
                                                     </div>
                                                 </div>
-                                                <button
+                                                <IconButton
+                                                    variant="ghost"
+                                                    size="xs"
                                                     onClick={(e) => handleDeleteChat(chat.id, e)}
-                                                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all shrink-0"
+                                                    className="opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-muted-foreground hover:text-red-500"
                                                     title="Delete conversation"
                                                 >
                                                     <Trash2 size={12} />
-                                                </button>
+                                                </IconButton>
                                                 {activeChatId === chat.id && (
                                                     <Check size={14} className="text-primary shrink-0" />
                                                 )}
@@ -339,13 +414,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                     )}
                                 </div>
                                 <div className="p-2 border-t border-border">
-                                    <button
+                                    <Button
                                         onClick={handleCreateChat}
-                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                                        className="w-full"
+                                        size="sm"
                                     >
                                         <Plus size={14} />
                                         New Conversation
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         )}
@@ -356,25 +432,29 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                         {activeChat?.title || 'Chat'}
                     </span>
                 </div>
-                <button
+                <IconButton
+                    variant="ghost"
+                    size="sm"
                     onClick={handleCreateChat}
-                    className="p-2 hover:bg-muted rounded-lg transition-colors"
                     title="New Chat"
                 >
                     <Plus size={16} />
-                </button>
+                </IconButton>
             </div>
 
             {/* Messages Area */}
-            <div
+            <ScrollArea
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto p-4 space-y-4"
+                className="flex-1 p-4 space-y-4"
             >
                 {messages.length === 0 && !isSending ? (
-                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
-                        <MessageSquare size={32} className="mb-2" />
-                        <p className="text-sm">Start a conversation with Dexter</p>
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground animate-fade-in">
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 border border-border/30 animate-scale-in">
+                            <MessageSquare size={40} className="text-primary/40 mb-3 mx-auto" />
+                            <p className="text-sm text-center opacity-70">Start a conversation with Dexter</p>
+                            <p className="text-xs text-center opacity-40 mt-1">Ask anything about your project</p>
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -382,23 +462,28 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                             <div
                                 key={msg.id || idx}
                                 className={cn(
-                                    "flex gap-3 max-w-[85%]",
-                                    msg.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
+                                    "flex gap-3 max-w-[85%] group",
+                                    msg.role === 'user'
+                                        ? "ml-auto flex-row-reverse animate-slide-in-right"
+                                        : "mr-auto animate-slide-in-left"
                                 )}
+                                style={{ animationDelay: `${Math.min(idx * 50, 200)}ms`, animationFillMode: 'both' }}
                             >
+                                {/* Avatar - rounded square */}
                                 <div className={cn(
-                                    "w-7 h-7 rounded-full flex items-center justify-center shrink-0",
+                                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 hover:scale-110 hover:shadow-lg",
                                     msg.role === 'user'
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-primary/20 text-primary"
+                                        ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md hover:shadow-primary/30"
+                                        : "bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm hover:shadow-primary/20"
                                 )}>
-                                    {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
+                                    {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                                 </div>
+                                {/* Message bubble */}
                                 <div className={cn(
-                                    "p-3 rounded-xl text-sm leading-relaxed break-words overflow-hidden",
+                                    "p-3 rounded-2xl text-sm leading-relaxed break-words overflow-hidden transition-all duration-200",
                                     msg.role === 'user'
-                                        ? "bg-primary text-white rounded-br-sm whitespace-pre-wrap"
-                                        : "bg-muted border border-border rounded-bl-sm"
+                                        ? "bg-gradient-to-br from-primary to-primary/90 text-white rounded-tr-md whitespace-pre-wrap shadow-md hover:shadow-lg hover:shadow-primary/20"
+                                        : "bg-card border border-border/50 rounded-tl-md shadow-sm hover:shadow-md hover:border-border"
                                 )}>
                                     {msg.role === 'user' ? (
                                         msg.content
@@ -409,13 +494,31 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                             </div>
                         ))}
 
-                        {/* Assistant response bubble - thinking/streaming/done */}
-                        {isSending && (
-                            <div className="flex gap-3 max-w-[85%] mr-auto">
-                                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/20 text-primary">
-                                    <Bot size={14} />
+                        {/* Completed streaming messages (from delimiter splits) */}
+                        {isSending && streamingMessages.map((content, idx) => (
+                            <div
+                                key={`streaming-complete-${idx}`}
+                                className="flex gap-3 max-w-[85%] mr-auto animate-slide-in-left"
+                            >
+                                {/* Avatar - rounded square */}
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-primary/20">
+                                    <Bot size={16} />
                                 </div>
-                                <div className="p-3 rounded-xl rounded-bl-sm bg-muted border border-border text-sm">
+                                {/* Message bubble */}
+                                <div className="p-3 rounded-2xl rounded-tl-md bg-card border border-border/50 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-border">
+                                    <MarkdownRenderer content={content} />
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Current streaming message (in progress) */}
+                        {isSending && (
+                            <div className="flex gap-3 max-w-[85%] mr-auto animate-slide-in-left">
+                                {/* Avatar - rounded square matching message history */}
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-primary/20">
+                                    <Bot size={16} className="animate-pulse" />
+                                </div>
+                                <div className="p-3 rounded-2xl rounded-tl-md bg-card border border-border/50 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-border">
                                     {streamingContent ? (
                                         <div className="break-words">
                                             <MarkdownRenderer content={streamingContent} />
@@ -437,25 +540,71 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     </>
                 )}
                 <div ref={messagesEndRef} />
-            </div>
+            </ScrollArea>
 
             {/* Input */}
             <div className="p-3 border-t border-border">
-                {/* Mode indicator - just informational, toggle is in TopBar */}
-                <div className={cn(
-                    "flex items-center gap-2 mb-2 text-xs",
-                    mode === 'planner' ? "text-yellow-500/80" : "text-green-500/80"
-                )}>
-                    <FileText size={12} />
-                    <span>
-                        {mode === 'planner'
-                            ? "Planner Mode: Will analyze and plan but won't create tasks"
-                            : "Agent Mode: Will create tasks in TODO (run Ralph Mode to execute)"
-                        }
-                    </span>
+                {/* Mode and Provider indicator */}
+                <div className="flex items-center justify-between gap-2 mb-2 text-xs">
+                    <div className={cn(
+                        "flex items-center gap-2",
+                        mode === 'planner' ? "text-yellow-500/80" : "text-green-500/80"
+                    )}>
+                        <FileText size={12} />
+                        <span>
+                            {mode === 'planner'
+                                ? "Planner Mode: analyze & plan"
+                                : "Agent Mode: create tasks"
+                            }
+                        </span>
+                    </div>
+
+                    {/* Provider Selector */}
+                    <DropdownMenuRoot>
+                        <DropdownMenuTrigger asChild>
+                            <button className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
+                                <Cpu size={12} />
+                                <span className="font-medium">{providerName}</span>
+                                <ChevronDown size={10} />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>AI Provider</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuRadioGroup
+                                value={currentProvider}
+                                onValueChange={async (value) => {
+                                    const result = await window.dexteria?.settings?.setProvider?.(value as 'mock' | 'anthropic' | 'claude-code');
+                                    if (result?.success) {
+                                        setCurrentProvider(value);
+                                        setProviderName(result.provider);
+                                    }
+                                }}
+                            >
+                                <DropdownMenuRadioItem value="claude-code">
+                                    <div className="flex flex-col">
+                                        <span>Claude Code</span>
+                                        <span className="text-xs text-muted-foreground">Uses CLI (recommended)</span>
+                                    </div>
+                                </DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="anthropic">
+                                    <div className="flex flex-col">
+                                        <span>Anthropic API</span>
+                                        <span className="text-xs text-muted-foreground">Direct API (requires key)</span>
+                                    </div>
+                                </DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="mock">
+                                    <div className="flex flex-col">
+                                        <span>Mock</span>
+                                        <span className="text-xs text-muted-foreground">For testing</span>
+                                    </div>
+                                </DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenuRoot>
                 </div>
                 <div className="flex gap-2">
-                    <textarea
+                    <Textarea
                         ref={textareaRef}
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
@@ -465,92 +614,79 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                 handleSendMessage();
                             }
                         }}
-                        placeholder={isSending ? "Waiting for response..." : (activeChatId ? "Message Dexter..." : "Creating chat...")}
+                        placeholder={isSending ? "Waiting for response..." : (activeChatId ? randomPlaceholder : "Creating chat...")}
                         disabled={!activeChatId}
-                        className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-y min-h-[40px] max-h-[200px] overflow-y-auto"
+                        className="flex-1 min-h-[40px] max-h-[200px] resize-y"
                         rows={1}
                     />
                     {isSending ? (
-                        <button
+                        <Button
+                            variant="danger"
                             onClick={handleCancel}
-                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
                             title="Cancel"
+                            className="animate-pulse"
                         >
                             <StopCircle size={16} />
-                        </button>
+                        </Button>
                     ) : (
-                        <button
+                        <Button
                             onClick={() => handleSendMessage()}
                             disabled={!inputValue.trim() || !activeChatId}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className={cn(
+                                "transition-all duration-200",
+                                inputValue.trim() && activeChatId
+                                    ? "shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:scale-105"
+                                    : ""
+                            )}
                         >
                             <Send size={16} />
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>
 
             {/* First Message Warning Modal */}
-            {showFirstMessageWarning && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
-                        <div className="flex items-center justify-between p-4 border-b border-border bg-yellow-500/10">
-                            <div className="flex items-center gap-2 text-yellow-500">
-                                <AlertTriangle size={20} />
-                                <h3 className="font-semibold">Planner Mode</h3>
-                            </div>
-                            <button
-                                onClick={handleCancelWarning}
-                                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                            >
-                                <X size={18} />
-                            </button>
+            <DialogRoot open={showFirstMessageWarning} onOpenChange={(open) => !open && handleCancelWarning()}>
+                <DialogContent size="md" className="p-0">
+                    <DialogHeader className="p-4 border-b border-border bg-yellow-500/10">
+                        <div className="flex items-center gap-2 text-yellow-500">
+                            <AlertTriangle size={20} />
+                            <DialogTitle>Planner Mode</DialogTitle>
                         </div>
-                        <div className="p-4 space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                                You are in <strong className="text-foreground">Planner Mode</strong>.
-                                The AI will help you plan and create tasks, but won't execute any code changes.
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                Switch to <strong className="text-foreground">Agent Mode</strong> if you want
-                                the AI to execute tasks automatically.
-                            </p>
+                    </DialogHeader>
+                    <div className="p-4 space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            You are in <strong className="text-foreground">Planner Mode</strong>.
+                            The AI will help you plan and create tasks, but won't execute any code changes.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Switch to <strong className="text-foreground">Agent Mode</strong> if you want
+                            the AI to execute tasks automatically.
+                        </p>
 
-                            {/* Don't show again checkbox */}
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={dontShowAgainChecked}
-                                    onChange={(e) => setDontShowAgainChecked(e.target.checked)}
-                                    className="rounded border-border"
-                                />
-                                Don't show this again
-                            </label>
-
-                            <div className="flex gap-2 justify-end pt-2">
-                                <button
-                                    onClick={handleCancelWarning}
-                                    className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleContinueInPlanner}
-                                    className="px-4 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
-                                >
-                                    Continue in Planner
-                                </button>
-                                <button
-                                    onClick={handleSwitchToAgent}
-                                    className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                                >
-                                    Switch to Agent
-                                </button>
-                            </div>
-                        </div>
+                        {/* Don't show again toggle */}
+                        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                            <Switch
+                                size="sm"
+                                checked={dontShowAgainChecked}
+                                onCheckedChange={setDontShowAgainChecked}
+                            />
+                            Don't show this again
+                        </label>
                     </div>
-                </div>
-            )}
+                    <DialogFooter className="p-4 border-t border-border">
+                        <Button variant="ghost" onClick={handleCancelWarning}>
+                            Cancel
+                        </Button>
+                        <Button variant="secondary" onClick={handleContinueInPlanner}>
+                            Continue in Planner
+                        </Button>
+                        <Button onClick={handleSwitchToAgent}>
+                            Switch to Agent
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </DialogRoot>
         </div>
     );
 };

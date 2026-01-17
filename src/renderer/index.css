@@ -35,6 +35,34 @@
     --ring: 221.2 83.2% 53.3%;
 
     --radius: 0.5rem;
+
+    /* Code highlighting */
+    --code-background: 210 40% 96%;
+    --code-foreground: 222.2 84% 4.9%;
+    --code-comment: 215 15% 50%;
+    --code-keyword: 271 81% 56%;
+    --code-string: 142 70% 35%;
+    --code-number: 24 90% 45%;
+    --code-function: 221 83% 53%;
+    --code-operator: 215 15% 40%;
+    --code-variable: 199 89% 40%;
+    --code-class: 38 92% 45%;
+    --line-number: 215 15% 60%;
+    --line-highlight: 210 40% 92%;
+
+    /* Diff colors */
+    --diff-add-background: 142 76% 94%;
+    --diff-add-foreground: 142 70% 25%;
+    --diff-remove-background: 0 84% 95%;
+    --diff-remove-foreground: 0 70% 35%;
+    --diff-change-background: 38 92% 94%;
+    --diff-change-foreground: 38 70% 35%;
+
+    /* Terminal colors */
+    --terminal-background: 220 20% 10%;
+    --terminal-foreground: 220 10% 85%;
+    --terminal-cursor: 142 76% 50%;
+    --terminal-selection: 221 83% 53% / 0.3;
   }
 
   .dark {
@@ -67,6 +95,34 @@
     --border: 216 34% 17%;
     --input: 216 34% 17%;
     --ring: 224 64% 33%;
+
+    /* Code highlighting */
+    --code-background: 224 71% 8%;
+    --code-foreground: 213 31% 91%;
+    --code-comment: 215 15% 50%;
+    --code-keyword: 271 81% 70%;
+    --code-string: 142 70% 55%;
+    --code-number: 24 90% 60%;
+    --code-function: 217 91% 70%;
+    --code-operator: 215 15% 65%;
+    --code-variable: 199 89% 60%;
+    --code-class: 38 92% 60%;
+    --line-number: 215 15% 45%;
+    --line-highlight: 224 71% 12%;
+
+    /* Diff colors */
+    --diff-add-background: 142 50% 12%;
+    --diff-add-foreground: 142 70% 65%;
+    --diff-remove-background: 0 50% 12%;
+    --diff-remove-foreground: 0 70% 65%;
+    --diff-change-background: 38 50% 12%;
+    --diff-change-foreground: 38 70% 65%;
+
+    /* Terminal colors */
+    --terminal-background: 224 71% 6%;
+    --terminal-foreground: 213 31% 85%;
+    --terminal-cursor: 142 76% 50%;
+    --terminal-selection: 217 91% 60% / 0.3;
   }
 }
  
@@ -100,4 +156,75 @@
 }
 .glass-card {
   @apply bg-card border border-border shadow-sm;
+}
+
+/* Animation Utilities */
+.animate-stagger-1 { animation-delay: 0.05s; }
+.animate-stagger-2 { animation-delay: 0.1s; }
+.animate-stagger-3 { animation-delay: 0.15s; }
+.animate-stagger-4 { animation-delay: 0.2s; }
+.animate-stagger-5 { animation-delay: 0.25s; }
+.animate-stagger-6 { animation-delay: 0.3s; }
+
+/* Fill mode for animations */
+.animate-fill-both {
+  animation-fill-mode: both;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  @apply transition-all duration-200 ease-out;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  @apply shadow-lg;
+}
+
+/* Card hover glow */
+.card-hover-glow {
+  @apply transition-all duration-300;
+}
+.card-hover-glow:hover {
+  box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.3);
+}
+
+/* Smooth backdrop */
+.backdrop-animate {
+  @apply transition-all duration-300 ease-out;
+}
+
+/* Button press effect */
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Shimmer loading effect */
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Smooth scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
 }

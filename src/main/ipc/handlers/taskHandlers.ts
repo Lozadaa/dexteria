@@ -7,11 +7,13 @@
 import { ipcMain } from 'electron';
 import { hasProject, getStore, getOrCreateProvider } from './shared';
 import { getCommentService } from '../../services/CommentService';
+import { getPluginManager } from '../../services/PluginManager';
 import type {
   Task,
   TaskComment,
   TaskStatus,
   TaskPatch,
+  TaskCreateInput,
 } from '../../../shared/types';
 
 /**
@@ -30,22 +32,126 @@ export function registerTaskHandlers(): void {
 
   ipcMain.handle('tasks:create', async (_, title: string, status?: TaskStatus): Promise<Task | null> => {
     if (!hasProject()) return null;
-    return getStore().createTask(title, status || 'backlog');
+
+    const input: TaskCreateInput = { title, status: status || 'backlog' };
+
+    // Execute beforeCreate hooks
+    const pluginManager = getPluginManager();
+    if (pluginManager) {
+      const hookResult = await pluginManager.executeTaskBeforeCreateHooks({ input });
+      if (hookResult.cancel) {
+        return null;
+      }
+      // Use potentially modified input
+      Object.assign(input, hookResult.input);
+    }
+
+    const task = getStore().createTask(input.title, (input.status as TaskStatus) || 'backlog');
+
+    // Execute afterCreate hooks
+    if (pluginManager && task) {
+      await pluginManager.executeTaskAfterCreateHooks({ task });
+    }
+
+    return task;
   });
 
   ipcMain.handle('tasks:update', async (_, taskId: string, patch: TaskPatch): Promise<Task | null> => {
     if (!hasProject()) return null;
-    return getStore().updateTask(taskId, patch);
+
+    const store = getStore();
+    const task = store.getTask(taskId);
+    if (!task) return null;
+
+    const previousTask = { ...task };
+
+    // Execute beforeUpdate hooks
+    const pluginManager = getPluginManager();
+    let processedPatch = patch;
+    if (pluginManager) {
+      const hookResult = await pluginManager.executeTaskBeforeUpdateHooks({
+        taskId,
+        patch,
+        task,
+      });
+      if (hookResult.cancel) {
+        return null;
+      }
+      processedPatch = hookResult.patch;
+    }
+
+    const updatedTask = store.updateTask(taskId, processedPatch);
+
+    // Execute afterUpdate hooks
+    if (pluginManager && updatedTask) {
+      await pluginManager.executeTaskAfterUpdateHooks({
+        task: updatedTask,
+        previousTask,
+      });
+    }
+
+    return updatedTask;
   });
 
   ipcMain.handle('tasks:delete', async (_, taskId: string): Promise<void> => {
     if (!hasProject()) return;
-    getStore().deleteTask(taskId);
+
+    const store = getStore();
+    const task = store.getTask(taskId);
+    if (!task) return;
+
+    // Execute beforeDelete hooks
+    const pluginManager = getPluginManager();
+    if (pluginManager) {
+      const hookResult = await pluginManager.executeTaskBeforeDeleteHooks({
+        taskId,
+        task,
+      });
+      if (hookResult.cancel) {
+        return;
+      }
+    }
+
+    store.deleteTask(taskId);
   });
 
   ipcMain.handle('tasks:move', async (_, taskId: string, toColumnId: TaskStatus, newOrder?: number): Promise<void> => {
     if (!hasProject()) return;
-    getStore().moveTask(taskId, toColumnId, newOrder);
+
+    const store = getStore();
+    const task = store.getTask(taskId);
+    if (!task) return;
+
+    const fromColumn = task.status;
+
+    // Execute beforeMove hooks
+    const pluginManager = getPluginManager();
+    let targetColumn = toColumnId;
+    if (pluginManager) {
+      const hookResult = await pluginManager.executeTaskBeforeMoveHooks({
+        taskId,
+        task,
+        fromColumn,
+        toColumn: toColumnId,
+      });
+      if (hookResult.cancel) {
+        return;
+      }
+      targetColumn = hookResult.toColumn as TaskStatus;
+    }
+
+    store.moveTask(taskId, targetColumn, newOrder);
+
+    // Execute afterMove hooks
+    if (pluginManager) {
+      const movedTask = store.getTask(taskId);
+      if (movedTask) {
+        await pluginManager.executeTaskAfterMoveHooks({
+          task: movedTask,
+          fromColumn,
+        });
+      }
+    }
   });
 
   ipcMain.handle('tasks:addComment', async (_, taskId: string, comment: TaskComment): Promise<void> => {

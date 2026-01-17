@@ -1,0 +1,216 @@
+{/* Review & AI Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/AI" />
+
+# Review & AI Layer
+
+Components for AI responses, code review, and inline comments.
+
+## Components
+
+### AIResponseCard
+
+A container for AI-generated responses with status indicators and feedback controls.
+
+```tsx
+import { AIResponseCard, MarkdownViewer } from "@adnia/ui";
+
+<AIResponseCard
+  status="complete"
+  model="Claude 3.5"
+  timestamp={new Date()}
+  tokenCount={512}
+  duration={2300}
+  onCopy={() => copyToClipboard()}
+  onFeedback={(type) => submitFeedback(type)}
+  onRetry={() => regenerateResponse()}
+>
+  <MarkdownViewer content={response} />
+</AIResponseCard>
+```
+
+**Status States:**
+- `streaming` - Response is being generated (shows cancel button)
+- `complete` - Response finished successfully
+- `error` - An error occurred (shows retry button)
+- `cancelled` - User cancelled the response
+
+**Props:**
+- `status` - Current response status
+- `model` - AI model name
+- `timestamp` - Response timestamp
+- `tokenCount` - Number of tokens used
+- `duration` - Response time in ms
+- `title` - Custom title
+- `avatar` - Custom avatar element
+- `collapsible` - Allow collapsing
+- `showMetadata` - Show footer metadata (default: true)
+- `onCancel` - Cancel handler (streaming)
+- `onRetry` - Retry handler (error/cancelled)
+- `onCopy` - Copy handler
+- `onEdit` - Edit handler
+- `onFeedback` - Feedback handler (positive/negative)
+
+### PatchReviewPanel
+
+A panel for reviewing AI-generated code changes with accept/reject per file.
+
+```tsx
+import { PatchReviewPanel, type PatchFile } from "@adnia/ui";
+
+const files: PatchFile[] = [
+  { path: "src/Button.tsx", status: "modified", additions: 15, deletions: 5 },
+  { path: "src/Card.tsx", status: "added", additions: 45, deletions: 0 },
+  { path: "src/old.ts", status: "deleted", additions: 0, deletions: 23 },
+];
+
+<PatchReviewPanel
+  files={files}
+  selectedFile={selectedFile}
+  onFileSelect={(path) => selectFile(path)}
+  onAcceptFile={(path) => acceptFile(path)}
+  onRejectFile={(path) => rejectFile(path)}
+  onAcceptAll={() => acceptAll()}
+  onRejectAll={() => rejectAll()}
+/>
+```
+
+**Props:**
+- `files` - Array of patch files
+- `selectedFile` - Currently selected file path
+- `onFileSelect` - File selection handler
+- `onAcceptFile` - Accept single file handler
+- `onRejectFile` - Reject single file handler
+- `onAcceptAll` - Accept all handler
+- `onRejectAll` - Reject all handler
+- `title` - Panel title
+- `collapsible` - Allow collapsing
+- `defaultCollapsed` - Start collapsed
+
+**PatchFile Structure:**
+
+```tsx
+interface PatchFile {
+  path: string;
+  oldPath?: string; // For renames
+  status: "added" | "modified" | "deleted" | "renamed";
+  additions: number;
+  deletions: number;
+  accepted?: boolean;
+  rejected?: boolean;
+}
+```
+
+### InlineComment
+
+Thread-based inline comments for code review.
+
+```tsx
+import { InlineComment, type CommentThread } from "@adnia/ui";
+
+const thread: CommentThread = {
+  id: "thread-1",
+  line: 42,
+  resolved: false,
+  comments: [
+    {
+      id: "c1",
+      author: "Alice",
+      avatar: "A",
+      timestamp: new Date(),
+      content: "Consider adding error handling here.",
+    },
+  ],
+};
+
+<InlineComment
+  thread={thread}
+  currentUser="Bob"
+  onReply={(content) => addReply(content)}
+  onResolve={() => resolveThread()}
+  onEdit={(id, content) => editComment(id, content)}
+  onDelete={(id) => deleteComment(id)}
+/>
+```
+
+**Props:**
+- `thread` - Comment thread data
+- `currentUser` - Current user name (for edit permissions)
+- `onReply` - Reply handler
+- `onResolve` - Resolve/unresolve handler
+- `onEdit` - Edit comment handler
+- `onDelete` - Delete comment handler
+- `collapsible` - Allow collapsing
+- `defaultCollapsed` - Start collapsed
+- `showCodeSnippet` - Show referenced code
+
+**CommentThread Structure:**
+
+```tsx
+interface CommentThread {
+  id: string;
+  line: number;
+  resolved: boolean;
+  codeSnippet?: string;
+  comments: Comment[];
+}
+
+interface Comment {
+  id: string;
+  author: string;
+  avatar?: string;
+  timestamp: Date;
+  content: string;
+}
+```
+
+## Best Practices
+
+### Streaming AI Responses
+
+```tsx
+const [status, setStatus] = useState<AIResponseStatus>("streaming");
+const markdownRef = useRef<StreamingMarkdownRef>(null);
+
+aiStream.on("token", (token) => {
+  markdownRef.current?.append(token);
+});
+
+aiStream.on("complete", () => {
+  markdownRef.current?.flush();
+  setStatus("complete");
+});
+
+aiStream.on("error", () => {
+  setStatus("error");
+});
+
+<AIResponseCard
+  status={status}
+  onCancel={() => {
+    aiStream.cancel();
+    markdownRef.current?.flush();
+    setStatus("cancelled");
+  }}
+>
+  <StreamingMarkdown ref={markdownRef} />
+</AIResponseCard>
+```
+
+### Patch Review Workflow
+
+```tsx
+const [files, setFiles] = useState<PatchFile[]>(patchFiles);
+
+const handleAcceptFile = (path: string) => {
+  setFiles(files.map(f =>
+    f.path === path ? { ...f, accepted: true, rejected: false } : f
+  ));
+};
+
+const handleApply = () => {
+  const accepted = files.filter(f => f.accepted);
+  applyChanges(accepted);
+};
+```

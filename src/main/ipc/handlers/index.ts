@@ -16,6 +16,8 @@ import { registerContextHandlers } from './contextHandlers';
 import { registerChatHandlers } from './chatHandlers';
 import { registerSettingsHandlers } from './settingsHandlers';
 import { registerProjectHandlers } from './projectHandlers';
+import { registerThemeHandlers } from './themeHandlers';
+import { registerPluginHandlers } from './pluginHandlers';
 
 // Re-export shared utilities for external use
 export { getProjectRoot } from './shared';
@@ -27,10 +29,10 @@ export type { ProviderType, RecentProject, ToolResult, HandlerState } from './ty
  * Initialize all IPC handlers.
  * @param root - Optional project root path. If provided, initializes project-specific state.
  */
-export function initializeIpcHandlers(root?: string): void {
+export async function initializeIpcHandlers(root?: string): Promise<void> {
   // Only initialize project if root is provided
   if (root) {
-    initializeProjectState(root);
+    await initializeProjectState(root);
   } else {
     // No project - just initialize provider
     getOrCreateProvider();
@@ -46,4 +48,6 @@ export function initializeIpcHandlers(root?: string): void {
   registerChatHandlers();
   registerSettingsHandlers();
   registerProjectHandlers();
+  registerThemeHandlers();
+  registerPluginHandlers();
 }

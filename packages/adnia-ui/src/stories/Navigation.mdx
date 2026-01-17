@@ -1,0 +1,169 @@
+{/* Navigation Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Navigation" />
+
+# Navigation Layer
+
+Components for file navigation in IDE-like interfaces.
+
+## Components
+
+### FileTree
+
+A project file explorer with expandable folders and status indicators.
+
+```tsx
+import { FileTree, type FileNode } from "@adnia/ui";
+
+const files: FileNode[] = [
+  {
+    name: "src",
+    type: "directory",
+    children: [
+      { name: "index.ts", type: "file", status: "modified" },
+      { name: "utils.ts", type: "file" },
+      {
+        name: "components",
+        type: "directory",
+        children: [
+          { name: "Button.tsx", type: "file", status: "added" },
+        ],
+      },
+    ],
+  },
+  { name: "package.json", type: "file" },
+];
+
+<FileTree
+  files={files}
+  selectedPath="src/index.ts"
+  expandedPaths={["src", "src/components"]}
+  onSelect={(path) => selectFile(path)}
+  onOpen={(path) => openFile(path)}
+  onContextMenu={(path, event) => showContextMenu(path, event)}
+/>
+```
+
+**Props:**
+- `files` - Array of file nodes
+- `selectedPath` - Currently selected file path
+- `expandedPaths` - Array of expanded directory paths
+- `onSelect` - Selection handler (single click)
+- `onOpen` - Open handler (double click)
+- `onToggle` - Folder expand/collapse handler
+- `onContextMenu` - Right-click handler
+- `className` - Additional CSS classes
+
+**FileNode Structure:**
+
+```tsx
+interface FileNode {
+  name: string;
+  type: "file" | "directory";
+  children?: FileNode[];
+  status?: "modified" | "added" | "deleted" | "renamed";
+  icon?: React.ReactNode;
+}
+```
+
+**Status Colors:**
+- `modified` - Yellow indicator
+- `added` - Green indicator
+- `deleted` - Red indicator
+- `renamed` - Blue indicator
+
+### FileTabs
+
+Editor-style tabs with dirty indicators, pinned tabs, and reordering.
+
+```tsx
+import { FileTabs, type FileTab } from "@adnia/ui";
+
+const tabs: FileTab[] = [
+  { id: "1", path: "src/index.ts", name: "index.ts", isDirty: true },
+  { id: "2", path: "src/utils.ts", name: "utils.ts", isPinned: true },
+  { id: "3", path: "README.md", name: "README.md", isPreview: true },
+];
+
+<FileTabs
+  tabs={tabs}
+  activeTab="1"
+  onTabSelect={(id) => selectTab(id)}
+  onTabClose={(id) => closeTab(id)}
+  onTabReorder={(fromIndex, toIndex) => reorderTabs(fromIndex, toIndex)}
+/>
+```
+
+**Props:**
+- `tabs` - Array of tab objects
+- `activeTab` - Active tab ID
+- `onTabSelect` - Tab selection handler
+- `onTabClose` - Tab close handler
+- `onTabReorder` - Tab drag reorder handler
+- `onTabPin` - Pin/unpin handler
+- `className` - Additional CSS classes
+
+**FileTab Structure:**
+
+```tsx
+interface FileTab {
+  id: string;
+  path: string;
+  name: string;
+  isDirty?: boolean;   // Show unsaved indicator
+  isPinned?: boolean;  // Pinned tabs can't be closed
+  isPreview?: boolean; // Preview tabs show italic text
+  icon?: React.ReactNode;
+}
+```
+
+## Best Practices
+
+### File Tree with Lazy Loading
+
+```tsx
+const [files, setFiles] = useState<FileNode[]>([]);
+const [expandedPaths, setExpandedPaths] = useState<string[]>([]);
+
+const handleToggle = async (path: string) => {
+  if (expandedPaths.includes(path)) {
+    setExpandedPaths(expandedPaths.filter(p => p !== path));
+  } else {
+    // Load children if not loaded
+    const children = await loadDirectory(path);
+    updateFileTree(path, children);
+    setExpandedPaths([...expandedPaths, path]);
+  }
+};
+```
+
+### Tab Management
+
+```tsx
+const [tabs, setTabs] = useState<FileTab[]>([]);
+const [activeTab, setActiveTab] = useState<string>();
+
+const openFile = (path: string) => {
+  const existing = tabs.find(t => t.path === path);
+  if (existing) {
+    setActiveTab(existing.id);
+  } else {
+    const newTab = {
+      id: nanoid(),
+      path,
+      name: path.split("/").pop()!,
+      isPreview: true, // Opens as preview first
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTab(newTab.id);
+  }
+};
+
+// Convert preview to permanent on edit
+const onEdit = (tabId: string) => {
+  setTabs(tabs.map(t =>
+    t.id === tabId ? { ...t, isPreview: false, isDirty: true } : t
+  ));
+};
+```

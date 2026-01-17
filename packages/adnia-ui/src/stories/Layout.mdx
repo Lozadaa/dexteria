@@ -1,0 +1,201 @@
+{/* Layout Layer Documentation */}
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Layout" />
+
+# Layout Primitives
+
+Components for creating resizable, IDE-like layouts.
+
+## Components
+
+### SplitPane
+
+A resizable split container for horizontal or vertical layouts.
+
+```tsx
+import { SplitPane } from "@adnia/ui";
+
+<SplitPane
+  direction="horizontal"
+  defaultSizes={[30, 70]}
+  minSizes={[100, 200]}
+  className="h-[500px]"
+>
+  <div>Left Panel</div>
+  <div>Right Panel</div>
+</SplitPane>
+```
+
+**Props:**
+- `direction` - "horizontal" or "vertical"
+- `defaultSizes` - Initial sizes as percentages
+- `minSizes` - Minimum sizes in pixels
+- `maxSizes` - Maximum sizes in pixels
+- `collapsible` - Allow collapsing panels
+- `onResize` - Resize handler
+- `className` - Additional CSS classes
+
+**Nested Layouts:**
+
+```tsx
+<SplitPane direction="horizontal" defaultSizes={[20, 80]}>
+  <Sidebar />
+  <SplitPane direction="vertical" defaultSizes={[70, 30]}>
+    <Editor />
+    <Terminal />
+  </SplitPane>
+</SplitPane>
+```
+
+### PanelGroup
+
+A composable panel system with resize handles and layout persistence.
+
+```tsx
+import { PanelGroup, Panel, PanelResizeHandle } from "@adnia/ui";
+
+<PanelGroup direction="horizontal" autoSaveId="my-layout">
+  <Panel defaultSize={25} minSize={15}>
+    <Sidebar />
+  </Panel>
+  <PanelResizeHandle />
+  <Panel defaultSize={75} minSize={30}>
+    <PanelGroup direction="vertical">
+      <Panel defaultSize={70}>
+        <Editor />
+      </Panel>
+      <PanelResizeHandle />
+      <Panel defaultSize={30} collapsible>
+        <Terminal />
+      </Panel>
+    </PanelGroup>
+  </Panel>
+</PanelGroup>
+```
+
+**PanelGroup Props:**
+- `direction` - "horizontal" or "vertical"
+- `autoSaveId` - localStorage key for persistence
+- `onLayout` - Layout change handler
+- `className` - Additional CSS classes
+
+**Panel Props:**
+- `defaultSize` - Initial size as percentage
+- `minSize` - Minimum size as percentage
+- `maxSize` - Maximum size as percentage
+- `collapsible` - Allow collapsing
+- `collapsedSize` - Size when collapsed
+- `onCollapse` / `onExpand` - Collapse handlers
+
+**PanelResizeHandle Props:**
+- `withHandle` - Show visible drag handle
+- `className` - Additional CSS classes
+
+### Drawer
+
+A slide-out panel from any side of the screen.
+
+```tsx
+import {
+  Drawer,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerBody,
+  DrawerFooter,
+} from "@adnia/ui";
+
+<Drawer
+  open={isOpen}
+  onOpenChange={setIsOpen}
+  side="right"
+  size={400}
+>
+  <DrawerHeader>
+    <DrawerTitle>Settings</DrawerTitle>
+    <DrawerDescription>Configure your preferences</DrawerDescription>
+  </DrawerHeader>
+  <DrawerBody>
+    <SettingsForm />
+  </DrawerBody>
+  <DrawerFooter>
+    <Button onClick={() => setIsOpen(false)}>Cancel</Button>
+    <Button onClick={handleSave}>Save</Button>
+  </DrawerFooter>
+</Drawer>
+```
+
+**Drawer Props:**
+- `open` - Controlled open state
+- `onOpenChange` - Open state handler
+- `side` - "left", "right", "top", or "bottom"
+- `size` - Width/height in pixels (default: 320)
+- `modal` - Show overlay (default: true)
+- `showCloseButton` - Show X button (default: true)
+- `className` - Additional CSS classes
+
+## Best Practices
+
+### IDE-Like Layout
+
+```tsx
+function IDELayout() {
+  return (
+    <div className="h-screen">
+      <AppHeader />
+      <PanelGroup direction="horizontal" autoSaveId="ide-layout" className="flex-1">
+        {/* Activity Bar */}
+        <Panel defaultSize={4} minSize={4} maxSize={4}>
+          <ActivityBar />
+        </Panel>
+
+        {/* Sidebar */}
+        <Panel defaultSize={16} minSize={10} maxSize={30} collapsible>
+          <Sidebar />
+        </Panel>
+        <PanelResizeHandle />
+
+        {/* Main Area */}
+        <Panel defaultSize={80}>
+          <PanelGroup direction="vertical">
+            {/* Editor */}
+            <Panel defaultSize={70}>
+              <EditorTabs />
+            </Panel>
+            <PanelResizeHandle />
+
+            {/* Panel (Terminal, Problems, etc.) */}
+            <Panel defaultSize={30} collapsible>
+              <BottomPanel />
+            </Panel>
+          </PanelGroup>
+        </Panel>
+      </PanelGroup>
+      <StatusBar />
+    </div>
+  );
+}
+```
+
+### Persisting Layout
+
+The `autoSaveId` prop automatically saves layout to localStorage:
+
+```tsx
+// Layout is restored on mount
+<PanelGroup autoSaveId="my-app-layout">
+  ...
+</PanelGroup>
+
+// Or handle manually
+const [layout, setLayout] = useLocalStorage("layout", defaultLayout);
+
+<PanelGroup onLayout={setLayout}>
+  {layout.map(panel => (
+    <Panel key={panel.id} defaultSize={panel.size}>
+      ...
+    </Panel>
+  ))}
+</PanelGroup>
+```
