@@ -33,3 +33,5 @@
 {"timestamp":"2026-01-12T18:15:19.333Z","type":"task_moved","taskId":"task-1768238557558-2bqjtvtik","data":{"taskId":"task-1768238557558-2bqjtvtik","from":"backlog","to":"todo"}}
 {"timestamp":"2026-01-12T18:15:22.138Z","type":"task_moved","taskId":"task-1768238557558-2bqjtvtik","data":{"taskId":"task-1768238557558-2bqjtvtik","from":"todo","to":"doing"}}
 {"timestamp":"2026-01-12T18:15:23.908Z","type":"task_moved","taskId":"task-1768238557558-2bqjtvtik","data":{"taskId":"task-1768238557558-2bqjtvtik","from":"doing","to":"backlog"}}
+{"timestamp":"2026-01-16T12:26:22.701Z","type":"task_moved","taskId":"TSK-007","data":{"taskId":"TSK-007","from":"todo","to":"doing"}}
+{"timestamp":"2026-01-16T12:38:07.637Z","type":"task_moved","taskId":"TSK-007","data":{"taskId":"TSK-007","from":"doing","to":"todo"}}

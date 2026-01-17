@@ -1,0 +1,20 @@
+{
+  "id": "ac394c2e-2e4b-47ee-bcbb-ee9e14304bbf",
+  "title": "Hola",
+  "messages": [
+    {
+      "id": "05feeb96-715c-49cb-b08e-158be04d1038",
+      "role": "user",
+      "content": "Hola",
+      "timestamp": 1768572662800
+    },
+    {
+      "id": "18721666-8fdf-42c1-b98d-872ea2076c32",
+      "role": "assistant",
+      "content": "¡Hola! 👋\n\nSoy Dexter, tu asistente de IA en Dexteria. \n\nRevisé tu tablero y veo que tienes **12 tareas**:\n\n| Estado | Cantidad |\n|--------|----------|\n| ✅ Done | 11 tareas |\n| 📋 Todo | 1 tarea |\n\nLa única tarea pendiente es **TSK-007: \"Create Task Runner UI\"** con prioridad media.\n\n¿En qué te puedo ayudar hoy? Puedo:\n- Crear nuevas tareas para un feature o mejora\n- Planificar trabajo adicional\n- Responder preguntas sobre el proyecto",
+      "timestamp": 1768572674633
+    }
+  ],
+  "createdAt": "2026-01-16T14:10:58.195Z",
+  "updatedAt": "2026-01-16T14:11:14.633Z"
+}

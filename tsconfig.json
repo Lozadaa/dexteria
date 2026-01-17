@@ -16,7 +16,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "adnia-ui": ["./packages/adnia-ui/src"],
+      "adnia-ui/*": ["./packages/adnia-ui/src/*"]
     },
     "baseUrl": "."
   },

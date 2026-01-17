@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "notifications": {
+    "soundOnTaskComplete": true,
+    "badgeOnTaskComplete": true
+  },
+  "projectCommands": {
+    "run": {
+      "cmd": "",
+      "cwd": ".",
+      "autoDetect": true
+    },
+    "build": {
+      "cmd": "",
+      "cwd": ".",
+      "autoDetect": true,
+      "includesInstall": true
+    },
+    "install": {
+      "cmd": "",
+      "cwd": "."
+    },
+    "allowUnsafeCommands": false
+  },
+  "runner": {
+    "defaultTimeoutSec": 1800
+  }
+}

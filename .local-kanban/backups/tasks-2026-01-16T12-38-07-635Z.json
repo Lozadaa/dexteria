@@ -324,7 +324,7 @@
       "id": "TSK-007",
       "title": "Create Task Runner UI",
       "description": "Build the task runner panel showing agent progress, logs, and controls when executing a task.",
-      "status": "todo",
+      "status": "doing",
       "priority": "medium",
       "order": 0,
       "acceptanceCriteria": [
@@ -363,7 +363,7 @@
         "totalDurationMs": 0
       },
       "createdAt": "2026-01-12T00:00:00.000Z",
-      "updatedAt": "2026-01-16T12:38:07.632Z"
+      "updatedAt": "2026-01-16T12:26:22.697Z"
     },
     {
       "id": "TSK-008",

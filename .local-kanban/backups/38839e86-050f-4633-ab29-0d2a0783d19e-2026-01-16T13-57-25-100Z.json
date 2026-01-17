@@ -1,0 +1,26 @@
+{
+  "id": "38839e86-050f-4633-ab29-0d2a0783d19e",
+  "title": "Hola",
+  "messages": [
+    {
+      "id": "2f2bac33-839c-476d-ab6b-27fd97ec64a4",
+      "role": "user",
+      "content": "Hola",
+      "timestamp": 1768571279318
+    },
+    {
+      "id": "50b21348-13bd-4838-bb93-4404573c684e",
+      "role": "assistant",
+      "content": "¡Hola! 👋\n\nSoy Dexter, tu asistente de IA integrado en Dexteria. \n\nHe revisado tu tablero Kanban y veo que tienes **12 tareas** en total:\n\n### Estado actual del proyecto:\n\n| Estado | Cantidad | Tareas |\n|--------|----------|--------|\n| ✅ **Done** | 11 | Kanban UI, Chat Panel, Task CRUD, Agent Runtime, Ralph Mode, File Tools, Comments, Electron Setup, IPC Bridge, Types/Schemas, Local-Kanban |\n| 📋 **Todo** | 1 | Create Task Runner UI (TSK-007) |\n\n¡El proyecto está muy avanzado! Solo queda pendiente la tarea **\"Create Task Runner UI\"** en el backlog.\n\n---\n\n**¿En qué te puedo ayudar hoy?**\n\nPor ejemplo:\n- 🔧 Crear nuevas tareas para una funcionalidad\n- 📋 Planificar un nuevo feature\n- 🔍 Analizar el código existente\n- 💡 Sugerir mejoras al proyecto\n\nSolo dime qué necesitas y te ayudo a planificarlo.",
+      "timestamp": 1768571293686
+    },
+    {
+      "id": "efa7fd1b-2e81-427a-bcf2-67e136380000",
+      "role": "user",
+      "content": "Hola",
+      "timestamp": 1768571827239
+    }
+  ],
+  "createdAt": "2026-01-16T13:47:53.287Z",
+  "updatedAt": "2026-01-16T13:57:07.239Z"
+}

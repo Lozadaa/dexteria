@@ -1,7 +1,7 @@
 {
   "tasks": [
     {
-      "id": "TSK-001",
+      "id": "task-001",
       "title": "Implement Kanban Board UI",
       "description": "Create the main Kanban board component with drag-and-drop support for task cards across columns.",
       "status": "done",
@@ -20,12 +20,12 @@
         "kanban"
       ],
       "dependsOn": [
-        "TSK-003"
+        "task-003"
       ],
       "comments": [
         {
           "id": "cmt-001-1",
-          "taskId": "TSK-001",
+          "taskId": "task-001",
           "type": "system",
           "author": "system",
           "content": "Implemented in KanbanBoard.tsx with @dnd-kit/core for drag-and-drop. Column component displays title, task count. TaskCard shows priority, tags. useBoard hook handles persistence.",
@@ -56,7 +56,7 @@
       "completedAt": "2026-01-12T16:30:00.000Z"
     },
     {
-      "id": "TSK-002",
+      "id": "task-002",
       "title": "Build Chat Panel Component",
       "description": "Create the chat interface for interacting with Dexter, the AI agent. Support message history, input, and streaming responses.",
       "status": "done",
@@ -78,7 +78,7 @@
       "comments": [
         {
           "id": "cmt-002-1",
-          "taskId": "TSK-002",
+          "taskId": "task-002",
           "type": "system",
           "author": "system",
           "content": "Implemented in ChatPanel.tsx with full message history, user/assistant styling, streaming support via onStreamUpdate listener, chat creation/selection, and persistence through useChats hook.",
@@ -108,7 +108,7 @@
       "completedAt": "2026-01-12T16:30:00.000Z"
     },
     {
-      "id": "TSK-003",
+      "id": "task-003",
       "title": "Implement Task Model & CRUD",
       "description": "Create the task data model with full CRUD operations. Tasks should be stored in tasks.json and synced with the board.",
       "status": "done",
@@ -130,7 +130,7 @@
       "comments": [
         {
           "id": "cmt-003-1",
-          "taskId": "TSK-003",
+          "taskId": "task-003",
           "type": "system",
           "author": "system",
           "content": "Implemented via LocalKanbanStore with atomic writes, Zod validation, and IPC handlers.",
@@ -161,7 +161,7 @@
       "completedAt": "2026-01-12T01:00:00.000Z"
     },
     {
-      "id": "TSK-004",
+      "id": "task-004",
       "title": "Build Agent Runtime Engine",
       "description": "Create the core agent runtime that can execute tasks autonomously. Handle tool calls, file operations, and state management.",
       "status": "done",
@@ -183,7 +183,7 @@
       "comments": [
         {
           "id": "cmt-004-1",
-          "taskId": "TSK-004",
+          "taskId": "task-004",
           "type": "system",
           "author": "system",
           "content": "Implemented AgentRuntime with tool call loop, AgentRunRecorder for logging, AgentProvider interface with MockProvider for testing.",
@@ -214,7 +214,7 @@
       "completedAt": "2026-01-12T01:00:00.000Z"
     },
     {
-      "id": "TSK-005",
+      "id": "task-005",
       "title": "Implement Ralph Mode",
       "description": "Create Ralph Mode - full autonomous execution where Dexter works through the task queue without user intervention.",
       "status": "done",
@@ -233,12 +233,12 @@
         "feature"
       ],
       "dependsOn": [
-        "TSK-004"
+        "task-004"
       ],
       "comments": [
         {
           "id": "cmt-005-1",
-          "taskId": "TSK-005",
+          "taskId": "task-005",
           "type": "system",
           "author": "system",
           "content": "Implemented RalphEngine with dependency-aware task ordering, pause/resume/stop, event listeners, and IPC handlers.",
@@ -268,7 +268,7 @@
       "completedAt": "2026-01-12T01:00:00.000Z"
     },
     {
-      "id": "TSK-006",
+      "id": "task-006",
       "title": "Build File Tools for Agent",
       "description": "Implement file system tools that the agent can use: read, write, list, search, and diff operations.",
       "status": "done",
@@ -291,7 +291,7 @@
       "comments": [
         {
           "id": "cmt-006-1",
-          "taskId": "TSK-006",
+          "taskId": "task-006",
           "type": "system",
           "author": "system",
           "content": "Implemented RepoTools with listFiles, readFile, writeFile, search, applyPatch, stat. All operations use PolicyGuard for security.",
@@ -321,7 +321,7 @@
       "completedAt": "2026-01-12T01:00:00.000Z"
     },
     {
-      "id": "TSK-007",
+      "id": "task-007",
       "title": "Create Task Runner UI",
       "description": "Build the task runner panel showing agent progress, logs, and controls when executing a task.",
       "status": "todo",
@@ -340,7 +340,7 @@
         "monitoring"
       ],
       "dependsOn": [
-        "TSK-004"
+        "task-004"
       ],
       "comments": [],
       "agent": {
@@ -357,16 +357,17 @@
         ]
       },
       "runtime": {
-        "status": "idle",
+        "status": "running",
+        "currentRunId": "run-1768238496154-4olvro7u0",
         "lastRunAt": "2026-01-12T17:21:36.154Z",
         "runCount": 1,
         "totalDurationMs": 0
       },
       "createdAt": "2026-01-12T00:00:00.000Z",
-      "updatedAt": "2026-01-16T12:38:07.632Z"
+      "updatedAt": "2026-01-12T17:21:36.157Z"
     },
     {
-      "id": "TSK-008",
+      "id": "task-008",
       "title": "Implement Comment & Failure Loop",
       "description": "When agent fails or needs clarification, create a comment thread on the task for back-and-forth discussion before retry.",
       "status": "done",
@@ -385,7 +386,7 @@
         "collaboration"
       ],
       "dependsOn": [
-        "TSK-004"
+        "task-004"
       ],
       "comments": [
         {
@@ -433,7 +434,7 @@
       "completedAt": "2026-01-12T17:42:34.230Z"
     },
     {
-      "id": "TSK-009",
+      "id": "task-009",
       "title": "Set Up Electron + Vite + React Scaffold",
       "description": "Initialize the project with Electron, Vite, React, and TypeScript. Set up the basic build pipeline.",
       "status": "done",
@@ -477,7 +478,7 @@
       "completedAt": "2026-01-12T00:00:00.000Z"
     },
     {
-      "id": "TSK-010",
+      "id": "task-010",
       "title": "Create IPC Bridge (Preload)",
       "description": "Set up the IPC communication bridge between Electron main and renderer processes using context isolation.",
       "status": "done",
@@ -495,7 +496,7 @@
         "security"
       ],
       "dependsOn": [
-        "TSK-009"
+        "task-009"
       ],
       "comments": [],
       "agent": {
@@ -520,7 +521,7 @@
       "completedAt": "2026-01-12T00:00:00.000Z"
     },
     {
-      "id": "TSK-011",
+      "id": "task-011",
       "title": "Define Core Types & Schemas",
       "description": "Create TypeScript types and schemas for all core data structures: tasks, board, chats, agent state, etc.",
       "status": "done",
@@ -543,7 +544,7 @@
       "comments": [
         {
           "id": "cmt-011-1",
-          "taskId": "TSK-011",
+          "taskId": "task-011",
           "type": "system",
           "author": "system",
           "content": "Extended with v3 types: TaskComment, TaskRuntime, RalphModeState, CommandRunMetadata. Zod schemas with factories and validators.",
@@ -572,7 +573,7 @@
       "completedAt": "2026-01-12T01:00:00.000Z"
     },
     {
-      "id": "TSK-012",
+      "id": "task-012",
       "title": "Initialize .local-kanban Project Brain",
       "description": "Create the .local-kanban directory structure with all required JSON files for the Dexteria project itself.",
       "status": "done",
@@ -613,6 +614,52 @@
       "createdAt": "2026-01-12T00:00:00.000Z",
       "updatedAt": "2026-01-12T00:00:00.000Z",
       "completedAt": "2026-01-12T00:00:00.000Z"
+    },
+    {
+      "id": "task-1768238557558-2bqjtvtik",
+      "title": "Mi primera tarea",
+      "description": "",
+      "status": "backlog",
+      "priority": "medium",
+      "order": 0,
+      "acceptanceCriteria": [
+        "Define acceptance criteria"
+      ],
+      "comments": [
+        {
+          "id": "comment-1768240475440-06yhkdpbv",
+          "taskId": "",
+          "type": "failure",
+          "author": "dexter",
+          "content": "**Task Blocked**\n\n**Reason:** This task has no actionable requirements. The title 'Mi primera tarea' (My first task) and the acceptance criterion 'Define acceptance criteria' indicate this is a placeholder task that was never properly defined.\n\n**Question:** What would you like this task to accomplish? Please provide:\n1. A clear description of what needs to be done\n2. Specific acceptance criteria that define 'done'\n3. Any relevant context about scope or constraints\n\nAlternatively, if this was just a test task, would you like me to delete it or help you create a properly defined task instead?\n\n*Please add an instruction comment to help me proceed.*",
+          "createdAt": "2026-01-12T17:54:35.440Z",
+          "runId": "run-1768240464110-wlzqwvhm5"
+        },
+        {
+          "id": "comment-1768240556510-ibn3v85am",
+          "taskId": "",
+          "type": "failure",
+          "author": "dexter",
+          "content": "**Task Failed**\n\n**Run ID:** run-1768240551862-rgebec5r7\n**Log Path:** .local-kanban/agent-runs/task-1768238557558-2bqjtvtik/run-1768240551862-rgebec5r7.json\n\n**Reason:** Agent provider error",
+          "createdAt": "2026-01-12T17:55:56.510Z",
+          "runId": "run-1768240551862-rgebec5r7"
+        }
+      ],
+      "agent": {
+        "goal": "",
+        "scope": [],
+        "definitionOfDone": []
+      },
+      "runtime": {
+        "status": "failed",
+        "lastRunId": "run-1768240551862-rgebec5r7",
+        "lastRunAt": "2026-01-12T17:55:56.502Z",
+        "runCount": 2,
+        "failureCount": 2,
+        "totalDurationMs": 0
+      },
+      "createdAt": "2026-01-12T17:22:37.558Z",
+      "updatedAt": "2026-01-12T18:15:23.902Z"
     }
   ]
 }

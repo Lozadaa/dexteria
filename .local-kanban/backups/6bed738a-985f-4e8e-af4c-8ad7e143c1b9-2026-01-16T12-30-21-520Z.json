@@ -1,0 +1,14 @@
+{
+  "id": "6bed738a-985f-4e8e-af4c-8ad7e143c1b9",
+  "title": "Hola",
+  "messages": [
+    {
+      "id": "3e4b3d52-bc1a-42b0-b732-ed36e1fdf091",
+      "role": "user",
+      "content": "Hola",
+      "timestamp": 1768566606735
+    }
+  ],
+  "createdAt": "2026-01-16T12:26:18.773Z",
+  "updatedAt": "2026-01-16T12:30:06.735Z"
+}

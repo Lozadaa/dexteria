@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "activeThemeId": null,
+  "themes": [
+    {
+      "id": "32daf8d6-b3bc-4f70-923a-3f703677cfc4",
+      "name": "MyTheme",
+      "isBuiltIn": false,
+      "path": "32daf8d6-b3bc-4f70-923a-3f703677cfc4.json"
+    }
+  ]
+}

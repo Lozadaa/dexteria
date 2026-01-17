@@ -1,0 +1,14 @@
+{
+  "id": "daf660e8-74ca-4e35-af4b-d299303ee744",
+  "title": "Hola",
+  "messages": [
+    {
+      "id": "f45da902-ca41-42c0-9610-4d28f149dd68",
+      "role": "user",
+      "content": "Hola",
+      "timestamp": 1768572254539
+    }
+  ],
+  "createdAt": "2026-01-16T14:02:14.595Z",
+  "updatedAt": "2026-01-16T14:04:14.540Z"
+}

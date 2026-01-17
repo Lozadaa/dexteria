@@ -5,7 +5,9 @@
     {
       "id": "backlog",
       "title": "Backlog",
-      "taskIds": []
+      "taskIds": [
+        "TSK-013"
+      ]
     },
     {
       "id": "todo",
@@ -43,5 +45,5 @@
     }
   ],
   "createdAt": "2026-01-12T00:00:00.000Z",
-  "updatedAt": "2026-01-16T12:38:07.632Z"
+  "updatedAt": "2026-01-16T08:29:49.217Z"
 }

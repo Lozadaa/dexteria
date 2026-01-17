@@ -1,0 +1,120 @@
+{
+  "id": "32daf8d6-b3bc-4f70-923a-3f703677cfc4",
+  "name": "MyTheme",
+  "version": 1,
+  "description": "Custom theme based on Dexteria",
+  "colors": {
+    "light": {
+      "core": {
+        "background": "0 0% 100%",
+        "foreground": "222.2 84% 4.9%",
+        "card": "0 0% 98%",
+        "cardForeground": "222.2 84% 4.9%",
+        "popover": "0 0% 100%",
+        "popoverForeground": "222.2 84% 4.9%",
+        "primary": "221.2 83.2% 53.3%",
+        "primaryForeground": "210 40% 98%",
+        "secondary": "210 40% 96.1%",
+        "secondaryForeground": "222.2 47.4% 11.2%",
+        "muted": "210 40% 96.1%",
+        "mutedForeground": "215.4 16.3% 46.9%",
+        "accent": "210 40% 96.1%",
+        "accentForeground": "222.2 47.4% 11.2%",
+        "destructive": "0 84.2% 60.2%",
+        "destructiveForeground": "210 40% 98%",
+        "border": "214.3 31.8% 91.4%",
+        "input": "214.3 31.8% 91.4%",
+        "ring": "221.2 83.2% 53.3%"
+      },
+      "code": {
+        "background": "220 13% 18%",
+        "foreground": "220 14% 71%",
+        "comment": "220 10% 40%",
+        "keyword": "286 60% 67%",
+        "string": "95 38% 62%",
+        "number": "29 54% 61%",
+        "function": "207 82% 66%",
+        "operator": "187 47% 55%",
+        "variable": "355 65% 65%",
+        "class": "39 67% 69%"
+      },
+      "diff": {
+        "addBackground": "142 76% 36%",
+        "addForeground": "142 76% 94%",
+        "removeBackground": "0 84% 60%",
+        "removeForeground": "0 0% 100%",
+        "changeBackground": "45 93% 47%",
+        "changeForeground": "45 93% 10%"
+      },
+      "terminal": {
+        "background": "220 13% 10%",
+        "foreground": "220 14% 85%",
+        "cursor": "221 83% 53%",
+        "selection": "221 83% 53%"
+      },
+      "lineNumber": "220 10% 40%",
+      "lineHighlight": "220 13% 15%"
+    },
+    "dark": {
+      "core": {
+        "background": "224 71% 4%",
+        "foreground": "213 31% 91%",
+        "card": "224 71% 6%",
+        "cardForeground": "213 31% 91%",
+        "popover": "224 71% 6%",
+        "popoverForeground": "215 20.2% 65.1%",
+        "primary": "210 40% 98%",
+        "primaryForeground": "222.2 47.4% 1.2%",
+        "secondary": "222.2 47.4% 11.2%",
+        "secondaryForeground": "210 40% 98%",
+        "muted": "223 47% 11%",
+        "mutedForeground": "215.4 16.3% 56.9%",
+        "accent": "216 34% 17%",
+        "accentForeground": "210 40% 98%",
+        "destructive": "0 63% 31%",
+        "destructiveForeground": "210 40% 98%",
+        "border": "216 34% 17%",
+        "input": "216 34% 17%",
+        "ring": "224 64% 33%"
+      },
+      "code": {
+        "background": "220 13% 10%",
+        "foreground": "220 14% 85%",
+        "comment": "220 10% 45%",
+        "keyword": "286 60% 72%",
+        "string": "95 38% 67%",
+        "number": "29 54% 66%",
+        "function": "207 82% 71%",
+        "operator": "187 47% 60%",
+        "variable": "355 65% 70%",
+        "class": "39 67% 74%"
+      },
+      "diff": {
+        "addBackground": "142 76% 20%",
+        "addForeground": "142 76% 90%",
+        "removeBackground": "0 63% 25%",
+        "removeForeground": "0 0% 95%",
+        "changeBackground": "45 80% 25%",
+        "changeForeground": "45 93% 90%"
+      },
+      "terminal": {
+        "background": "220 13% 6%",
+        "foreground": "220 14% 90%",
+        "cursor": "210 40% 98%",
+        "selection": "224 64% 33%"
+      },
+      "lineNumber": "220 10% 35%",
+      "lineHighlight": "220 13% 12%"
+    }
+  },
+  "fonts": {
+    "sans": "Janna, system-ui, sans-serif",
+    "mono": "JetBrains Mono, Menlo, Monaco, monospace",
+    "display": "Janna, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.5rem",
+  "createdAt": "2026-01-16T15:05:16.968Z",
+  "updatedAt": "2026-01-16T15:05:16.968Z"
+}

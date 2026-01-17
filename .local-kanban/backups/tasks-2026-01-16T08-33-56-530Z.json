@@ -363,7 +363,7 @@
         "totalDurationMs": 0
       },
       "createdAt": "2026-01-12T00:00:00.000Z",
-      "updatedAt": "2026-01-16T12:38:07.632Z"
+      "updatedAt": "2026-01-16T08:29:49.228Z"
     },
     {
       "id": "TSK-008",
@@ -613,6 +613,52 @@
       "createdAt": "2026-01-12T00:00:00.000Z",
       "updatedAt": "2026-01-12T00:00:00.000Z",
       "completedAt": "2026-01-12T00:00:00.000Z"
+    },
+    {
+      "id": "TSK-013",
+      "title": "Mi primera tarea",
+      "description": "",
+      "status": "backlog",
+      "priority": "medium",
+      "order": 0,
+      "acceptanceCriteria": [
+        "Define acceptance criteria"
+      ],
+      "comments": [
+        {
+          "id": "comment-1768240475440-06yhkdpbv",
+          "taskId": "",
+          "type": "failure",
+          "author": "dexter",
+          "content": "**Task Blocked**\n\n**Reason:** This task has no actionable requirements. The title 'Mi primera tarea' (My first task) and the acceptance criterion 'Define acceptance criteria' indicate this is a placeholder task that was never properly defined.\n\n**Question:** What would you like this task to accomplish? Please provide:\n1. A clear description of what needs to be done\n2. Specific acceptance criteria that define 'done'\n3. Any relevant context about scope or constraints\n\nAlternatively, if this was just a test task, would you like me to delete it or help you create a properly defined task instead?\n\n*Please add an instruction comment to help me proceed.*",
+          "createdAt": "2026-01-12T17:54:35.440Z",
+          "runId": "run-1768240464110-wlzqwvhm5"
+        },
+        {
+          "id": "comment-1768240556510-ibn3v85am",
+          "taskId": "",
+          "type": "failure",
+          "author": "dexter",
+          "content": "**Task Failed**\n\n**Run ID:** run-1768240551862-rgebec5r7\n**Log Path:** .local-kanban/agent-runs/task-1768238557558-2bqjtvtik/run-1768240551862-rgebec5r7.json\n\n**Reason:** Agent provider error",
+          "createdAt": "2026-01-12T17:55:56.510Z",
+          "runId": "run-1768240551862-rgebec5r7"
+        }
+      ],
+      "agent": {
+        "goal": "",
+        "scope": [],
+        "definitionOfDone": []
+      },
+      "runtime": {
+        "status": "failed",
+        "lastRunId": "run-1768240551862-rgebec5r7",
+        "lastRunAt": "2026-01-12T17:55:56.502Z",
+        "runCount": 2,
+        "failureCount": 2,
+        "totalDurationMs": 0
+      },
+      "createdAt": "2026-01-12T17:22:37.558Z",
+      "updatedAt": "2026-01-12T18:15:23.902Z"
     }
   ]
 }

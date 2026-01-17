@@ -5,13 +5,15 @@
     {
       "id": "backlog",
       "title": "Backlog",
-      "taskIds": []
+      "taskIds": [
+        "task-1768238557558-2bqjtvtik"
+      ]
     },
     {
       "id": "todo",
       "title": "To Do",
       "taskIds": [
-        "TSK-007"
+        "task-007"
       ]
     },
     {
@@ -28,20 +30,20 @@
       "id": "done",
       "title": "Done",
       "taskIds": [
-        "TSK-001",
-        "TSK-002",
-        "TSK-003",
-        "TSK-004",
-        "TSK-005",
-        "TSK-006",
-        "TSK-009",
-        "TSK-010",
-        "TSK-011",
-        "TSK-012",
-        "TSK-008"
+        "task-001",
+        "task-002",
+        "task-003",
+        "task-004",
+        "task-005",
+        "task-006",
+        "task-009",
+        "task-010",
+        "task-011",
+        "task-012",
+        "task-008"
       ]
     }
   ],
   "createdAt": "2026-01-12T00:00:00.000Z",
-  "updatedAt": "2026-01-16T12:38:07.632Z"
+  "updatedAt": "2026-01-12T18:15:23.902Z"
 }

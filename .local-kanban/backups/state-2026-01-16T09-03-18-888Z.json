@@ -2,7 +2,7 @@
   "activeTaskId": null,
   "activeChatId": null,
   "mode": "manual",
-  "agentMode": "agent",
+  "agentMode": "planner",
   "isRunning": false,
   "ralphMode": {
     "enabled": false,
@@ -10,6 +10,6 @@
     "processedCount": 0,
     "failedCount": 0
   },
-  "lastUpdated": "2026-01-16T12:37:59.354Z",
+  "lastUpdated": "2026-01-16T09:03:18.451Z",
   "lastTaskNumber": 13
 }
