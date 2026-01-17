@@ -946,7 +946,6 @@ export interface PluginContextMenuItem {
   pluginId: string;
   label: string;
   icon?: string;
-  target: 'task' | 'board' | 'column';
-  action: string; // Handler function name
+  location: 'task' | 'board' | 'column';
   order?: number;
 }
