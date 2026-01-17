@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(dir \"C:\\\\Users\\\\Richa\\\\Dexteria\\\\dist\" /s /b)",
+      "Bash(npm run build:vite:*)",
+      "Bash(npm run package:win:*)",
+      "Bash(where:*)",
+      "Bash(npm run build:electron:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\Richa\\\\Dexteria\\\\.local-kanban\\\\plugins\"\" 2>&1 || echo \"plugins directory does not exist or is empty \")",
+      "WebFetch(domain:developer.atlassian.com)"
     ]
   }
 }
