@@ -24,46 +24,110 @@ import type { CustomTheme } from '../../shared/types';
 /**
  * Syntax highlight JSON string
  * Returns HTML with colored spans
+ * Uses token-based approach to avoid regex conflicts
  */
 function highlightJson(json: string): string {
-  // Escape HTML first
-  const escaped = json
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const result: string[] = [];
+  let i = 0;
 
-  // Apply syntax highlighting
-  return escaped
-    // Strings (values) - yellow/green - must come before keys
-    .replace(
-      /("(?:[^"\\]|\\.)*")(\s*[^:])/g,
-      '<span class="json-string">$1</span>$2'
-    )
-    // Keys - red
-    .replace(
-      /("(?:[^"\\]|\\.)*")(\s*:)/g,
-      '<span class="json-key">$1</span>$2'
-    )
-    // Numbers - orange
-    .replace(
-      /\b(-?\d+\.?\d*(?:[eE][+-]?\d+)?)\b/g,
-      '<span class="json-number">$1</span>'
-    )
-    // Booleans and null - purple
-    .replace(
-      /\b(true|false|null)\b/g,
-      '<span class="json-boolean">$1</span>'
-    )
-    // Braces and brackets - cyan
-    .replace(
-      /([{}\[\]])/g,
-      '<span class="json-bracket">$1</span>'
-    )
-    // Colons and commas - gray
-    .replace(
-      /(:)/g,
-      '<span class="json-punctuation">$1</span>'
-    );
+  while (i < json.length) {
+    const char = json[i];
+
+    // Skip whitespace
+    if (/\s/.test(char)) {
+      result.push(char);
+      i++;
+      continue;
+    }
+
+    // String (starts with ")
+    if (char === '"') {
+      let str = '"';
+      i++;
+      while (i < json.length) {
+        const c = json[i];
+        str += c;
+        if (c === '\\' && i + 1 < json.length) {
+          i++;
+          str += json[i];
+        } else if (c === '"') {
+          break;
+        }
+        i++;
+      }
+      i++;
+
+      // Escape HTML in the string content
+      const escaped = str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // Look ahead to see if this is a key (followed by :)
+      let j = i;
+      while (j < json.length && /\s/.test(json[j])) j++;
+
+      if (json[j] === ':') {
+        result.push(`<span class="json-key">${escaped}</span>`);
+      } else {
+        result.push(`<span class="json-string">${escaped}</span>`);
+      }
+      continue;
+    }
+
+    // Number
+    if (/[-\d]/.test(char)) {
+      let num = '';
+      while (i < json.length && /[\d.eE+\-]/.test(json[i])) {
+        num += json[i];
+        i++;
+      }
+      result.push(`<span class="json-number">${num}</span>`);
+      continue;
+    }
+
+    // Boolean or null
+    if (char === 't' || char === 'f' || char === 'n') {
+      let word = '';
+      while (i < json.length && /[a-z]/.test(json[i])) {
+        word += json[i];
+        i++;
+      }
+      if (word === 'true' || word === 'false' || word === 'null') {
+        result.push(`<span class="json-boolean">${word}</span>`);
+      } else {
+        result.push(word);
+      }
+      continue;
+    }
+
+    // Brackets and braces
+    if (char === '{' || char === '}' || char === '[' || char === ']') {
+      result.push(`<span class="json-bracket">${char}</span>`);
+      i++;
+      continue;
+    }
+
+    // Colon
+    if (char === ':') {
+      result.push(`<span class="json-punctuation">${char}</span>`);
+      i++;
+      continue;
+    }
+
+    // Comma
+    if (char === ',') {
+      result.push(`<span class="json-punctuation">${char}</span>`);
+      i++;
+      continue;
+    }
+
+    // Any other character
+    result.push(char.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+    i++;
+  }
+
+  return result.join('');
 }
 
 interface ThemeEditorProps {

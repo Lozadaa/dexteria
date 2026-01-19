@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { Badge, Button } from 'adnia-ui';
 import { GripVertical, AlertCircle, CheckCircle, Clock, Ban, Trash2, Loader2, StopCircle, Play } from 'lucide-react';
 import { DoneTimeChip } from './DoneTimeChip';
+import { Slot } from './extension/Slot';
 import type { Task } from '../../shared/types';
 
 interface TaskCardProps {
@@ -155,6 +156,35 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                     )}
                 </div>
             )}
+
+            {/* Epic label and plugin badges */}
+            <div className="flex items-center gap-1.5 -mt-0.5 mb-1 flex-wrap">
+                {task.epic && (
+                    <>
+                        <span
+                            className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                            style={{
+                                backgroundColor: `${task.epic.color}20`,
+                                color: task.epic.color,
+                                borderLeft: `2px solid ${task.epic.color}`
+                            }}
+                        >
+                            {task.epic.name}
+                        </span>
+                        {task.sprint && (
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                                {task.sprint}
+                            </span>
+                        )}
+                    </>
+                )}
+                {/* Plugin slot for task card badges */}
+                <Slot
+                    id="task-card:badge"
+                    context={{ taskId: task.id, task }}
+                    inline
+                />
+            </div>
 
             <div className="flex items-start justify-between gap-2">
                 <span className={cn(

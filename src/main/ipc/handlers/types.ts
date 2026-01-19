@@ -12,7 +12,7 @@ import type { AgentProvider } from '../../agent/AgentProvider';
 /**
  * Provider type for configuration
  */
-export type ProviderType = 'mock' | 'anthropic' | 'claude-code';
+export type ProviderType = 'mock' | 'anthropic' | 'claude-code' | 'opencode';
 
 /**
  * Recent project entry

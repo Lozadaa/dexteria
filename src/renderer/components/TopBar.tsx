@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAgentState } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
 import Ralph from '../../../assets/ralph.png'
-import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop } from 'lucide-react';
+import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, PanelTop, LayoutGrid, MessageSquare, RotateCcw, Puzzle } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import LogoIcon from '../../../assets/logoicon.png';
-import { SettingsModal } from './SettingsModal';
 import { Button, IconButton, ToggleGroup } from 'adnia-ui';
 import type { ProjectProcessStatus } from '../../shared/types';
+import { useDocking, COMPONENT_KEYS, useComponentRegistry } from '../docking';
+import { Slot } from './extension/Slot';
+import { useDockingPanels } from '../contexts/ExtensionPointsContext';
 
   interface RalphProgress {
       total: number;
@@ -19,20 +22,29 @@ import type { ProjectProcessStatus } from '../../shared/types';
       status: string;
   }
 
-  interface TopBarProps {
-      onOpenThemeEditor?: (themeId: string, themeName?: string) => void;
-  }
+  // Helper to get Lucide icon by name
+  const getLucideIcon = (iconName: string, size: number = 14): React.ReactNode => {
+      const Icon = (LucideIcons as Record<string, React.FC<{ size?: number }>>)[iconName];
+      if (Icon) {
+          return <Icon size={size} />;
+      }
+      return <Puzzle size={size} />;
+  };
 
-  export const TopBar: React.FC<TopBarProps> = ({ onOpenThemeEditor }) => {
+  export const TopBar: React.FC = () => {
       const { state, refresh } = useAgentState();
       const { mode, setMode, triggerPlannerBlock } = useMode();
+      const { openTab, resetLayout } = useDocking();
+      const { getAll: getAllComponents } = useComponentRegistry();
+      const pluginDockingPanels = useDockingPanels();
       const [isMaximized, setIsMaximized] = useState(false);
       const [showSettings, setShowSettings] = useState(false);
       const [showFileMenu, setShowFileMenu] = useState(false);
+      const [showWindowMenu, setShowWindowMenu] = useState(false);
+      const windowMenuRef = useRef<HTMLDivElement>(null);
       const [ralphRunning, setRalphRunning] = useState(false);
       const [ralphProgress, setRalphProgress] = useState<RalphProgress | null>(null);
       const [stoppingRalph, setStoppingRalph] = useState(false);
-      const [showSettingsModal, setShowSettingsModal] = useState(false);
       const [runStatus, setRunStatus] = useState<ProjectProcessStatus | null>(null);
       const [buildStatus, setBuildStatus] = useState<ProjectProcessStatus | null>(null);
       const settingsRef = useRef<HTMLDivElement>(null);
@@ -62,12 +74,15 @@ import type { ProjectProcessStatus } from '../../shared/types';
               if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
                   setShowFileMenu(false);
               }
+              if (windowMenuRef.current && !windowMenuRef.current.contains(e.target as Node)) {
+                  setShowWindowMenu(false);
+              }
           };
-          if (showSettings || showFileMenu) {
+          if (showSettings || showFileMenu || showWindowMenu) {
               document.addEventListener('mousedown', handleClickOutside);
           }
           return () => document.removeEventListener('mousedown', handleClickOutside);
-      }, [showSettings, showFileMenu]);
+      }, [showSettings, showFileMenu, showWindowMenu]);
 
       // Poll Ralph progress when running
       useEffect(() => {
@@ -321,6 +336,120 @@ import type { ProjectProcessStatus } from '../../shared/types';
                       )}
                   </div>
 
+                  {/* Window Menu */}
+                  <div
+                      className="relative"
+                      ref={windowMenuRef}
+                      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                  >
+                      <Button
+                          variant={showWindowMenu ? "muted" : "ghost"}
+                          size="xs"
+                          onClick={() => setShowWindowMenu(!showWindowMenu)}
+                      >
+                          Window
+                          <ChevronDown size={12} className={cn("transition-transform", showWindowMenu && "rotate-180")} />
+                      </Button>
+
+                      {showWindowMenu && (
+                          <div className="absolute left-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden max-h-[400px] overflow-y-auto">
+                              <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                  Panels
+                              </div>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                      openTab(COMPONENT_KEYS.BOARD);
+                                      setShowWindowMenu(false);
+                                  }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <LayoutGrid size={14} />
+                                  Board
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                      openTab(COMPONENT_KEYS.CHAT);
+                                      setShowWindowMenu(false);
+                                  }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <MessageSquare size={14} />
+                                  New Chat
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                      openTab(COMPONENT_KEYS.SETTINGS);
+                                      setShowWindowMenu(false);
+                                  }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <Settings size={14} />
+                                  Settings
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                      openTab(COMPONENT_KEYS.TASK_RUNNER);
+                                      setShowWindowMenu(false);
+                                  }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <Terminal size={14} />
+                                  Task Runner
+                              </Button>
+
+                              {/* Plugin Docking Panels */}
+                              {pluginDockingPanels.length > 0 && (
+                                  <>
+                                      <div className="h-px bg-border my-1" />
+                                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                          Plugins
+                                      </div>
+                                      {pluginDockingPanels.map((panel) => {
+                                          const componentKey = `plugin:${panel.pluginId}:${panel.id}`;
+                                          return (
+                                              <Button
+                                                  key={componentKey}
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                      openTab(componentKey);
+                                                      setShowWindowMenu(false);
+                                                  }}
+                                                  className="w-full justify-start rounded-none"
+                                              >
+                                                  {getLucideIcon(panel.icon || 'Puzzle', 14)}
+                                                  {panel.title}
+                                              </Button>
+                                          );
+                                      })}
+                                  </>
+                              )}
+
+                              <div className="h-px bg-border my-1" />
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                      resetLayout();
+                                      setShowWindowMenu(false);
+                                  }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <RotateCcw size={14} />
+                                  Reset Layout
+                              </Button>
+                          </div>
+                      )}
+                  </div>
+
                   {/* Agent / Planner Toggle - Global Mode */}
                   <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
                       <ToggleGroup
@@ -331,6 +460,14 @@ import type { ProjectProcessStatus } from '../../shared/types';
                               { value: 'planner', label: 'Planner', icon: <ClipboardList size={12} /> },
                           ]}
                       />
+                  </div>
+
+                  {/* Plugin slot for left side of TopBar */}
+                  <div
+                      className="flex items-center gap-2"
+                      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                  >
+                      <Slot id="topbar:left" className="flex items-center gap-2" />
                   </div>
 
                   {state?.activeTaskId && (
@@ -351,6 +488,9 @@ import type { ProjectProcessStatus } from '../../shared/types';
                   className="flex items-center h-full"
                   style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               >
+                  {/* Plugin slot for right side of TopBar */}
+                  <Slot id="topbar:right" className="flex items-center gap-2 px-2" />
+
                   {/* Project Run/Build Controls */}
                   <div className="flex items-center gap-1 px-2">
                       {/* Play/Stop Run */}
@@ -487,7 +627,7 @@ import type { ProjectProcessStatus } from '../../shared/types';
                                   size="sm"
                                   onClick={() => {
                                       setShowSettings(false);
-                                      setShowSettingsModal(true);
+                                      openTab(COMPONENT_KEYS.SETTINGS);
                                   }}
                                   className="w-full justify-start rounded-none"
                               >
@@ -536,13 +676,6 @@ import type { ProjectProcessStatus } from '../../shared/types';
                       <X size={14} />
                   </button>
               </div>
-
-              {/* Settings Modal */}
-              <SettingsModal
-                  isOpen={showSettingsModal}
-                  onClose={() => setShowSettingsModal(false)}
-                  onOpenThemeEditor={onOpenThemeEditor}
-              />
           </div>
       );
   };

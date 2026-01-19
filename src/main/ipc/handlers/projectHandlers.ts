@@ -22,8 +22,6 @@ import {
   ClaudeCodeProvider,
   setAgentProvider,
 } from './shared';
-import { initThemeService } from '../../services/ThemeService';
-import { initPluginManager } from '../../services/PluginManager';
 import {
   startRun,
   stopRun,
@@ -40,6 +38,11 @@ import type { ProjectProcessStatus, ProjectRunResult, ProjectProcessType, Projec
  */
 async function openProject(projectPath: string, mainWindow: BrowserWindow | null, projectName?: string): Promise<boolean> {
   try {
+    // Notify renderer immediately that we're opening a project (show loader)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('project:opening', projectPath);
+    }
+
     // Initialize store for this project (will create .local-kanban defaults if needed)
     const store = initStore(projectPath, projectName);
     setStore(store);
@@ -68,15 +71,8 @@ async function openProject(projectPath: string, mainWindow: BrowserWindow | null
       provider: agentProvider instanceof ClaudeCodeProvider ? agentProvider : undefined,
     });
 
-    // Initialize theme service
-    const themeService = initThemeService(projectPath);
-    await themeService.init();
-    console.log('Theme service initialized for project');
-
-    // Initialize plugin manager
-    const pluginManager = initPluginManager(projectPath);
-    await pluginManager.init();
-    console.log('Plugin manager initialized for project');
+    // Note: Theme and Plugin services are now global (stored in AppData)
+    // They are initialized once at app startup, not per-project
 
     // Add to recent projects
     addToRecentProjects(projectPath);

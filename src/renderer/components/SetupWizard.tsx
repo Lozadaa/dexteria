@@ -28,8 +28,14 @@ import {
 import { cn } from '../lib/utils';
 import SplashImage from '../../../assets/splash.png';
 
-type ProviderType = 'claude-code' | 'anthropic';
+type ProviderType = 'opencode' | 'claude-code' | 'anthropic';
 type WizardStep = 'select' | 'configure' | 'test' | 'theme';
+
+interface OpenCodeInstallProgress {
+    phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
+    percent: number;
+    message: string;
+}
 
 interface PresetTheme {
     id: string;
@@ -60,10 +66,63 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [presetThemes, setPresetThemes] = useState<PresetTheme[]>([]);
     const [loadingThemes, setLoadingThemes] = useState(true);
 
-    // Check if Claude Code CLI is available on mount
+    // OpenCode state
+    const [openCodeAvailable, setOpenCodeAvailable] = useState<boolean | null>(null);
+    const [checkingOpenCode, setCheckingOpenCode] = useState(true);
+    const [installingOpenCode, setInstallingOpenCode] = useState(false);
+    const [openCodeInstallProgress, setOpenCodeInstallProgress] = useState<OpenCodeInstallProgress | null>(null);
+    const [openCodeError, setOpenCodeError] = useState<string | null>(null);
+
+    // Helper function to reset OpenCode state on error or cancel
+    const resetOpenCodeState = () => {
+        setInstallingOpenCode(false);
+        setCheckingOpenCode(false);
+        setOpenCodeInstallProgress(null);
+        setOpenCodeError(null);
+    };
+
+    // Check if providers are available on mount
     useEffect(() => {
+        checkOpenCodeAvailability();
         checkClaudeCodeAvailability();
         loadPresetThemes();
+    }, []);
+
+    // Listen for OpenCode install progress
+    useEffect(() => {
+        let isMounted = true;
+
+        // Check if OpenCode API is available
+        if (!window.dexteria?.opencode?.onInstallProgress) {
+            console.warn('[SetupWizard] OpenCode API not available for progress updates');
+            return;
+        }
+
+        const cleanup = window.dexteria.opencode.onInstallProgress((progress) => {
+            // Don't update state if component is unmounted
+            if (!isMounted) return;
+
+            setOpenCodeInstallProgress(progress);
+
+            if (progress.phase === 'complete') {
+                setInstallingOpenCode(false);
+                setOpenCodeAvailable(true);
+                // Move to test step after successful install
+                setStep('test');
+            } else if (progress.phase === 'error') {
+                resetOpenCodeState();
+                setOpenCodeError(progress.message);
+                setTestResult({
+                    success: false,
+                    message: progress.message,
+                });
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            cleanup?.();
+        };
     }, []);
 
     const loadPresetThemes = async () => {
@@ -81,6 +140,66 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             console.error('Failed to load preset themes:', err);
         }
         setLoadingThemes(false);
+    };
+
+    const checkOpenCodeAvailability = async () => {
+        setCheckingOpenCode(true);
+        setOpenCodeError(null);
+
+        // Check if OpenCode API is available
+        if (!window.dexteria?.opencode) {
+            console.warn('[SetupWizard] OpenCode API not available');
+            setOpenCodeAvailable(false);
+            setCheckingOpenCode(false);
+            return;
+        }
+
+        try {
+            const isInstalled = await window.dexteria.opencode.isInstalled?.();
+            setOpenCodeAvailable(isInstalled ?? false);
+        } catch (err) {
+            console.error('[SetupWizard] Error checking OpenCode:', err);
+            setOpenCodeAvailable(false);
+        }
+        setCheckingOpenCode(false);
+    };
+
+    const handleInstallOpenCode = async () => {
+        // Check if OpenCode API is available
+        if (!window.dexteria?.opencode?.install) {
+            setTestResult({
+                success: false,
+                message: 'OpenCode installer API not available',
+            });
+            return;
+        }
+
+        setInstallingOpenCode(true);
+        setOpenCodeInstallProgress(null);
+        setOpenCodeError(null);
+        setTestResult(null);
+
+        try {
+            const result = await window.dexteria.opencode.install();
+            if (!result?.success) {
+                resetOpenCodeState();
+                const errorMessage = result?.error || 'Installation failed';
+                setOpenCodeError(errorMessage);
+                setTestResult({
+                    success: false,
+                    message: errorMessage,
+                });
+            }
+            // Success is handled by the progress listener
+        } catch (err) {
+            resetOpenCodeState();
+            const errorMessage = err instanceof Error ? err.message : 'Installation failed';
+            setOpenCodeError(errorMessage);
+            setTestResult({
+                success: false,
+                message: errorMessage,
+            });
+        }
     };
 
     const checkClaudeCodeAvailability = async () => {
@@ -104,7 +223,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         setSelectedProvider(provider);
         setTestResult(null);
 
-        if (provider === 'claude-code') {
+        if (provider === 'opencode') {
+            if (openCodeAvailable) {
+                // OpenCode is ready, go straight to test
+                setStep('test');
+            } else {
+                // Show install/configure step
+                setStep('configure');
+            }
+        } else if (provider === 'claude-code') {
             if (claudeCodeAvailable) {
                 // Claude Code is ready, go straight to test
                 setStep('test');
@@ -287,12 +414,50 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 Choose your AI Provider
                             </h2>
 
-                            {checkingClaudeCode ? (
+                            {(checkingOpenCode || checkingClaudeCode) ? (
                                 <div className="flex items-center justify-center py-8">
-                                    <Spinner size="md" label="Checking Claude Code CLI..." />
+                                    <Spinner size="md" label="Checking available providers..." />
                                 </div>
                             ) : (
                                 <div className="space-y-3">
+                                    {/* OpenCode Option - Default/Recommended */}
+                                    <button
+                                        onClick={() => handleSelectProvider('opencode')}
+                                        className={cn(
+                                            "w-full p-4 rounded-lg border text-left transition-all",
+                                            "hover:border-primary/50 hover:bg-muted/50",
+                                            openCodeAvailable
+                                                ? "border-green-500/30 bg-green-500/5"
+                                                : "border-primary/30 bg-primary/5"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <div className={cn(
+                                                "w-12 h-12 rounded-lg flex items-center justify-center",
+                                                openCodeAvailable ? "bg-green-500/20 text-green-500" : "bg-primary/20 text-primary"
+                                            )}>
+                                                <Zap size={24} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-semibold">OpenCode</span>
+                                                    {openCodeAvailable && (
+                                                        <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
+                                                            Installed
+                                                        </span>
+                                                    )}
+                                                    <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                                                        Recommended
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-1">
+                                                    Open-source AI coding assistant. Auto-installs on first use.
+                                                </p>
+                                            </div>
+                                            <ArrowRight size={20} className="text-muted-foreground mt-3" />
+                                        </div>
+                                    </button>
+
                                     {/* Claude Code Option */}
                                     <button
                                         onClick={() => handleSelectProvider('claude-code')}
@@ -319,13 +484,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                             Detected
                                                         </span>
                                                     )}
-                                                    <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                                                        Recommended
-                                                    </span>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
                                                     Uses the Claude Code CLI for powerful agentic capabilities.
-                                                    {!claudeCodeAvailable && " Requires installation."}
+                                                    {!claudeCodeAvailable && " Requires manual installation."}
                                                 </p>
                                             </div>
                                             <ArrowRight size={20} className="text-muted-foreground mt-3" />
@@ -361,11 +523,79 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     {step === 'configure' && (
                         <div className="space-y-4">
                             <h2 className="text-lg font-semibold text-center mb-4">
-                                {selectedProvider === 'claude-code'
-                                    ? 'Install Claude Code CLI'
-                                    : 'Enter your API Key'
+                                {selectedProvider === 'opencode'
+                                    ? 'Install OpenCode'
+                                    : selectedProvider === 'claude-code'
+                                        ? 'Install Claude Code CLI'
+                                        : 'Enter your API Key'
                                 }
                             </h2>
+
+                            {/* OpenCode Installation */}
+                            {selectedProvider === 'opencode' && !openCodeAvailable && (
+                                <div className="space-y-4">
+                                    {!installingOpenCode ? (
+                                        <>
+                                            <div className="p-4 bg-muted/50 rounded-lg text-center">
+                                                <div className="w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-4 flex items-center justify-center">
+                                                    <Zap size={32} />
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    OpenCode will be downloaded and installed automatically.
+                                                    This only needs to happen once.
+                                                </p>
+                                            </div>
+
+                                            {testResult && !testResult.success && (
+                                                <AlertBanner
+                                                    variant="error"
+                                                    icon={<XCircle size={16} />}
+                                                    description={testResult.message}
+                                                />
+                                            )}
+
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" onClick={handleBack}>
+                                                    Back
+                                                </Button>
+                                                <Button
+                                                    onClick={handleInstallOpenCode}
+                                                    className="flex-1"
+                                                >
+                                                    <Zap size={16} className="mr-2" />
+                                                    Install OpenCode
+                                                </Button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="p-6 bg-muted/50 rounded-lg text-center space-y-4">
+                                                <div className="w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto flex items-center justify-center">
+                                                    <Spinner size="lg" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium">
+                                                        {openCodeInstallProgress?.message || 'Installing OpenCode...'}
+                                                    </p>
+                                                    {openCodeInstallProgress && (
+                                                        <div className="mt-4">
+                                                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-primary transition-all duration-300"
+                                                                    style={{ width: `${openCodeInstallProgress.percent}%` }}
+                                                                />
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mt-2">
+                                                                {Math.round(openCodeInstallProgress.percent)}%
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
 
                             {selectedProvider === 'claude-code' && !claudeCodeAvailable && (
                                 <div className="space-y-4">
@@ -511,7 +741,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
                                 <div>
                                     <p className="font-medium">
-                                        {selectedProvider === 'claude-code' ? 'Claude Code CLI' : 'Anthropic API'}
+                                        {selectedProvider === 'opencode'
+                                            ? 'OpenCode'
+                                            : selectedProvider === 'claude-code'
+                                                ? 'Claude Code CLI'
+                                                : 'Anthropic API'}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         {isTesting

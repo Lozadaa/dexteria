@@ -14,10 +14,12 @@ import {
   getStore,
   getProjectRoot,
   hasProject,
+  OpenCodeProvider,
   ClaudeCodeProvider,
   AnthropicProvider,
   MockAgentProvider,
 } from './shared';
+import { OpenCodeInstaller } from '../../services/OpenCodeInstaller';
 import { playPresetSoundTest } from '../../services/NotificationService';
 import type { NotificationSound, CustomTheme } from '../../../shared/types';
 import { detectProjectCommands, getEffectiveCommand } from '../../services/ProjectCommandDetector';
@@ -61,7 +63,9 @@ export function registerSettingsHandlers(): void {
   }> => {
     const provider = getOrCreateProvider();
     let type: ProviderType = 'mock';
-    if (provider instanceof ClaudeCodeProvider) {
+    if (provider instanceof OpenCodeProvider) {
+      type = 'opencode';
+    } else if (provider instanceof ClaudeCodeProvider) {
       type = 'claude-code';
     } else if (provider instanceof AnthropicProvider) {
       type = 'anthropic';
@@ -80,21 +84,31 @@ export function registerSettingsHandlers(): void {
   }> => {
     const provider = getOrCreateProvider();
     let currentType: ProviderType = 'mock';
-    if (provider instanceof ClaudeCodeProvider) {
+    if (provider instanceof OpenCodeProvider) {
+      currentType = 'opencode';
+    } else if (provider instanceof ClaudeCodeProvider) {
       currentType = 'claude-code';
     } else if (provider instanceof AnthropicProvider) {
       currentType = 'anthropic';
     }
 
+    // Check if OpenCode is installed
+    const openCodeAvailable = OpenCodeInstaller.isInstalled();
     // Check if Claude Code CLI is available
     const claudeCodeAvailable = new ClaudeCodeProvider().isReady();
 
     return {
       providers: [
         {
+          type: 'opencode',
+          name: 'OpenCode',
+          description: 'Open-source AI assistant (recommended)',
+          available: openCodeAvailable,
+        },
+        {
           type: 'claude-code',
           name: 'Claude Code',
-          description: 'Uses Claude Code CLI (recommended)',
+          description: 'Uses Claude Code CLI',
           available: claudeCodeAvailable,
         },
         {
@@ -123,6 +137,18 @@ export function registerSettingsHandlers(): void {
     try {
       let newProvider;
       switch (providerType) {
+        case 'opencode':
+          if (!OpenCodeInstaller.isInstalled()) {
+            return {
+              success: false,
+              provider: getAgentProvider()?.getName() || 'Unknown',
+              error: 'OpenCode is not installed. Please install it first.',
+            };
+          }
+          newProvider = new OpenCodeProvider({
+            binaryPath: OpenCodeInstaller.getBinaryPath(),
+          });
+          break;
         case 'claude-code':
           newProvider = new ClaudeCodeProvider();
           break;

@@ -39,6 +39,11 @@ export interface TaskAgentConfig {
   dependencies?: string[];
 }
 
+export interface TaskEpic {
+  name: string;
+  color: string; // Hex color like "#3b82f6"
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -49,6 +54,8 @@ export interface Task {
   acceptanceCriteria: string[];
   tags?: string[];
   dependsOn?: string[];
+  epic?: TaskEpic;
+  sprint?: string;
   comments: TaskComment[];
   agent: TaskAgentConfig;
   runtime: TaskRuntimeState;
@@ -70,6 +77,8 @@ export interface TaskPatch {
   acceptanceCriteria?: string[];
   tags?: string[];
   dependsOn?: string[];
+  epic?: TaskEpic | null;
+  sprint?: string | null;
   agent?: Partial<TaskAgentConfig>;
 }
 
@@ -948,4 +957,97 @@ export interface PluginContextMenuItem {
   icon?: string;
   location: 'task' | 'board' | 'column';
   order?: number;
+}
+
+// ============================================
+// UI Extension Points (Slots) System
+// ============================================
+
+/**
+ * Available extension slot IDs in the application
+ */
+export type ExtensionSlotId =
+  | 'settings:tab'
+  | 'docking:panel'
+  | 'topbar:left'
+  | 'topbar:right'
+  | 'task-detail:sidebar'
+  | 'task-detail:footer'
+  | 'task-card:badge'
+  | 'bottom-panel:tab';
+
+/**
+ * Settings tab contribution from a plugin
+ */
+export interface PluginSettingsTabContribution {
+  id: string;
+  title: string;
+  icon: string;
+  order?: number;
+}
+
+/**
+ * Docking panel contribution from a plugin
+ */
+export interface PluginDockingPanelContribution {
+  id: string;
+  title: string;
+  icon: string;
+  singleton?: boolean;
+  defaultPosition?: 'left' | 'right' | 'bottom';
+}
+
+/**
+ * Slot contribution from a plugin
+ */
+export interface PluginSlotContribution {
+  slotId: ExtensionSlotId;
+  order?: number;
+  when?: string;
+}
+
+/**
+ * Renderer entry configuration for plugins
+ */
+export interface PluginRendererConfig {
+  entry: string;
+  styles?: string;
+}
+
+/**
+ * Extended plugin contributions including UI extensions
+ */
+export interface PluginContributionsExtended extends PluginContributions {
+  settingsTab?: PluginSettingsTabContribution;
+  dockingPanels?: PluginDockingPanelContribution[];
+  slots?: PluginSlotContribution[];
+}
+
+/**
+ * Extended plugin manifest with full UI contribution support
+ */
+export interface PluginManifestExtended extends Omit<PluginManifest, 'contributes' | 'renderer'> {
+  contributes?: PluginContributionsExtended;
+  renderer?: PluginRendererConfig | string;
+}
+
+/**
+ * UI contribution from a plugin (returned to renderer)
+ */
+export interface PluginUIContribution {
+  pluginId: string;
+  pluginPath: string;
+  settingsTab?: PluginSettingsTabContribution;
+  dockingPanels?: PluginDockingPanelContribution[];
+  slots?: PluginSlotContribution[];
+  renderer?: PluginRendererConfig;
+}
+
+/**
+ * All UI contributions from all active plugins
+ */
+export interface UIContributions {
+  settingsTabs: Array<PluginSettingsTabContribution & { pluginId: string; pluginPath: string }>;
+  dockingPanels: Array<PluginDockingPanelContribution & { pluginId: string; pluginPath: string }>;
+  slots: Record<ExtensionSlotId, Array<PluginSlotContribution & { pluginId: string; pluginPath: string }>>;
 }

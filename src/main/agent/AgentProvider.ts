@@ -195,6 +195,19 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
           description: 'Initial status: backlog, todo, doing, review, or done',
           enum: ['backlog', 'todo', 'doing', 'review', 'done'],
         },
+        epic: {
+          type: 'object',
+          description: 'Epic for Jira alignment (optional)',
+          properties: {
+            name: { type: 'string', description: 'Name of the epic' },
+            color: { type: 'string', description: 'Hex color code (e.g., "#3b82f6")' },
+          },
+          required: ['name', 'color'],
+        },
+        sprint: {
+          type: 'string',
+          description: 'Sprint identifier for Jira alignment (e.g., "Sprint 1")',
+        },
       },
       required: ['title', 'description', 'acceptanceCriteria'],
     },
@@ -226,6 +239,19 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
           type: 'array',
           description: 'New acceptance criteria (optional)',
           items: { type: 'string' },
+        },
+        epic: {
+          type: 'object',
+          description: 'Epic for Jira alignment (optional, set to null to remove)',
+          properties: {
+            name: { type: 'string', description: 'Name of the epic' },
+            color: { type: 'string', description: 'Hex color code (e.g., "#3b82f6")' },
+          },
+          required: ['name', 'color'],
+        },
+        sprint: {
+          type: 'string',
+          description: 'Sprint identifier (optional, set to null to remove)',
         },
       },
       required: ['taskId'],
@@ -611,7 +637,17 @@ export function buildTaskPrompt(task: Task): string {
 **Title:** ${task.title}
 **Status:** ${task.status}
 **Priority:** ${task.priority}
+`;
 
+  // Add Epic and Sprint if defined (for Jira alignment)
+  if (task.epic) {
+    prompt += `**Epic:** ${task.epic.name}\n`;
+  }
+  if (task.sprint) {
+    prompt += `**Sprint:** ${task.sprint}\n`;
+  }
+
+  prompt += `
 **Description:**
 ${task.description}
 

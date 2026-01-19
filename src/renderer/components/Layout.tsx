@@ -7,12 +7,13 @@ interface LayoutProps {
     boardSlot: React.ReactNode;
     rightSlot: React.ReactNode;
     onOpenThemeEditor?: (themeId: string, themeName?: string) => void;
+    onOpenSettings?: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ boardSlot, rightSlot, onOpenThemeEditor }) => {
+export const Layout: React.FC<LayoutProps> = ({ boardSlot, rightSlot, onOpenThemeEditor, onOpenSettings }) => {
     return (
         <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
-            <TopBar onOpenThemeEditor={onOpenThemeEditor} />
+            <TopBar onOpenThemeEditor={onOpenThemeEditor} onOpenSettings={onOpenSettings} />
 
             <div className="flex-1 flex overflow-hidden">
                 <PanelGroup direction="vertical">

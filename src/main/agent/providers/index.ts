@@ -9,3 +9,6 @@ export type { AnthropicProviderConfig } from './AnthropicProvider';
 
 export { ClaudeCodeProvider, createClaudeCodeProvider } from './ClaudeCodeProvider';
 export type { ClaudeCodeProviderConfig } from './ClaudeCodeProvider';
+
+export { OpenCodeProvider, createOpenCodeProvider } from './OpenCodeProvider';
+export type { OpenCodeProviderConfig } from './OpenCodeProvider';

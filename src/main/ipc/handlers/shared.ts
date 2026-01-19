@@ -13,8 +13,9 @@ import { Runner } from '../../agent/tools/Runner';
 import { AgentProvider, MockAgentProvider } from '../../agent/AgentProvider';
 import { AnthropicProvider } from '../../agent/providers/AnthropicProvider';
 import { ClaudeCodeProvider } from '../../agent/providers/ClaudeCodeProvider';
+import { OpenCodeProvider } from '../../agent/providers/OpenCodeProvider';
+import { OpenCodeInstaller } from '../../services/OpenCodeInstaller';
 import { initRalphEngine } from '../../agent/RalphEngine';
-import { initThemeService } from '../../services/ThemeService';
 import type { RecentProject, HandlerState } from './types';
 
 // Shared state
@@ -115,25 +116,39 @@ export function setAgentProvider(provider: AgentProvider | null): void {
 
 /**
  * Initialize or get the agent provider based on configuration.
- * Default: ClaudeCodeProvider (uses Claude Code CLI)
+ * Priority: OpenCode (default) > Claude Code > Anthropic API > Mock
  */
 export function getOrCreateProvider(): AgentProvider {
   if (state.agentProvider && state.agentProvider.isReady()) {
     return state.agentProvider;
   }
 
-  // Default to Claude Code provider (uses existing Claude Code authentication)
+  // 1. Try OpenCode first (default provider)
+  if (OpenCodeInstaller.isInstalled()) {
+    const openCodeProvider = new OpenCodeProvider({
+      binaryPath: OpenCodeInstaller.getBinaryPath(),
+      workingDirectory: state.projectRoot || process.cwd(),
+    });
+
+    if (openCodeProvider.isReady()) {
+      state.agentProvider = openCodeProvider;
+      console.log('Using OpenCode provider (default)');
+      return state.agentProvider;
+    }
+  }
+
+  // 2. Fallback to Claude Code provider
   const claudeCodeProvider = new ClaudeCodeProvider({
     workingDirectory: state.projectRoot || process.cwd(),
   });
 
   if (claudeCodeProvider.isReady()) {
     state.agentProvider = claudeCodeProvider;
-    console.log('Using Claude Code provider');
+    console.log('Using Claude Code provider (OpenCode not available)');
     return state.agentProvider;
   }
 
-  // Fallback to Anthropic if API key is set
+  // 3. Fallback to Anthropic if API key is set
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey) {
     state.agentProvider = new AnthropicProvider({ apiKey: anthropicKey });
@@ -141,9 +156,9 @@ export function getOrCreateProvider(): AgentProvider {
     return state.agentProvider;
   }
 
-  // Last resort: Mock provider
+  // 4. Last resort: Mock provider
   state.agentProvider = new MockAgentProvider();
-  console.log('Using Mock provider (Claude Code not available, no API key)');
+  console.log('Using Mock provider (no AI providers available)');
   return state.agentProvider;
 }
 
@@ -204,21 +219,17 @@ export async function initializeProjectState(root: string): Promise<void> {
   // Initialize provider (will use Claude Code by default)
   state.agentProvider = getOrCreateProvider();
 
-  // Initialize Ralph engine with provider (only if ClaudeCodeProvider)
+  // Initialize Ralph engine with provider (supports OpenCodeProvider and ClaudeCodeProvider)
+  const provider = state.agentProvider;
+  const isRalphCompatible = provider instanceof OpenCodeProvider || provider instanceof ClaudeCodeProvider;
   initRalphEngine({
     projectRoot: root,
     store: state.store,
-    provider: state.agentProvider instanceof ClaudeCodeProvider ? state.agentProvider : undefined,
+    provider: isRalphCompatible ? provider as (OpenCodeProvider | ClaudeCodeProvider) : undefined,
   });
 
-  // Initialize theme service (wait for it to complete)
-  const themeService = initThemeService(root);
-  try {
-    await themeService.init();
-    console.log('Theme service initialized');
-  } catch (err) {
-    console.error('Failed to init theme service:', err);
-  }
+  // Note: Theme and Plugin services are now global (stored in AppData)
+  // They are initialized once at app startup via initializeIpcHandlers
 }
 
 /**
@@ -231,4 +242,4 @@ export function clearProjectState(): void {
 }
 
 // Re-export provider classes for type checking
-export { ClaudeCodeProvider, AnthropicProvider, MockAgentProvider };
+export { OpenCodeProvider, ClaudeCodeProvider, AnthropicProvider, MockAgentProvider };

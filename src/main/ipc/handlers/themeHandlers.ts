@@ -15,8 +15,13 @@ export function registerThemeHandlers(): void {
   // Get all available themes
   ipcMain.handle('theme:getAll', async (): Promise<ThemeIndex['themes']> => {
     const service = getThemeService();
-    if (!service) return [];
-    return service.getThemes();
+    if (!service) {
+      console.log('[ThemeHandlers] theme:getAll - No theme service available');
+      return [];
+    }
+    const themes = service.getThemes();
+    console.log(`[ThemeHandlers] theme:getAll - Returning ${themes.length} themes`);
+    return themes;
   });
 
   // Get the currently active theme

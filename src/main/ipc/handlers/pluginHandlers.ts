@@ -6,7 +6,7 @@
 
 import { ipcMain } from 'electron';
 import { getPluginManager } from '../../services/PluginManager';
-import type { PluginInfo, PluginTab, PluginContextMenuItem } from '../../../shared/types';
+import type { PluginInfo, PluginTab, PluginContextMenuItem, UIContributions } from '../../../shared/types';
 
 /**
  * Register all plugin-related IPC handlers.
@@ -113,6 +113,28 @@ export function registerPluginHandlers(): void {
       return;
     }
     await manager.executeContextMenuItem(itemId, context);
+  });
+
+  // Get all UI contributions from active plugins
+  ipcMain.handle('plugin:getUIContributions', async (): Promise<UIContributions> => {
+    const manager = getPluginManager();
+    if (!manager) {
+      return {
+        settingsTabs: [],
+        dockingPanels: [],
+        slots: {
+          'settings:tab': [],
+          'docking:panel': [],
+          'topbar:left': [],
+          'topbar:right': [],
+          'task-detail:sidebar': [],
+          'task-detail:footer': [],
+          'task-card:badge': [],
+          'bottom-panel:tab': [],
+        },
+      };
+    }
+    return manager.getUIContributions();
   });
 
   // Call a plugin's API method

@@ -3,11 +3,12 @@
  *
  * Manages custom themes for the application.
  * Handles loading, saving, applying, and editing themes.
- * Themes are stored in .local-kanban/themes/
+ * Themes are stored globally in AppData (user's data directory), not per-project.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import type {
   CustomTheme,
@@ -89,8 +90,9 @@ export class ThemeService {
   private index: ThemeIndex | null = null;
   private activeTheme: CustomTheme | null = null;
 
-  constructor(projectPath: string) {
-    this.themesDir = path.join(projectPath, '.local-kanban', 'themes');
+  constructor() {
+    // Store themes in user's AppData directory (global, not per-project)
+    this.themesDir = path.join(app.getPath('userData'), 'themes');
     this.indexPath = path.join(this.themesDir, 'index.json');
   }
 
@@ -98,31 +100,118 @@ export class ThemeService {
    * Initialize the theme service
    */
   async init(): Promise<void> {
+    console.log(`[ThemeService] Initializing with themes dir: ${this.themesDir}`);
+
     // Ensure themes directory exists
     if (!fs.existsSync(this.themesDir)) {
       fs.mkdirSync(this.themesDir, { recursive: true });
+      console.log('[ThemeService] Created themes directory');
     }
 
     // Load or create index
     this.index = this.loadIndex();
+    console.log(`[ThemeService] Loaded index with ${this.index.themes.length} themes`);
 
-    // Create default theme if none exist
-    if (this.index.themes.length === 0) {
-      const defaultTheme = this.createDefaultTheme();
-      await this.saveTheme(defaultTheme);
-      this.index.themes.push({
-        id: defaultTheme.id,
-        name: defaultTheme.name,
-        isBuiltIn: true,
-        path: `${defaultTheme.id}.json`,
-      });
-      this.saveIndex();
-    }
+    // Sync index with actual theme files on disk (also ensures default exists)
+    await this.syncIndexWithFiles();
 
     // Load active theme
     if (this.index.activeThemeId) {
       this.activeTheme = await this.loadTheme(this.index.activeThemeId);
+      console.log(`[ThemeService] Loaded active theme: ${this.activeTheme?.name || 'none'}`);
     }
+
+    console.log(`[ThemeService] Initialization complete. ${this.index.themes.length} themes available`);
+  }
+
+  /**
+   * Sync the index with actual theme files on disk
+   * Adds missing themes and removes orphaned entries
+   */
+  private async syncIndexWithFiles(): Promise<void> {
+    if (!this.index) {
+      console.log('[ThemeService] No index to sync');
+      return;
+    }
+
+    let files: string[] = [];
+    try {
+      files = fs.readdirSync(this.themesDir)
+        .filter(f => f.endsWith('.json') && f !== 'index.json');
+    } catch (err) {
+      console.error('[ThemeService] Failed to read themes directory:', err);
+      return;
+    }
+
+    console.log(`[ThemeService] Found ${files.length} theme files on disk`);
+    console.log(`[ThemeService] Index has ${this.index.themes.length} themes`);
+
+    let changed = false;
+    const validIds = new Set<string>();
+
+    // Process all theme files
+    for (const file of files) {
+      const filePath = path.join(this.themesDir, file);
+      try {
+        const data = fs.readFileSync(filePath, 'utf-8');
+        const theme = JSON.parse(data) as CustomTheme;
+
+        if (!theme.id) {
+          console.warn(`[ThemeService] Theme file ${file} has no id, skipping`);
+          continue;
+        }
+
+        validIds.add(theme.id);
+
+        const existingEntry = this.index.themes.find(t => t.id === theme.id);
+        if (!existingEntry) {
+          this.index.themes.push({
+            id: theme.id,
+            name: theme.name || 'Unnamed Theme',
+            isBuiltIn: false,
+            path: file,
+          });
+          changed = true;
+          console.log(`[ThemeService] Discovered theme: ${theme.name} (${theme.id})`);
+        } else if (existingEntry.name !== theme.name) {
+          existingEntry.name = theme.name;
+          changed = true;
+        }
+      } catch (err) {
+        console.error(`[ThemeService] Failed to read theme file: ${file}`, err);
+      }
+    }
+
+    // Remove index entries for themes that no longer exist on disk
+    // But always keep built-in themes
+    const beforeCount = this.index.themes.length;
+    this.index.themes = this.index.themes.filter(t => validIds.has(t.id) || t.isBuiltIn);
+    if (this.index.themes.length !== beforeCount) {
+      changed = true;
+      console.log(`[ThemeService] Removed ${beforeCount - this.index.themes.length} orphaned index entries`);
+    }
+
+    // Ensure default theme always exists
+    const defaultThemeExists = this.index.themes.some(t => t.id === 'dexteria-default');
+    if (!defaultThemeExists) {
+      console.log('[ThemeService] Default theme missing, creating...');
+      const defaultTheme = this.createDefaultTheme();
+      const defaultPath = path.join(this.themesDir, 'dexteria-default.json');
+      fs.writeFileSync(defaultPath, JSON.stringify(defaultTheme, null, 2));
+      this.index.themes.unshift({
+        id: 'dexteria-default',
+        name: 'Dexteria',
+        isBuiltIn: true,
+        path: 'dexteria-default.json',
+      });
+      changed = true;
+    }
+
+    if (changed) {
+      this.saveIndex();
+    }
+
+    console.log(`[ThemeService] Sync complete. ${this.index.themes.length} themes in index`);
   }
 
   /**
@@ -175,15 +264,39 @@ export class ThemeService {
    * Load a theme by ID
    */
   async loadTheme(themeId: string): Promise<CustomTheme | null> {
-    const themeEntry = this.index?.themes.find(t => t.id === themeId);
-    if (!themeEntry) return null;
+    // First try to find in index
+    let themeEntry = this.index?.themes.find(t => t.id === themeId);
+    let themePath: string;
 
-    const themePath = path.join(this.themesDir, themeEntry.path);
-    if (!fs.existsSync(themePath)) return null;
+    if (themeEntry) {
+      themePath = path.join(this.themesDir, themeEntry.path);
+    } else {
+      // Fallback: try direct file path (for newly created themes)
+      themePath = path.join(this.themesDir, `${themeId}.json`);
+    }
+
+    if (!fs.existsSync(themePath)) {
+      console.error(`Theme file not found: ${themePath}`);
+      return null;
+    }
 
     try {
       const data = fs.readFileSync(themePath, 'utf-8');
-      return JSON.parse(data);
+      const theme = JSON.parse(data) as CustomTheme;
+
+      // If theme wasn't in index, add it now
+      if (!themeEntry && this.index) {
+        this.index.themes.push({
+          id: theme.id,
+          name: theme.name,
+          isBuiltIn: false,
+          path: `${theme.id}.json`,
+        });
+        this.saveIndex();
+        console.log(`Added missing theme to index: ${theme.name}`);
+      }
+
+      return theme;
     } catch (err) {
       console.error('Failed to load theme:', err);
       return null;
@@ -198,15 +311,29 @@ export class ThemeService {
     theme.updatedAt = new Date().toISOString();
     fs.writeFileSync(themePath, JSON.stringify(theme, null, 2));
 
-    // Update index if this is a new theme
-    if (this.index && !this.index.themes.find(t => t.id === theme.id)) {
-      this.index.themes.push({
-        id: theme.id,
-        name: theme.name,
-        isBuiltIn: false,
-        path: `${theme.id}.json`,
-      });
-      this.saveIndex();
+    if (this.index) {
+      // Find existing theme entry
+      const existingIndex = this.index.themes.findIndex(t => t.id === theme.id);
+
+      if (existingIndex >= 0) {
+        // Update existing entry (name might have changed)
+        this.index.themes[existingIndex].name = theme.name;
+        this.saveIndex();
+      } else {
+        // Add new theme to index
+        this.index.themes.push({
+          id: theme.id,
+          name: theme.name,
+          isBuiltIn: false,
+          path: `${theme.id}.json`,
+        });
+        this.saveIndex();
+      }
+    }
+
+    // Update active theme reference if this is the active theme
+    if (this.activeTheme && this.activeTheme.id === theme.id) {
+      this.activeTheme = theme;
     }
   }
 
@@ -214,7 +341,9 @@ export class ThemeService {
    * Get all available themes
    */
   getThemes(): ThemeIndex['themes'] {
-    return this.index?.themes || [];
+    const themes = this.index?.themes || [];
+    console.log(`[ThemeService] getThemes() called, returning ${themes.length} themes`);
+    return themes;
   }
 
   /**
@@ -422,11 +551,13 @@ export class ThemeService {
   }
 }
 
-// Singleton instance (initialized when project opens)
+// Singleton instance (initialized once at app startup)
 let themeServiceInstance: ThemeService | null = null;
 
-export function initThemeService(projectPath: string): ThemeService {
-  themeServiceInstance = new ThemeService(projectPath);
+export function initThemeService(): ThemeService {
+  if (!themeServiceInstance) {
+    themeServiceInstance = new ThemeService();
+  }
   return themeServiceInstance;
 }
 

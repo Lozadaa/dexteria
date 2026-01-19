@@ -426,9 +426,16 @@ export class LocalKanbanStore {
     }
 
     const task = tasks[taskIndex];
+
+    // Handle null values for optional fields (convert null to undefined)
+    const epicValue = patch.epic === null ? undefined : (patch.epic ?? task.epic);
+    const sprintValue = patch.sprint === null ? undefined : (patch.sprint ?? task.sprint);
+
     const updatedTask: Task = {
       ...task,
       ...patch,
+      epic: epicValue,
+      sprint: sprintValue,
       agent: patch.agent ? { ...task.agent, ...patch.agent } : task.agent,
       updatedAt: new Date().toISOString(),
     };

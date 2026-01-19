@@ -3,10 +3,25 @@ import { useActiveTask, useBoard } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { cn } from '../lib/utils';
-import { Play, RotateCw, Plus, X, Link, ChevronDown, Search, CheckCircle, XCircle, AlertCircle, Edit2, Trash2, Check, AlertTriangle, Ban, GripHorizontal } from 'lucide-react';
+import { Play, RotateCw, Plus, X, Link, ChevronDown, Search, CheckCircle, XCircle, AlertCircle, Edit2, Trash2, Check, AlertTriangle, Ban, GripHorizontal, Tag, Calendar } from 'lucide-react';
 import { TaskComments } from './TaskComments';
 import { Button, IconButton, Input, Textarea, ScrollArea } from 'adnia-ui';
-import type { RunTaskOptions, AcceptanceCriterionResult } from '../../shared/types';
+import { Slot } from './extension/Slot';
+import type { RunTaskOptions, AcceptanceCriterionResult, TaskEpic } from '../../shared/types';
+
+// Predefined epic colors
+const EPIC_COLORS = [
+    '#3b82f6', // blue
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#ef4444', // red
+    '#f97316', // orange
+    '#eab308', // yellow
+    '#22c55e', // green
+    '#14b8a6', // teal
+    '#06b6d4', // cyan
+    '#6366f1', // indigo
+];
 
 interface AnalysisResult {
     status: 'analyzing' | 'complete' | 'error';
@@ -42,6 +57,13 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
     const [isEditingAgentPlan, setIsEditingAgentPlan] = useState(false);
     const [agentGoalText, setAgentGoalText] = useState('');
     const [agentScopeText, setAgentScopeText] = useState('');
+
+    // Epic and Sprint editing state
+    const [isEditingEpic, setIsEditingEpic] = useState(false);
+    const [epicName, setEpicName] = useState('');
+    const [epicColor, setEpicColor] = useState(EPIC_COLORS[0]);
+    const [isEditingSprint, setIsEditingSprint] = useState(false);
+    const [sprintText, setSprintText] = useState('');
 
     // Resizable comments panel
     const [commentsPanelHeight, setCommentsPanelHeight] = useState(250);
@@ -295,6 +317,53 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
         }
     };
 
+    // Edit Epic
+    const handleStartEditEpic = () => {
+        setEpicName(task.epic?.name || '');
+        setEpicColor(task.epic?.color || EPIC_COLORS[0]);
+        setIsEditingEpic(true);
+    };
+
+    const handleSaveEpic = async () => {
+        try {
+            const epic: TaskEpic | null = epicName.trim()
+                ? { name: epicName.trim(), color: epicColor }
+                : null;
+            await window.dexteria.tasks.update(task.id, { epic });
+            setIsEditingEpic(false);
+            refresh();
+        } catch (err) {
+            console.error('Failed to update epic:', err);
+        }
+    };
+
+    const handleRemoveEpic = async () => {
+        try {
+            await window.dexteria.tasks.update(task.id, { epic: null });
+            setIsEditingEpic(false);
+            refresh();
+        } catch (err) {
+            console.error('Failed to remove epic:', err);
+        }
+    };
+
+    // Edit Sprint
+    const handleStartEditSprint = () => {
+        setSprintText(task.sprint || '');
+        setIsEditingSprint(true);
+    };
+
+    const handleSaveSprint = async () => {
+        try {
+            const sprint = sprintText.trim() || null;
+            await window.dexteria.tasks.update(task.id, { sprint });
+            setIsEditingSprint(false);
+            refresh();
+        } catch (err) {
+            console.error('Failed to update sprint:', err);
+        }
+    };
+
     // Delete task
     const handleDeleteTask = async () => {
         const confirmed = await confirm({
@@ -407,6 +476,112 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     <span className="capitalize">{task.status ?? 'unknown'}</span>
                     <span>•</span>
                     <span className="capitalize">{task.priority ?? 'medium'} Priority</span>
+                </div>
+
+                {/* Epic and Sprint */}
+                <div className="flex items-center gap-3 mt-3 flex-wrap">
+                    {/* Epic */}
+                    {isEditingEpic ? (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border">
+                            <Tag size={14} className="text-muted-foreground" />
+                            <Input
+                                value={epicName}
+                                onChange={(e) => setEpicName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveEpic();
+                                    if (e.key === 'Escape') setIsEditingEpic(false);
+                                }}
+                                placeholder="Epic name..."
+                                className="w-32 h-7 text-xs"
+                                autoFocus
+                            />
+                            <div className="flex gap-1">
+                                {EPIC_COLORS.map(color => (
+                                    <button
+                                        key={color}
+                                        className={cn(
+                                            "w-5 h-5 rounded-full border-2 transition-all",
+                                            epicColor === color ? "border-foreground scale-110" : "border-transparent hover:scale-105"
+                                        )}
+                                        style={{ backgroundColor: color }}
+                                        onClick={() => setEpicColor(color)}
+                                    />
+                                ))}
+                            </div>
+                            <IconButton variant="ghost" size="xs" onClick={handleSaveEpic} className="text-green-500 hover:bg-green-500/20">
+                                <Check size={14} />
+                            </IconButton>
+                            {task.epic && (
+                                <IconButton variant="ghost" size="xs" onClick={handleRemoveEpic} className="text-red-500 hover:bg-red-500/20">
+                                    <Trash2 size={14} />
+                                </IconButton>
+                            )}
+                            <IconButton variant="ghost" size="xs" onClick={() => setIsEditingEpic(false)}>
+                                <X size={14} />
+                            </IconButton>
+                        </div>
+                    ) : task.epic ? (
+                        <button
+                            onClick={handleStartEditEpic}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider hover:opacity-80 transition-opacity"
+                            style={{
+                                backgroundColor: `${task.epic.color}20`,
+                                color: task.epic.color,
+                                borderLeft: `3px solid ${task.epic.color}`
+                            }}
+                        >
+                            <Tag size={12} />
+                            {task.epic.name}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleStartEditEpic}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-muted-foreground hover:bg-muted/50 transition-colors border border-dashed border-muted-foreground/30"
+                        >
+                            <Tag size={12} />
+                            Add Epic
+                        </button>
+                    )}
+
+                    {/* Sprint */}
+                    {isEditingSprint ? (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border">
+                            <Calendar size={14} className="text-muted-foreground" />
+                            <Input
+                                value={sprintText}
+                                onChange={(e) => setSprintText(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveSprint();
+                                    if (e.key === 'Escape') setIsEditingSprint(false);
+                                }}
+                                placeholder="Sprint (e.g., Sprint 1)"
+                                className="w-32 h-7 text-xs"
+                                autoFocus
+                            />
+                            <IconButton variant="ghost" size="xs" onClick={handleSaveSprint} className="text-green-500 hover:bg-green-500/20">
+                                <Check size={14} />
+                            </IconButton>
+                            <IconButton variant="ghost" size="xs" onClick={() => setIsEditingSprint(false)}>
+                                <X size={14} />
+                            </IconButton>
+                        </div>
+                    ) : task.sprint ? (
+                        <button
+                            onClick={handleStartEditSprint}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                            <Calendar size={12} />
+                            {task.sprint}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleStartEditSprint}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-muted-foreground hover:bg-muted/50 transition-colors border border-dashed border-muted-foreground/30"
+                        >
+                            <Calendar size={12} />
+                            Add Sprint
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -815,7 +990,21 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     )}
                 </div>
 
+                {/* Plugin slot for task detail sidebar/footer */}
+                <Slot
+                    id="task-detail:sidebar"
+                    context={{ taskId: task.id, task }}
+                    className="space-y-4"
+                />
+
             </ScrollArea>
+
+            {/* Plugin slot for task detail footer (above comments) */}
+            <Slot
+                id="task-detail:footer"
+                context={{ taskId: task.id, task }}
+                className="border-t border-border p-4"
+            />
 
             {/* Comments Section - Resizable panel */}
             <div

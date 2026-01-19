@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, globalShortcut } from 'electron';
 import * as path from 'path';
 import { initializeIpcHandlers } from './ipc/handlers';
 import { initBadgeClearing } from './services/NotificationService';
+import { OpenCodeInstaller } from './services/OpenCodeInstaller';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
 // This is only needed for Squirrel.Windows installers
@@ -112,6 +113,20 @@ app.whenReady().then(async () => {
   await initializeIpcHandlers();
 
   createWindow();
+
+  // Check if OpenCode needs to be installed and notify renderer
+  const isOpenCodeInstalled = OpenCodeInstaller.isInstalled();
+  console.log('[main] OpenCode installed:', isOpenCodeInstalled);
+
+  // Notify renderer about setup status after window is ready
+  if (mainWindow) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.send('opencode:setup-status', {
+        installed: isOpenCodeInstalled,
+        version: isOpenCodeInstalled ? OpenCodeInstaller.getInstalledVersion() : null,
+      });
+    });
+  }
 
   // Register F12 to toggle DevTools
   const f12Registered = globalShortcut.register('F12', () => {

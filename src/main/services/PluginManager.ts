@@ -2,11 +2,13 @@
  * Plugin Manager Service
  *
  * Handles plugin discovery, loading, activation, and lifecycle management.
- * Plugins are stored in .local-kanban/plugins/
+ * Plugins are stored globally in AppData (user's data directory), not per-project.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { app } from 'electron';
+import { getStore } from '../ipc/handlers/shared';
 import type {
   PluginManifest,
   PluginInfo,
@@ -36,6 +38,11 @@ import type {
   AgentStepContext,
   PluginTab,
   PluginContextMenuItem,
+  TaskStatus,
+  UIContributions,
+  PluginManifestExtended,
+  ExtensionSlotId,
+  PluginRendererConfig,
 } from '../../shared/types';
 
 /**
@@ -101,6 +108,17 @@ export interface ContextMenuItemOptions {
 }
 
 /**
+ * Task API interface for plugins
+ */
+export interface PluginTaskAPI {
+  create: (title: string, status?: string) => Promise<{ id: string; title: string; status: string }>;
+  update: (taskId: string, patch: Record<string, unknown>) => Promise<{ id: string }>;
+  move: (taskId: string, toColumn: string) => Promise<void>;
+  get: (taskId: string) => Promise<unknown>;
+  getAll: () => Promise<unknown[]>;
+}
+
+/**
  * Plugin context provided to plugins during activation
  */
 export interface PluginContext {
@@ -136,6 +154,11 @@ export interface PluginContext {
     unregisterTab: (tabId: string) => void;
     registerContextMenuItem: (options: ContextMenuItemOptions, handler: (context: unknown) => Promise<void>) => void;
     unregisterContextMenuItem: (itemId: string) => void;
+  };
+
+  // API for interacting with Dexteria
+  api: {
+    tasks: PluginTaskAPI;
   };
 }
 
@@ -185,8 +208,9 @@ export class PluginManager {
   private contextMenuItems: Map<string, PluginContextMenuItem> = new Map();
   private contextMenuHandlers: Map<string, (context: unknown) => Promise<void>> = new Map();
 
-  constructor(projectPath: string) {
-    this.pluginsDir = path.join(projectPath, '.local-kanban', 'plugins');
+  constructor() {
+    // Store plugins in user's AppData directory (global, not per-project)
+    this.pluginsDir = path.join(app.getPath('userData'), 'plugins');
     this.indexPath = path.join(this.pluginsDir, 'index.json');
     this.pluginDataDir = path.join(this.pluginsDir, 'data');
   }
@@ -416,6 +440,34 @@ export class PluginManager {
           console.log(`[PluginManager] Unregistered context menu item: ${fullId}`);
         },
       },
+
+      api: {
+        tasks: {
+          create: async (title: string, status = 'backlog') => {
+            const store = getStore();
+            const task = await store.createTask(title, status as TaskStatus);
+            return { id: task.id, title: task.title, status: task.status };
+          },
+          update: async (taskId: string, patch: Record<string, unknown>) => {
+            const store = getStore();
+            await store.updateTask(taskId, patch);
+            return { id: taskId };
+          },
+          move: async (taskId: string, toColumn: string) => {
+            const store = getStore();
+            await store.moveTask(taskId, toColumn as TaskStatus);
+          },
+          get: async (taskId: string) => {
+            const store = getStore();
+            const tasks = await store.getTasks();
+            return tasks.find(t => t.id === taskId) || null;
+          },
+          getAll: async () => {
+            const store = getStore();
+            return store.getTasks();
+          },
+        },
+      },
     };
   }
 
@@ -615,6 +667,91 @@ export class PluginManager {
   }
 
   /**
+   * Get all UI contributions from active plugins
+   * This aggregates settingsTabs, dockingPanels, and slots from all active plugins
+   */
+  getUIContributions(): UIContributions {
+    const contributions: UIContributions = {
+      settingsTabs: [],
+      dockingPanels: [],
+      slots: {
+        'settings:tab': [],
+        'docking:panel': [],
+        'topbar:left': [],
+        'topbar:right': [],
+        'task-detail:sidebar': [],
+        'task-detail:footer': [],
+        'task-card:badge': [],
+        'bottom-panel:tab': [],
+      },
+    };
+
+    // Iterate through all active plugins
+    for (const [pluginId, pluginInfo] of this.plugins.entries()) {
+      // Only include contributions from active plugins
+      if (pluginInfo.state !== 'active') continue;
+
+      const manifest = pluginInfo.manifest as PluginManifestExtended;
+      const contributes = manifest.contributes;
+
+      if (!contributes) continue;
+
+      // Normalize renderer config
+      let rendererConfig: PluginRendererConfig | undefined;
+      if (manifest.renderer) {
+        if (typeof manifest.renderer === 'string') {
+          rendererConfig = { entry: manifest.renderer };
+        } else {
+          rendererConfig = manifest.renderer;
+        }
+      }
+
+      // Add settings tab contribution
+      if (contributes.settingsTab) {
+        contributions.settingsTabs.push({
+          ...contributes.settingsTab,
+          pluginId,
+          pluginPath: pluginInfo.path,
+        });
+      }
+
+      // Add docking panel contributions
+      if (contributes.dockingPanels) {
+        for (const panel of contributes.dockingPanels) {
+          contributions.dockingPanels.push({
+            ...panel,
+            pluginId,
+            pluginPath: pluginInfo.path,
+          });
+        }
+      }
+
+      // Add slot contributions
+      if (contributes.slots) {
+        for (const slot of contributes.slots) {
+          const slotId = slot.slotId as ExtensionSlotId;
+          if (contributions.slots[slotId]) {
+            contributions.slots[slotId].push({
+              ...slot,
+              pluginId,
+              pluginPath: pluginInfo.path,
+            });
+          }
+        }
+      }
+    }
+
+    // Sort by order
+    contributions.settingsTabs.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+    contributions.dockingPanels.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+    for (const slotId of Object.keys(contributions.slots) as ExtensionSlotId[]) {
+      contributions.slots[slotId].sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+    }
+
+    return contributions;
+  }
+
+  /**
    * Get a plugin's exposed API
    */
   getPluginAPI(pluginId: string): PluginAPI | null {
@@ -627,20 +764,34 @@ export class PluginManager {
 
   /**
    * Call a plugin API method
+   * Supports dot-notation paths like "auth.isConnected"
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async callPluginAPI(pluginId: string, methodName: string, ...args: any[]): Promise<any> {
+  async callPluginAPI(pluginId: string, methodPath: string, ...args: any[]): Promise<any> {
     const api = this.getPluginAPI(pluginId);
     if (!api) {
       throw new Error(`Plugin ${pluginId} does not expose an API`);
     }
 
-    const method = api[methodName];
-    if (typeof method !== 'function') {
-      throw new Error(`Plugin ${pluginId} does not have API method: ${methodName}`);
+    // Support dot-notation paths like "auth.isConnected"
+    const parts = methodPath.split('.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let current: any = api;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (current && typeof current === 'object' && part in current) {
+        current = current[part];
+      } else {
+        throw new Error(`Plugin ${pluginId} does not have API path: ${methodPath}`);
+      }
     }
 
-    return method(...args);
+    if (typeof current !== 'function') {
+      throw new Error(`Plugin ${pluginId} API path ${methodPath} is not a function`);
+    }
+
+    return current(...args);
   }
 
   /**
@@ -948,11 +1099,13 @@ export class PluginManager {
   }
 }
 
-// Singleton instance
+// Singleton instance (initialized once at app startup)
 let pluginManagerInstance: PluginManager | null = null;
 
-export function initPluginManager(projectPath: string): PluginManager {
-  pluginManagerInstance = new PluginManager(projectPath);
+export function initPluginManager(): PluginManager {
+  if (!pluginManagerInstance) {
+    pluginManagerInstance = new PluginManager();
+  }
   return pluginManagerInstance;
 }
 

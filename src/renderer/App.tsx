@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Layout } from './components/Layout';
-import { KanbanBoard } from './components/KanbanBoard';
-import { ChatPanel } from './components/ChatPanel';
-import { TaskDetail } from './components/TaskDetail';
-import { ThemeEditor } from './components/ThemeEditor';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { SetupWizard } from './components/SetupWizard';
+import { TopBar } from './components/TopBar';
 import { ModeProvider, useMode } from './contexts/ModeContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ExtensionPointsProvider } from './contexts/ExtensionPointsContext';
 import { useSystemTheme } from './hooks/useTheme';
-import { AlertTriangle, X, LayoutGrid, FileJson } from 'lucide-react';
-import type { Task } from '../shared/types';
+import {
+  DockingProvider,
+  ComponentRegistryProvider,
+  ComponentInstancesProvider,
+  dockingComponents,
+  DockingEventsProvider,
+  PluginPanelsRegistrar,
+} from './docking';
+import { DockingLayout } from './docking/DockingLayout';
+import { AlertTriangle, X } from 'lucide-react';
 import './index.css';
 
 // Planner Block Modal - shown at App level so it appears regardless of active tab
@@ -70,14 +75,20 @@ interface RecentProject {
   lastOpened: string;
 }
 
+// Main content with docking system
+const DockingContent: React.FC = () => {
+  return (
+    <ComponentInstancesProvider>
+      <DockingEventsProvider>
+        <DockingLayout components={dockingComponents} />
+      </DockingEventsProvider>
+    </ComponentInstancesProvider>
+  );
+};
+
 function AppContent() {
   // Sync with system theme
   useSystemTheme();
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [activeTab, setActiveTab] = useState<'chat' | 'task'>('chat');
-  const [leftPanelTab, setLeftPanelTab] = useState<'board' | 'theme'>('board');
-  const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
-  const [editingThemeName, setEditingThemeName] = useState<string | null>(null);
   const [currentProject, setCurrentProject] = useState<string | null>(null);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,6 +123,11 @@ function AppContent() {
     };
     init();
 
+    // Listen for project opening (show loader immediately)
+    const cleanupOpening = window.dexteria?.project?.onProjectOpening?.(() => {
+      setIsOpeningProject(true);
+    });
+
     // Listen for project changes
     const cleanupProject = window.dexteria?.project?.onProjectChanged?.((path) => {
       setCurrentProject(path);
@@ -126,32 +142,11 @@ function AppContent() {
     });
 
     return () => {
+      cleanupOpening?.();
       cleanupProject?.();
       cleanupShortcut?.();
     };
   }, []);
-
-  const handleTaskSelect = (task: Task) => {
-    setSelectedTask(task);
-    setActiveTab('task'); // Auto-switch to task tab when selecting
-  };
-
-  const handleCloseTask = () => {
-    setSelectedTask(null);
-    setActiveTab('chat'); // Switch back to chat when closing task
-  };
-
-  const handleOpenThemeEditor = (themeId: string, themeName?: string) => {
-    setEditingThemeId(themeId);
-    setEditingThemeName(themeName || themeId);
-    setLeftPanelTab('theme');
-  };
-
-  const handleCloseThemeEditor = () => {
-    setEditingThemeId(null);
-    setEditingThemeName(null);
-    setLeftPanelTab('board');
-  };
 
   const handleOpenProject = async () => {
     setIsOpeningProject(true);
@@ -298,145 +293,25 @@ function AppContent() {
     );
   }
 
+  // Main app with docking - wrap with providers so TopBar can access docking
   return (
-    <>
-      <Layout
-        onOpenThemeEditor={handleOpenThemeEditor}
-        boardSlot={
-          <div className="h-full w-full flex flex-col">
-            <ErrorBoundary>
-              {/* Tabs for Board / Theme Editor */}
-              <div className="flex border-b border-border bg-background">
-                <button
-                  onClick={() => setLeftPanelTab('board')}
-                  className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
-                    leftPanelTab === 'board'
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <LayoutGrid size={14} />
-                  <span>Board</span>
-                  {leftPanelTab === 'board' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                  )}
-                </button>
-                {editingThemeId && (
-                  <button
-                    onClick={() => setLeftPanelTab('theme')}
-                    className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
-                      leftPanelTab === 'theme'
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <FileJson size={14} />
-                    <span className="truncate max-w-[140px]">{editingThemeName}.json</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCloseThemeEditor();
-                      }}
-                      className="ml-1 p-0.5 hover:bg-muted rounded"
-                    >
-                      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M2 2l8 8M10 2l-8 8" />
-                      </svg>
-                    </button>
-                    {leftPanelTab === 'theme' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                    )}
-                  </button>
-                )}
+    <ComponentRegistryProvider defaultComponents={dockingComponents}>
+      <ExtensionPointsProvider>
+        {/* PluginPanelsRegistrar dynamically registers plugin docking panels */}
+        <PluginPanelsRegistrar>
+          <DockingProvider>
+            <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
+              <TopBar />
+              <div className="flex-1 overflow-hidden">
+                <DockingContent />
               </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-hidden relative">
-                <div className={`absolute inset-0 ${leftPanelTab === 'board' ? '' : 'hidden'}`}>
-                  <KanbanBoard
-                    onTaskSelect={handleTaskSelect}
-                    activeTaskId={selectedTask?.id}
-                  />
-                </div>
-                {editingThemeId && (
-                  <div className={`absolute inset-0 ${leftPanelTab === 'theme' ? '' : 'hidden'}`}>
-                    <ThemeEditor
-                      themeId={editingThemeId}
-                      themeName={editingThemeName || undefined}
-                    />
-                  </div>
-                )}
-              </div>
-            </ErrorBoundary>
-          </div>
-        }
-        rightSlot={
-          <div className="h-full w-full flex flex-col">
-            <ErrorBoundary>
-              {/* Tabs */}
-              <div className="flex border-b border-border bg-background">
-                <button
-                  onClick={() => setActiveTab('chat')}
-                  className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-                    activeTab === 'chat'
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Chat
-                  {activeTab === 'chat' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                  )}
-                </button>
-                {selectedTask && (
-                  <button
-                    onClick={() => setActiveTab('task')}
-                    className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${
-                      activeTab === 'task'
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <span className="truncate max-w-[120px]">{selectedTask.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCloseTask();
-                      }}
-                      className="ml-1 p-0.5 hover:bg-muted rounded"
-                    >
-                      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M2 2l8 8M10 2l-8 8" />
-                      </svg>
-                    </button>
-                    {activeTab === 'task' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {/* Tab Content - Keep ChatPanel mounted to preserve state */}
-              <div className="flex-1 overflow-hidden relative">
-                <div className={`absolute inset-0 ${activeTab === 'chat' ? '' : 'hidden'}`}>
-                  <ChatPanel />
-                </div>
-                {selectedTask && (
-                  <div className={`absolute inset-0 ${activeTab === 'task' ? '' : 'hidden'}`}>
-                    <TaskDetail
-                      taskId={selectedTask.id}
-                      onClose={handleCloseTask}
-                    />
-                  </div>
-                )}
-              </div>
-            </ErrorBoundary>
-          </div>
-        }
-      />
-      {/* Global modal for planner mode block */}
-      <PlannerBlockModal />
-    </>
+            </div>
+            {/* Global modal for planner mode block */}
+            <PlannerBlockModal />
+          </DockingProvider>
+        </PluginPanelsRegistrar>
+      </ExtensionPointsProvider>
+    </ComponentRegistryProvider>
   );
 }
 

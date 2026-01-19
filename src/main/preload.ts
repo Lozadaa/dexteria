@@ -130,13 +130,13 @@ export interface DexteriaAPI {
     getProvider: () => Promise<{
       name: string;
       ready: boolean;
-      type: 'mock' | 'anthropic' | 'claude-code';
+      type: 'mock' | 'anthropic' | 'claude-code' | 'opencode';
     }>;
     getAvailableProviders: () => Promise<{
-      providers: Array<{ type: 'mock' | 'anthropic' | 'claude-code'; name: string; description: string; available: boolean }>;
-      current: 'mock' | 'anthropic' | 'claude-code';
+      providers: Array<{ type: 'mock' | 'anthropic' | 'claude-code' | 'opencode'; name: string; description: string; available: boolean }>;
+      current: 'mock' | 'anthropic' | 'claude-code' | 'opencode';
     }>;
-    setProvider: (providerType: 'mock' | 'anthropic' | 'claude-code', apiKey?: string) => Promise<{
+    setProvider: (providerType: 'mock' | 'anthropic' | 'claude-code' | 'opencode', apiKey?: string) => Promise<{
       success: boolean;
       provider: string;
       error?: string;
@@ -173,6 +173,7 @@ export interface DexteriaAPI {
     getCurrent: () => Promise<string | null>;
     getRecent: () => Promise<Array<{ path: string; name: string; lastOpened: string }>>;
     onProjectChanged: (callback: (path: string | null) => void) => () => void;
+    onProjectOpening: (callback: (path: string) => void) => () => void;
     onOpenShortcut: (callback: () => void) => () => void;
     startRun: () => Promise<{ runId: string; success: boolean; logPath: string; error?: string }>;
     stopRun: () => Promise<boolean>;
@@ -244,6 +245,61 @@ export interface DexteriaAPI {
     }>>;
     executeContextMenuItem: (itemId: string, context: unknown) => Promise<void>;
     callApi: (pluginId: string, methodName: string, ...args: unknown[]) => Promise<unknown>;
+    // UI Contributions
+    getUIContributions: () => Promise<{
+      settingsTabs: Array<{
+        id: string;
+        title: string;
+        icon: string;
+        order?: number;
+        pluginId: string;
+        pluginPath: string;
+      }>;
+      dockingPanels: Array<{
+        id: string;
+        title: string;
+        icon: string;
+        singleton?: boolean;
+        defaultPosition?: 'left' | 'right' | 'bottom';
+        pluginId: string;
+        pluginPath: string;
+      }>;
+      slots: Record<string, Array<{
+        slotId: string;
+        order?: number;
+        when?: string;
+        pluginId: string;
+        pluginPath: string;
+      }>>;
+    }>;
+  };
+  opencode: {
+    isInstalled: () => Promise<boolean>;
+    getBinaryPath: () => Promise<string>;
+    getVersion: () => Promise<string | null>;
+    getLatestRelease: () => Promise<{
+      version: string;
+      assetUrl: string;
+      assetName: string;
+    } | null>;
+    checkUpdates: () => Promise<{
+      updateAvailable: boolean;
+      currentVersion: string | null;
+      latestVersion: string;
+      error?: string;
+    }>;
+    install: () => Promise<{ success: boolean; version?: string; error?: string }>;
+    update: () => Promise<{ success: boolean; version?: string; error?: string }>;
+    uninstall: () => Promise<{ success: boolean; error?: string }>;
+    onInstallProgress: (callback: (progress: {
+      phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
+      percent: number;
+      message: string;
+    }) => void) => () => void;
+    onSetupStatus: (callback: (status: {
+      installed: boolean;
+      version: string | null;
+    }) => void) => () => void;
   };
 }
 
@@ -367,6 +423,11 @@ const api: DexteriaAPI = {
       ipcRenderer.on('project:changed', handler);
       return () => ipcRenderer.removeListener('project:changed', handler);
     },
+    onProjectOpening: (callback: (path: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, path: string) => callback(path);
+      ipcRenderer.on('project:opening', handler);
+      return () => ipcRenderer.removeListener('project:opening', handler);
+    },
     onOpenShortcut: (callback: () => void) => {
       const handler = () => callback();
       ipcRenderer.on('shortcut:open-project', handler);
@@ -422,6 +483,41 @@ const api: DexteriaAPI = {
     getContextMenuItemsByLocation: (location) => ipcRenderer.invoke('plugin:getContextMenuItemsByLocation', location),
     executeContextMenuItem: (itemId, context) => ipcRenderer.invoke('plugin:executeContextMenuItem', itemId, context),
     callApi: (pluginId, methodName, ...args) => ipcRenderer.invoke('plugin:callApi', pluginId, methodName, ...args),
+    getUIContributions: () => ipcRenderer.invoke('plugin:getUIContributions'),
+  },
+  opencode: {
+    isInstalled: () => ipcRenderer.invoke('opencode:isInstalled'),
+    getBinaryPath: () => ipcRenderer.invoke('opencode:getBinaryPath'),
+    getVersion: () => ipcRenderer.invoke('opencode:getVersion'),
+    getLatestRelease: () => ipcRenderer.invoke('opencode:getLatestRelease'),
+    checkUpdates: () => ipcRenderer.invoke('opencode:checkUpdates'),
+    install: () => ipcRenderer.invoke('opencode:install'),
+    update: () => ipcRenderer.invoke('opencode:update'),
+    uninstall: () => ipcRenderer.invoke('opencode:uninstall'),
+    onInstallProgress: (callback: (progress: {
+      phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
+      percent: number;
+      message: string;
+    }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: {
+        phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
+        percent: number;
+        message: string;
+      }) => callback(progress);
+      ipcRenderer.on('opencode:install-progress', handler);
+      return () => ipcRenderer.removeListener('opencode:install-progress', handler);
+    },
+    onSetupStatus: (callback: (status: {
+      installed: boolean;
+      version: string | null;
+    }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: {
+        installed: boolean;
+        version: string | null;
+      }) => callback(status);
+      ipcRenderer.on('opencode:setup-status', handler);
+      return () => ipcRenderer.removeListener('opencode:setup-status', handler);
+    },
   },
 };
 

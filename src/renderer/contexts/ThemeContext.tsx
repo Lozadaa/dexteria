@@ -44,7 +44,7 @@ export function useThemeContext() {
 }
 
 // Inject CSS variables into the document
-// Now themes have a single color set (no separate light/dark)
+// Uses high specificity to override both :root and .dark class
 function injectThemeCSS(css: string | { light: string; dark: string }) {
   // Remove existing theme style if present
   const existingStyle = document.getElementById('custom-theme-styles');
@@ -61,11 +61,19 @@ function injectThemeCSS(css: string | { light: string; dark: string }) {
     cssContent = css.dark || css.light || '';
   }
 
-  // Create new style element
+  // Create new style element with high specificity
+  // Override both :root and .dark to ensure theme applies everywhere
   const style = document.createElement('style');
   style.id = 'custom-theme-styles';
   style.textContent = `
-    :root {
+    :root,
+    :root.dark,
+    :root.light,
+    .dark,
+    .light,
+    html,
+    html.dark,
+    html.light {
       ${cssContent}
     }
   `;
@@ -84,50 +92,60 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [error, setError] = useState<string | null>(null);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
 
-  // Load themes on mount
-  useEffect(() => {
-    const loadThemes = async () => {
-      try {
-        const [themeList, active] = await Promise.all([
-          window.dexteria?.theme?.getAll?.(),
-          window.dexteria?.theme?.getActive?.(),
-        ]);
+  // Load themes function
+  const loadThemes = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [themeList, active] = await Promise.all([
+        window.dexteria?.theme?.getAll?.(),
+        window.dexteria?.theme?.getActive?.(),
+      ]);
 
-        setThemes(themeList || []);
+      console.log('[ThemeContext] Loaded themes:', themeList?.length || 0);
+      setThemes(themeList || []);
 
-        if (active) {
-          const theme = active as CustomTheme;
-          setActiveThemeState(theme);
-          setActiveThemeId(theme.id);
+      if (active) {
+        const theme = active as CustomTheme;
+        setActiveThemeState(theme);
+        setActiveThemeId(theme.id);
 
-          // Get and inject CSS
-          const css = await window.dexteria?.theme?.getCSS?.(theme.id);
-          if (css) {
-            injectThemeCSS(css);
-          }
+        // Get and inject CSS
+        const css = await window.dexteria?.theme?.getCSS?.(theme.id);
+        if (css) {
+          injectThemeCSS(css);
         }
-      } catch (err) {
-        console.error('Failed to load themes:', err);
-        setError('Failed to load themes');
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (err) {
+      console.error('Failed to load themes:', err);
+      setError('Failed to load themes');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
+  // Load themes on mount and when project changes
+  useEffect(() => {
     loadThemes();
 
     // Listen for theme changes from other windows
-    const cleanup = window.dexteria?.theme?.onChanged?.((data) => {
+    const cleanupThemeChanged = window.dexteria?.theme?.onChanged?.((data) => {
       const theme = data.theme as CustomTheme;
       setActiveThemeState(theme);
       setActiveThemeId(theme.id);
       injectThemeCSS(data.css);
     });
 
+    // Listen for project changes to reload themes
+    const cleanupProjectChanged = window.dexteria?.project?.onProjectChanged?.(() => {
+      console.log('[ThemeContext] Project changed, reloading themes...');
+      loadThemes();
+    });
+
     return () => {
-      cleanup?.();
+      cleanupThemeChanged?.();
+      cleanupProjectChanged?.();
     };
-  }, []);
+  }, [loadThemes]);
 
   const refreshThemes = useCallback(async () => {
     try {

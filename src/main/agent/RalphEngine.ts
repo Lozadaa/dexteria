@@ -30,13 +30,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { LocalKanbanStore } from '../services/LocalKanbanStore';
 import { ClaudeCodeProvider } from './providers/ClaudeCodeProvider';
+import { OpenCodeProvider } from './providers/OpenCodeProvider';
 import { notifyRalphTaskComplete } from '../services/NotificationService';
 import type { Task, RalphModeOptions } from '../../shared/types';
+
+// Type for providers that support Ralph mode (have setWorkingDirectory and setProjectContext)
+type RalphCompatibleProvider = ClaudeCodeProvider | OpenCodeProvider;
 
 export interface RalphEngineConfig {
   projectRoot: string;
   store: LocalKanbanStore;
-  provider?: ClaudeCodeProvider;
+  provider?: RalphCompatibleProvider;
   getWindow?: () => BrowserWindow | null;
 }
 
@@ -95,7 +99,7 @@ type EventListener = (event: RalphEvent) => void;
 export class RalphEngine {
   private projectRoot: string;
   private store: LocalKanbanStore;
-  private provider?: ClaudeCodeProvider;
+  private provider?: RalphCompatibleProvider;
   private getWindow?: () => BrowserWindow | null;
   private running: boolean = false;
   private paused: boolean = false;
