@@ -119,11 +119,53 @@ interface PluginPermissions {
 
 ```typescript
 interface PluginContributions {
+  // UI Extension Points
+  settingsTab?: {
+    id: string;
+    title: string;
+    icon: string;          // Lucide icon name
+    order?: number;        // Sort order (default: 100)
+  };
+
+  dockingPanels?: Array<{
+    id: string;
+    title: string;
+    icon: string;
+    singleton?: boolean;   // Only one instance (default: false)
+    defaultPosition?: 'left' | 'right' | 'bottom';
+  }>;
+
+  slots?: Array<{
+    slotId: ExtensionSlotId;  // See Extension Points table
+    order?: number;
+  }>;
+
+  // Other contributions
   commands?: CommandContribution[];
   tabs?: TabContribution[];
   contextMenus?: ContextMenuContribution[];
   hooks?: HookContribution[];
   settings?: SettingContribution[];
+}
+
+// Available slot IDs
+type ExtensionSlotId =
+  | 'settings:tab'
+  | 'docking:panel'
+  | 'topbar:left'
+  | 'topbar:right'
+  | 'task-detail:sidebar'
+  | 'task-detail:footer'
+  | 'task-card:badge'
+  | 'bottom-panel:tab';
+```
+
+### Renderer Entry (for UI contributions)
+
+```typescript
+interface PluginRenderer {
+  entry: string;      // Path to renderer entry file (e.g., "renderer/index.js")
+  styles?: string;    // Optional CSS file
 }
 ```
 
@@ -339,6 +381,11 @@ interface TaskBeforeCreateContext {
   status: string;
   description?: string;
   priority?: string;
+  epic?: {
+    name: string;
+    color: string;  // Hex color like "#3b82f6"
+  };
+  sprint?: string;
 }
 
 // Return type
@@ -411,9 +458,182 @@ interface AgentOnToolCallResult {
 
 ## UI Extensions
 
-Plugins can extend Dexteria's UI with custom tabs and context menu items.
+Plugins can extend Dexteria's UI through multiple Extension Points (slots), custom tabs, docking panels, and context menu items.
 
-### Custom Tabs
+### Extension Points System
+
+Dexteria provides 8 extension points (slots) where plugins can inject custom UI:
+
+| Extension Point | Location | Use Case |
+|-----------------|----------|----------|
+| `settings:tab` | SettingsPanel | Add configuration tabs for your plugin |
+| `docking:panel` | Docking system | Full panels that open as tabs |
+| `topbar:left` | TopBar (left side) | Action buttons, indicators |
+| `topbar:right` | TopBar (right side) | Status indicators, quick actions |
+| `task-detail:sidebar` | TaskDetail scroll area | Additional task information |
+| `task-detail:footer` | TaskDetail (above comments) | Task-related actions |
+| `task-card:badge` | TaskCard | Status badges, indicators |
+| `bottom-panel:tab` | BottomPanel | Tabs next to Task Runner |
+
+### Declaring UI Contributions (manifest.json)
+
+Use the `contributes` field in your manifest to declare UI extensions:
+
+```json
+{
+  "id": "com.example.analytics",
+  "name": "Analytics Dashboard",
+  "version": "1.0.0",
+  "permissions": {
+    "tasks": "read",
+    "ui": { "tabs": true }
+  },
+  "contributes": {
+    "settingsTab": {
+      "id": "analytics-settings",
+      "title": "Analytics",
+      "icon": "BarChart3",
+      "order": 50
+    },
+    "dockingPanels": [
+      {
+        "id": "dashboard",
+        "title": "Analytics Dashboard",
+        "icon": "PieChart",
+        "singleton": true,
+        "defaultPosition": "right"
+      }
+    ],
+    "slots": [
+      {
+        "slotId": "task-card:badge",
+        "order": 10
+      },
+      {
+        "slotId": "task-detail:sidebar",
+        "order": 20
+      }
+    ]
+  },
+  "renderer": {
+    "entry": "renderer/index.js",
+    "styles": "renderer/styles.css"
+  }
+}
+```
+
+### Settings Tab Contribution
+
+Add a tab to the Settings panel:
+
+```typescript
+interface PluginSettingsTabContribution {
+  id: string;           // Unique tab identifier
+  title: string;        // Display title
+  icon: string;         // Lucide icon name (e.g., "Settings", "BarChart3")
+  order?: number;       // Sort order (lower = first, default: 100)
+}
+```
+
+Your plugin's renderer will be loaded when the user clicks the tab.
+
+### Docking Panel Contribution
+
+Add panels to the docking system (appears in Window menu):
+
+```typescript
+interface PluginDockingPanelContribution {
+  id: string;           // Unique panel identifier
+  title: string;        // Display title
+  icon: string;         // Lucide icon name
+  singleton?: boolean;  // Only one instance allowed (default: false)
+  defaultPosition?: 'left' | 'right' | 'bottom';  // Suggested position
+}
+```
+
+Panels appear in the **Window** menu under the "Plugins" section and can be opened as tabs.
+
+### Slot Contributions
+
+Inject UI into specific locations:
+
+```typescript
+interface PluginSlotContribution {
+  slotId: ExtensionSlotId;  // One of the 8 extension points
+  order?: number;           // Sort order within the slot
+  when?: string;            // Condition expression (future)
+}
+```
+
+### Renderer Entry Point
+
+Create a `renderer/index.js` file that exports React components for each contribution:
+
+```javascript
+// renderer/index.js
+import React from 'react';
+
+// Settings Tab Component
+export function SettingsTab({ pluginId, context }) {
+  return (
+    <div className="p-4">
+      <h2>Analytics Settings</h2>
+      {/* Your settings UI */}
+    </div>
+  );
+}
+
+// Docking Panel Component
+export function DockingPanel({ pluginId, context }) {
+  return (
+    <div className="h-full p-4">
+      <h2>Analytics Dashboard</h2>
+      {/* Your dashboard UI */}
+    </div>
+  );
+}
+
+// Slot Components receive context about where they're rendered
+export function TaskCardBadge({ pluginId, context }) {
+  const { taskId, task } = context;
+  return (
+    <span className="badge">
+      {/* Badge content */}
+    </span>
+  );
+}
+
+export function TaskDetailSidebar({ pluginId, context }) {
+  const { taskId, task } = context;
+  return (
+    <div className="p-2 border rounded">
+      {/* Additional task info */}
+    </div>
+  );
+}
+```
+
+### Plugin Bridge API
+
+Inside renderer components, use the Plugin Bridge to access Dexteria's APIs:
+
+```javascript
+// Access via window.dexteria
+const { tasks, plugin, settings } = window.dexteria;
+
+// Get all tasks
+const allTasks = await tasks.getAll();
+
+// Call your plugin's main process API
+const result = await plugin.callApi('com.example.analytics', 'getStats');
+
+// Store plugin settings
+await plugin.setSettings('com.example.analytics', { enabled: true });
+```
+
+### Custom Tabs (Legacy API)
+
+For programmatic tab registration (alternative to manifest):
 
 ```typescript
 interface TabRegistrationOptions {
@@ -747,6 +967,47 @@ export async function activate(context) {
 }
 ```
 
+### Example 2b: Auto-Epic Plugin
+
+Automatically assign Epic based on keywords (for Jira alignment).
+
+```javascript
+// main.js
+const EPIC_MAPPINGS = {
+  authentication: { name: 'Authentication', color: '#3b82f6' },
+  api: { name: 'API', color: '#10b981' },
+  ui: { name: 'UI/UX', color: '#f59e0b' },
+  testing: { name: 'Testing', color: '#8b5cf6' },
+  infrastructure: { name: 'Infrastructure', color: '#ef4444' }
+};
+
+export async function activate(context) {
+  const { log, hooks } = context;
+
+  hooks.on('task:beforeCreate', async (ctx) => {
+    // Skip if epic already set
+    if (ctx.epic) {
+      return { task: ctx, cancel: false };
+    }
+
+    const text = (ctx.title + ' ' + (ctx.description || '')).toLowerCase();
+
+    // Find matching epic
+    for (const [keyword, epic] of Object.entries(EPIC_MAPPINGS)) {
+      if (text.includes(keyword)) {
+        log.info(`Auto-assigned epic "${epic.name}" to: ${ctx.title}`);
+        return {
+          task: { ...ctx, epic },
+          cancel: false
+        };
+      }
+    }
+
+    return { task: ctx, cancel: false };
+  });
+}
+```
+
 ### Example 3: Workflow Enforcer Plugin
 
 Enforce that tasks must go through review before done.
@@ -798,6 +1059,367 @@ export async function activate(context) {
       });
     }
   });
+}
+```
+
+### Example 5: Full UI Extension Plugin
+
+A complete plugin demonstrating all UI extension points.
+
+**Directory Structure:**
+```
+.local-kanban/plugins/com.example.task-metrics/
+├── manifest.json
+├── main.js
+└── renderer/
+    ├── index.js
+    └── styles.css
+```
+
+**manifest.json:**
+```json
+{
+  "id": "com.example.task-metrics",
+  "name": "Task Metrics",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "description": "Track and visualize task completion metrics",
+  "main": "main.js",
+  "permissions": {
+    "tasks": "read",
+    "settings": "write",
+    "ui": {
+      "tabs": true,
+      "sidebars": true
+    }
+  },
+  "contributes": {
+    "settingsTab": {
+      "id": "metrics-settings",
+      "title": "Metrics",
+      "icon": "BarChart2",
+      "order": 60
+    },
+    "dockingPanels": [
+      {
+        "id": "metrics-dashboard",
+        "title": "Metrics Dashboard",
+        "icon": "Activity",
+        "singleton": true,
+        "defaultPosition": "right"
+      }
+    ],
+    "slots": [
+      {
+        "slotId": "task-card:badge",
+        "order": 10
+      },
+      {
+        "slotId": "task-detail:sidebar",
+        "order": 20
+      },
+      {
+        "slotId": "topbar:right",
+        "order": 50
+      }
+    ],
+    "contextMenus": [
+      {
+        "location": "task",
+        "items": [
+          {
+            "id": "metrics.track",
+            "label": "Track Time"
+          }
+        ]
+      }
+    ]
+  },
+  "renderer": {
+    "entry": "renderer/index.js",
+    "styles": "renderer/styles.css"
+  }
+}
+```
+
+**main.js:**
+```javascript
+let metrics = {};
+
+export async function activate(context) {
+  const { log, hooks, storage, ui } = context;
+
+  // Load persisted metrics
+  metrics = await storage.get('metrics') || {};
+
+  // Track task completions
+  hooks.on('task:afterMove', async (ctx) => {
+    const { task, toColumn } = ctx;
+
+    if (toColumn === 'done') {
+      metrics[task.id] = {
+        completedAt: Date.now(),
+        duration: calculateDuration(task)
+      };
+      await storage.set('metrics', metrics);
+      log.info(`Tracked completion for: ${task.title}`);
+    }
+  });
+
+  // Register context menu handler
+  ui.registerContextMenuItem({
+    id: 'metrics.track',
+    label: 'Track Time',
+    icon: 'Clock',
+    location: 'task'
+  }, async (ctx) => {
+    const { taskId, task } = ctx;
+    metrics[taskId] = {
+      ...metrics[taskId],
+      trackingStarted: Date.now()
+    };
+    await storage.set('metrics', metrics);
+    log.info(`Started tracking: ${task.title}`);
+  });
+
+  log.info('Task Metrics plugin activated');
+}
+
+function calculateDuration(task) {
+  const started = metrics[task.id]?.trackingStarted;
+  return started ? Date.now() - started : null;
+}
+
+export const api = {
+  getMetrics() {
+    return metrics;
+  },
+
+  getTaskMetric(taskId) {
+    return metrics[taskId] || null;
+  },
+
+  async clearMetrics() {
+    metrics = {};
+    await storage.set('metrics', {});
+  }
+};
+```
+
+**renderer/index.js:**
+```javascript
+import React, { useState, useEffect } from 'react';
+
+// Settings Tab Component
+export function SettingsTab({ pluginId }) {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    // Load settings
+    window.dexteria.plugin.getSettings(pluginId)
+      .then(settings => setEnabled(settings?.enabled ?? true));
+  }, [pluginId]);
+
+  const handleToggle = async () => {
+    const newValue = !enabled;
+    setEnabled(newValue);
+    await window.dexteria.plugin.setSettings(pluginId, { enabled: newValue });
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <h2 className="text-lg font-semibold">Metrics Settings</h2>
+
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={handleToggle}
+          className="rounded"
+        />
+        <span>Enable metrics tracking</span>
+      </label>
+
+      <button
+        onClick={() => window.dexteria.plugin.callApi(pluginId, 'clearMetrics')}
+        className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+      >
+        Clear All Metrics
+      </button>
+    </div>
+  );
+}
+
+// Docking Panel Component (Dashboard)
+export function DockingPanel({ pluginId }) {
+  const [metrics, setMetrics] = useState({});
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const [metricsData, tasksData] = await Promise.all([
+        window.dexteria.plugin.callApi(pluginId, 'getMetrics'),
+        window.dexteria.tasks.getAll()
+      ]);
+      setMetrics(metricsData);
+      setTasks(tasksData);
+    };
+
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
+  }, [pluginId]);
+
+  const completedCount = Object.values(metrics).filter(m => m.completedAt).length;
+  const trackingCount = Object.values(metrics).filter(m => m.trackingStarted && !m.completedAt).length;
+
+  return (
+    <div className="h-full p-4 space-y-4 overflow-auto">
+      <h2 className="text-lg font-semibold">Metrics Dashboard</h2>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+          <div className="text-2xl font-bold text-green-400">{completedCount}</div>
+          <div className="text-sm text-muted-foreground">Tasks Completed</div>
+        </div>
+
+        <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+          <div className="text-2xl font-bold text-blue-400">{trackingCount}</div>
+          <div className="text-sm text-muted-foreground">Currently Tracking</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">Recent Completions</h3>
+        {Object.entries(metrics)
+          .filter(([_, m]) => m.completedAt)
+          .sort((a, b) => b[1].completedAt - a[1].completedAt)
+          .slice(0, 5)
+          .map(([taskId, metric]) => {
+            const task = tasks.find(t => t.id === taskId);
+            return (
+              <div key={taskId} className="p-2 bg-muted/20 rounded text-sm">
+                <div className="truncate">{task?.title || taskId}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(metric.completedAt).toLocaleString()}
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  );
+}
+
+// Task Card Badge Component
+export function TaskCardBadge({ pluginId, context }) {
+  const { taskId } = context;
+  const [tracking, setTracking] = useState(false);
+
+  useEffect(() => {
+    window.dexteria.plugin.callApi(pluginId, 'getTaskMetric', taskId)
+      .then(metric => setTracking(!!metric?.trackingStarted && !metric?.completedAt));
+  }, [pluginId, taskId]);
+
+  if (!tracking) return null;
+
+  return (
+    <span className="px-1.5 py-0.5 text-[10px] bg-blue-500/20 text-blue-400 rounded-full">
+      ⏱️ Tracking
+    </span>
+  );
+}
+
+// Task Detail Sidebar Component
+export function TaskDetailSidebar({ pluginId, context }) {
+  const { taskId, task } = context;
+  const [metric, setMetric] = useState(null);
+
+  useEffect(() => {
+    window.dexteria.plugin.callApi(pluginId, 'getTaskMetric', taskId)
+      .then(setMetric);
+  }, [pluginId, taskId]);
+
+  if (!metric) return null;
+
+  return (
+    <div className="p-3 bg-muted/10 rounded-lg border border-border">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        Task Metrics
+      </h4>
+
+      {metric.trackingStarted && (
+        <div className="text-sm">
+          <span className="text-muted-foreground">Started: </span>
+          {new Date(metric.trackingStarted).toLocaleString()}
+        </div>
+      )}
+
+      {metric.completedAt && (
+        <>
+          <div className="text-sm">
+            <span className="text-muted-foreground">Completed: </span>
+            {new Date(metric.completedAt).toLocaleString()}
+          </div>
+          {metric.duration && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">Duration: </span>
+              {formatDuration(metric.duration)}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// TopBar Component
+export function TopBarRight({ pluginId }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const loadCount = async () => {
+      const metrics = await window.dexteria.plugin.callApi(pluginId, 'getMetrics');
+      const tracking = Object.values(metrics).filter(m => m.trackingStarted && !m.completedAt);
+      setCount(tracking.length);
+    };
+
+    loadCount();
+    const interval = setInterval(loadCount, 5000);
+    return () => clearInterval(interval);
+  }, [pluginId]);
+
+  if (count === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 rounded text-xs text-blue-400">
+      <span>⏱️</span>
+      <span>{count} tracking</span>
+    </div>
+  );
+}
+
+function formatDuration(ms) {
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+```
+
+**renderer/styles.css:**
+```css
+/* Optional custom styles for the plugin */
+.metrics-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.metrics-value {
+  font-size: 24px;
+  font-weight: bold;
 }
 ```
 
@@ -859,8 +1481,82 @@ window.dexteria.plugin = {
 
 ---
 
+## Plugin Types
+
+Dexteria supports two types of plugins:
+
+### Bundled Plugins
+
+First-party plugins that ship with Dexteria:
+
+- Located in `src/main/plugins/bundled/`
+- Enabled by default
+- Their UI components are built-in React components
+- Example: `com.dexteria.jira`
+
+### User Plugins
+
+Third-party plugins installed by users:
+
+- Located in `.local-kanban/plugins/`
+- Need to be enabled manually
+- Their UI components are rendered in iframes for security
+- Can be developed by anyone following this guide
+
+## Jira Plugin (Reference Implementation)
+
+The bundled Jira plugin serves as a reference implementation demonstrating:
+
+### Plugin Structure
+```
+src/main/plugins/bundled/com.dexteria.jira/
+├── manifest.json              # Plugin manifest with UI contributions
+├── main.js                    # Main process entry point
+└── lib/
+    ├── constants.js           # API URLs and configuration
+    ├── AuthManager.js         # OAuth 2.0 authentication
+    ├── JiraClient.js          # Jira API client
+    ├── ImportEngine.js        # Issue import logic
+    └── SyncEngine.js          # Bidirectional sync
+```
+
+### Built-in UI Components
+```
+src/renderer/components/
+├── JiraPanel.tsx              # Settings and configuration UI
+├── JiraTaskCardBadge.tsx      # Task card badge showing linked status
+└── JiraTaskDetailSidebar.tsx  # Task detail Jira info panel
+```
+
+### UI Contributions
+```json
+{
+  "contributes": {
+    "settingsTab": {
+      "id": "jira-settings",
+      "title": "Jira",
+      "icon": "Link2",
+      "order": 70
+    },
+    "dockingPanels": [{
+      "id": "jira-panel",
+      "title": "Jira",
+      "icon": "ExternalLink",
+      "singleton": true
+    }],
+    "slots": [
+      { "slotId": "task-card:badge", "order": 10 },
+      { "slotId": "task-detail:sidebar", "order": 10 }
+    ]
+  }
+}
+```
+
+---
+
 ## Next Steps
 
-- Review the [Jira Plugin Implementation Plan](./JIRA_PLUGIN_PLAN.md) for a complete example
-- Check out the example plugins in `.local-kanban/plugins/examples/`
+- Review the Jira plugin source code in `src/main/plugins/bundled/com.dexteria.jira/`
+- Study the built-in UI components in `src/renderer/components/Jira*.tsx`
+- Check out `src/renderer/plugins/BuiltInPluginComponents.tsx` for first-party component mapping
 - Join the Dexteria community for support and discussions

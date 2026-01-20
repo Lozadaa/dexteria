@@ -1,18 +1,44 @@
 /**
- * Component Registry
- * Maps component keys to React components and manages mounted instances
+ * ComponentRegistry - Maps view types to React components
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import type { ComponentDefinition, ComponentRegistryValue } from './types';
-import { COMPONENT_KEYS } from './defaultLayout';
+import React, { createContext, useContext, useMemo } from 'react';
+import type { ViewType, ViewInstance } from './types';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface ViewComponentProps {
+  viewId: string;
+  viewKey: string;
+  params: Record<string, unknown>;
+  isActive: boolean;
+}
+
+export interface ViewTypeDefinition {
+  viewType: ViewType;
+  component: React.ComponentType<ViewComponentProps>;
+  title: string | ((params: Record<string, unknown>) => string);
+  icon?: React.ComponentType<{ size?: number }>;
+  closable?: boolean;
+}
 
 // ============================================================================
 // Context
 // ============================================================================
 
-const ComponentRegistryContext = createContext<ComponentRegistryValue | null>(null);
+interface ComponentRegistryContextValue {
+  definitions: Map<ViewType, ViewTypeDefinition>;
+  register: (definition: ViewTypeDefinition) => void;
+  unregister: (viewType: ViewType) => void;
+  get: (viewType: ViewType) => ViewTypeDefinition | undefined;
+  getTitle: (view: ViewInstance) => string;
+  getIcon: (view: ViewInstance) => React.ReactNode;
+  renderView: (view: ViewInstance, isActive: boolean) => React.ReactNode;
+}
+
+const ComponentRegistryContext = createContext<ComponentRegistryContextValue | null>(null);
 
 // ============================================================================
 // Provider
@@ -20,53 +46,100 @@ const ComponentRegistryContext = createContext<ComponentRegistryValue | null>(nu
 
 interface ComponentRegistryProviderProps {
   children: React.ReactNode;
-  defaultComponents?: ComponentDefinition[];
+  definitions?: ViewTypeDefinition[];
 }
 
 export const ComponentRegistryProvider: React.FC<ComponentRegistryProviderProps> = ({
   children,
-  defaultComponents = [],
+  definitions: initialDefinitions = [],
 }) => {
-  const [components, setComponents] = useState<Map<string, ComponentDefinition>>(() => {
-    const map = new Map<string, ComponentDefinition>();
-    for (const def of defaultComponents) {
-      map.set(def.key, def);
+  const [definitions, setDefinitions] = React.useState<Map<ViewType, ViewTypeDefinition>>(() => {
+    const map = new Map<ViewType, ViewTypeDefinition>();
+    for (const def of initialDefinitions) {
+      map.set(def.viewType, def);
     }
     return map;
   });
 
-  const register = useCallback((definition: ComponentDefinition) => {
-    setComponents((prev) => {
+  const register = React.useCallback((definition: ViewTypeDefinition) => {
+    setDefinitions((prev) => {
       const next = new Map(prev);
-      next.set(definition.key, definition);
+      next.set(definition.viewType, definition);
       return next;
     });
   }, []);
 
-  const unregister = useCallback((key: string) => {
-    setComponents((prev) => {
+  const unregister = React.useCallback((viewType: ViewType) => {
+    setDefinitions((prev) => {
       const next = new Map(prev);
-      next.delete(key);
+      next.delete(viewType);
       return next;
     });
   }, []);
 
-  const get = useCallback(
-    (key: string) => components.get(key),
-    [components]
+  const get = React.useCallback(
+    (viewType: ViewType) => definitions.get(viewType),
+    [definitions]
   );
 
-  const getAll = useCallback(() => Array.from(components.values()), [components]);
+  const getTitle = React.useCallback(
+    (view: ViewInstance): string => {
+      const def = definitions.get(view.viewType);
+      if (!def) return view.viewType;
+      if (typeof def.title === 'function') {
+        return def.title(view.params);
+      }
+      return def.title;
+    },
+    [definitions]
+  );
 
-  const value: ComponentRegistryValue = useMemo(
+  const getIcon = React.useCallback(
+    (view: ViewInstance): React.ReactNode => {
+      const def = definitions.get(view.viewType);
+      if (!def?.icon) return null;
+      const IconComponent = def.icon;
+      return <IconComponent size={14} />;
+    },
+    [definitions]
+  );
+
+  const renderView = React.useCallback(
+    (view: ViewInstance, isActive: boolean): React.ReactNode => {
+      const def = definitions.get(view.viewType);
+      if (!def) {
+        return (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            Unknown view type: {view.viewType}
+          </div>
+        );
+      }
+
+      const Component = def.component;
+      return (
+        <Component
+          key={view.id}
+          viewId={view.id}
+          viewKey={view.viewKey}
+          params={view.params}
+          isActive={isActive}
+        />
+      );
+    },
+    [definitions]
+  );
+
+  const value = useMemo<ComponentRegistryContextValue>(
     () => ({
-      components,
+      definitions,
       register,
       unregister,
       get,
-      getAll,
+      getTitle,
+      getIcon,
+      renderView,
     }),
-    [components, register, unregister, get, getAll]
+    [definitions, register, unregister, get, getTitle, getIcon, renderView]
   );
 
   return (
@@ -80,7 +153,7 @@ export const ComponentRegistryProvider: React.FC<ComponentRegistryProviderProps>
 // Hook
 // ============================================================================
 
-export function useComponentRegistry(): ComponentRegistryValue {
+export function useComponentRegistry(): ComponentRegistryContextValue {
   const context = useContext(ComponentRegistryContext);
   if (!context) {
     throw new Error('useComponentRegistry must be used within a ComponentRegistryProvider');
@@ -89,204 +162,13 @@ export function useComponentRegistry(): ComponentRegistryValue {
 }
 
 // ============================================================================
-// Component Instances Manager
-// Keeps components mounted to preserve their state
+// Placeholder Component
 // ============================================================================
 
-interface MountedInstance {
-  tabId: string;
-  componentKey: string;
-  props?: Record<string, unknown>;
-}
-
-interface ComponentInstancesContextValue {
-  instances: Map<string, MountedInstance>;
-  mountInstance: (tabId: string, componentKey: string, props?: Record<string, unknown>) => void;
-  unmountInstance: (tabId: string) => void;
-  updateInstanceProps: (tabId: string, props: Record<string, unknown>) => void;
-}
-
-const ComponentInstancesContext = createContext<ComponentInstancesContextValue | null>(null);
-
-interface ComponentInstancesProviderProps {
-  children: React.ReactNode;
-}
-
-export const ComponentInstancesProvider: React.FC<ComponentInstancesProviderProps> = ({
-  children,
-}) => {
-  const [instances, setInstances] = useState<Map<string, MountedInstance>>(new Map());
-
-  const mountInstance = useCallback(
-    (tabId: string, componentKey: string, props?: Record<string, unknown>) => {
-      setInstances((prev) => {
-        if (prev.has(tabId)) return prev;
-        const next = new Map(prev);
-        next.set(tabId, { tabId, componentKey, props });
-        return next;
-      });
-    },
-    []
-  );
-
-  const unmountInstance = useCallback((tabId: string) => {
-    setInstances((prev) => {
-      if (!prev.has(tabId)) return prev;
-      const next = new Map(prev);
-      next.delete(tabId);
-      return next;
-    });
-  }, []);
-
-  const updateInstanceProps = useCallback(
-    (tabId: string, props: Record<string, unknown>) => {
-      setInstances((prev) => {
-        const instance = prev.get(tabId);
-        if (!instance) return prev;
-        const next = new Map(prev);
-        next.set(tabId, { ...instance, props: { ...instance.props, ...props } });
-        return next;
-      });
-    },
-    []
-  );
-
-  const value: ComponentInstancesContextValue = useMemo(
-    () => ({
-      instances,
-      mountInstance,
-      unmountInstance,
-      updateInstanceProps,
-    }),
-    [instances, mountInstance, unmountInstance, updateInstanceProps]
-  );
-
+export const PlaceholderView: React.FC<ViewComponentProps> = ({ viewKey }) => {
   return (
-    <ComponentInstancesContext.Provider value={value}>
-      {children}
-    </ComponentInstancesContext.Provider>
-  );
-};
-
-export function useComponentInstances(): ComponentInstancesContextValue {
-  const context = useContext(ComponentInstancesContext);
-  if (!context) {
-    throw new Error('useComponentInstances must be used within a ComponentInstancesProvider');
-  }
-  return context;
-}
-
-// ============================================================================
-// Tab Content Renderer
-// Renders component for a specific tab, using portal to keep state
-// ============================================================================
-
-interface TabContentRendererProps {
-  tabId: string;
-  componentKey: string;
-  props?: Record<string, unknown>;
-  isActive: boolean;
-  containerRef: React.RefObject<HTMLDivElement | null>;
-}
-
-export const TabContentRenderer: React.FC<TabContentRendererProps> = ({
-  tabId,
-  componentKey,
-  props,
-  isActive,
-  containerRef,
-}) => {
-  const { get } = useComponentRegistry();
-  const { mountInstance, instances } = useComponentInstances();
-
-  // Ensure instance is mounted
-  React.useEffect(() => {
-    mountInstance(tabId, componentKey, props);
-  }, [tabId, componentKey, props, mountInstance]);
-
-  const componentDef = get(componentKey);
-
-  if (!componentDef || !containerRef.current) {
-    return null;
-  }
-
-  const Component = componentDef.component;
-
-  // Render through portal to the container
-  return createPortal(
-    <div
-      data-tab-id={tabId}
-      className={`absolute inset-0 ${isActive ? '' : 'invisible pointer-events-none'}`}
-    >
-      <Component {...(props || {})} tabId={tabId} />
-    </div>,
-    containerRef.current
-  );
-};
-
-// ============================================================================
-// All Instances Renderer
-// Renders all mounted instances (keeps them alive for state preservation)
-// ============================================================================
-
-interface AllInstancesRendererProps {
-  activeTabIds: Set<string>;
-  containerRefs: Map<string, React.RefObject<HTMLDivElement | null>>;
-  tabPanelMap: Map<string, string>; // tabId -> panelId
-}
-
-export const AllInstancesRenderer: React.FC<AllInstancesRendererProps> = ({
-  activeTabIds,
-  containerRefs,
-  tabPanelMap,
-}) => {
-  const { instances } = useComponentInstances();
-  const { get } = useComponentRegistry();
-
-  return (
-    <>
-      {Array.from(instances.values()).map((instance) => {
-        const panelId = tabPanelMap.get(instance.tabId);
-        const containerRef = panelId ? containerRefs.get(panelId) : null;
-        const componentDef = get(instance.componentKey);
-
-        if (!componentDef || !containerRef?.current) {
-          return null;
-        }
-
-        const isActive = activeTabIds.has(instance.tabId);
-        const Component = componentDef.component;
-
-        return createPortal(
-          <div
-            key={instance.tabId}
-            data-tab-id={instance.tabId}
-            className={`absolute inset-0 ${isActive ? '' : 'invisible pointer-events-none'}`}
-          >
-            <Component {...(instance.props || {})} tabId={instance.tabId} />
-          </div>,
-          containerRef.current
-        );
-      })}
-    </>
-  );
-};
-
-// ============================================================================
-// Default Component Placeholder
-// ============================================================================
-
-interface PlaceholderComponentProps {
-  componentKey: string;
-}
-
-export const PlaceholderComponent: React.FC<PlaceholderComponentProps> = ({ componentKey }) => {
-  return (
-    <div className="h-full w-full flex items-center justify-center bg-background text-muted-foreground">
-      <div className="text-center">
-        <p className="text-lg font-medium">Component not found</p>
-        <p className="text-sm mt-1">Key: {componentKey}</p>
-      </div>
+    <div className="flex items-center justify-center h-full text-muted-foreground">
+      <p>View: {viewKey}</p>
     </div>
   );
 };

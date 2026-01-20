@@ -358,6 +358,33 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
       required: ['completed', 'nextStep'],
     },
   },
+  {
+    name: 'configure_project',
+    description: 'Configure the project commands (run, build, install). IMPORTANT: Use this when setting up a new project to tell Dexteria how to run and build it. This is essential for Ralph mode to execute your project correctly.',
+    parameters: {
+      type: 'object',
+      properties: {
+        runCommand: {
+          type: 'string',
+          description: 'Command to start the development server (e.g., "npm run dev", "yarn dev", "pnpm dev")',
+        },
+        buildCommand: {
+          type: 'string',
+          description: 'Command to build the project (e.g., "npm run build", "yarn build", "pnpm build")',
+        },
+        installCommand: {
+          type: 'string',
+          description: 'Command to install dependencies (e.g., "npm install", "yarn", "pnpm install")',
+        },
+        packageManager: {
+          type: 'string',
+          description: 'The package manager used (npm, yarn, pnpm, bun)',
+          enum: ['npm', 'yarn', 'pnpm', 'bun'],
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 // ============================================

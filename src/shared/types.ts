@@ -995,6 +995,7 @@ export interface PluginDockingPanelContribution {
   icon: string;
   singleton?: boolean;
   defaultPosition?: 'left' | 'right' | 'bottom';
+  order?: number;
 }
 
 /**

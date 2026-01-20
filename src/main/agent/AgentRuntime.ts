@@ -470,6 +470,84 @@ export class AgentRuntime {
         };
       }
 
+      case 'configure_project': {
+        try {
+          // Get current project settings
+          const settings = this.store.getSettings();
+
+          // Build update object
+          const updates: Record<string, unknown> = {};
+
+          if (args.runCommand) {
+            updates['projectCommands.run.cmd'] = String(args.runCommand);
+          }
+          if (args.buildCommand) {
+            updates['projectCommands.build.cmd'] = String(args.buildCommand);
+          }
+          if (args.installCommand) {
+            updates['projectCommands.install.cmd'] = String(args.installCommand);
+          }
+
+          // Apply updates to settings
+          let updatedSettings = { ...settings };
+          if (args.runCommand) {
+            updatedSettings = {
+              ...updatedSettings,
+              projectCommands: {
+                ...updatedSettings.projectCommands,
+                run: {
+                  ...updatedSettings.projectCommands.run,
+                  cmd: String(args.runCommand),
+                },
+              },
+            };
+          }
+          if (args.buildCommand) {
+            updatedSettings = {
+              ...updatedSettings,
+              projectCommands: {
+                ...updatedSettings.projectCommands,
+                build: {
+                  ...updatedSettings.projectCommands.build,
+                  cmd: String(args.buildCommand),
+                },
+              },
+            };
+          }
+          if (args.installCommand) {
+            updatedSettings = {
+              ...updatedSettings,
+              projectCommands: {
+                ...updatedSettings.projectCommands,
+                install: {
+                  ...updatedSettings.projectCommands.install,
+                  cmd: String(args.installCommand),
+                },
+              },
+            };
+          }
+
+          // Save the updated settings
+          this.store.saveSettings(updatedSettings);
+
+          const configured = [];
+          if (args.runCommand) configured.push(`Run: ${args.runCommand}`);
+          if (args.buildCommand) configured.push(`Build: ${args.buildCommand}`);
+          if (args.installCommand) configured.push(`Install: ${args.installCommand}`);
+          if (args.packageManager) configured.push(`Package Manager: ${args.packageManager}`);
+
+          return {
+            output: `Project commands configured successfully:\n${configured.join('\n')}`,
+            shouldStop: false,
+          };
+        } catch (error) {
+          return {
+            output: `Failed to configure project: ${error instanceof Error ? error.message : String(error)}`,
+            shouldStop: false,
+          };
+        }
+      }
+
       default:
         return {
           output: `Unknown tool: ${toolCall.name}`,

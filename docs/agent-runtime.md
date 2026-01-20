@@ -51,9 +51,12 @@ The Dexteria agent runtime consists of several components:
                     │   ├── tasks.json      │
                     │   ├── state.json      │
                     │   ├── policy.json     │
+                    │   ├── settings.json   │
                     │   ├── activity.jsonl  │
                     │   ├── context/        │
                     │   ├── chats/          │
+                    │   ├── themes/         │
+                    │   ├── plugins/        │
                     │   ├── runs/           │
                     │   └── agent-runs/     │
                     └───────────────────────┘
@@ -207,6 +210,15 @@ The agent interacts with the codebase through these tools:
 |------|-------------|
 | `run_command` | Run a shell command with timeout |
 
+### Task Management Tools
+
+| Tool | Description |
+|------|-------------|
+| `create_task` | Create a new task with optional Epic/Sprint |
+| `update_task` | Update task fields including Epic/Sprint |
+| `list_tasks` | List all tasks with their metadata |
+| `save_progress` | Save progress checkpoint |
+
 ### Task Control Tools
 
 | Tool | Description |
@@ -214,6 +226,32 @@ The agent interacts with the codebase through these tools:
 | `task_complete` | Mark task complete with acceptance verification |
 | `task_blocked` | Mark task blocked, request human input |
 | `task_failed` | Mark task failed with reason |
+
+### Epic and Sprint Support
+
+Tasks can include Epic and Sprint metadata for Jira alignment:
+
+```typescript
+// Creating a task with Epic/Sprint
+create_task({
+  title: "Implement user authentication",
+  description: "Add login/logout functionality",
+  epic: {
+    name: "Authentication",
+    color: "#3b82f6"  // Blue
+  },
+  sprint: "Sprint 3"
+});
+
+// Updating Epic/Sprint
+update_task({
+  taskId: "task-001",
+  epic: { name: "Security", color: "#ef4444" },
+  sprint: "Sprint 4"
+});
+```
+
+The agent's prompt includes Epic and Sprint context when executing tasks, ensuring consistency with project organization.
 
 ## Policy Enforcement
 

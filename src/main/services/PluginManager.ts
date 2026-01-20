@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import { getStore } from '../ipc/handlers/shared';
+import { getBundledPlugins } from '../plugins/bundled';
 import type {
   PluginManifest,
   PluginInfo,
@@ -42,7 +43,6 @@ import type {
   UIContributions,
   PluginManifestExtended,
   ExtensionSlotId,
-  PluginRendererConfig,
 } from '../../shared/types';
 
 /**
@@ -276,9 +276,60 @@ export class PluginManager {
   }
 
   /**
-   * Discover plugins in the plugins directory
+   * Discover plugins from bundled and user directories
    */
   private async discoverPlugins(): Promise<void> {
+    // First, load bundled plugins (shipped with Dexteria)
+    await this.discoverBundledPlugins();
+
+    // Then load user-installed plugins from .local-kanban/plugins/
+    await this.discoverUserPlugins();
+  }
+
+  /**
+   * Discover bundled plugins that ship with Dexteria
+   */
+  private async discoverBundledPlugins(): Promise<void> {
+    const bundledPlugins = getBundledPlugins();
+
+    for (const bundledPlugin of bundledPlugins) {
+      const manifestPath = path.join(bundledPlugin.path, 'manifest.json');
+
+      try {
+        const manifestData = fs.readFileSync(manifestPath, 'utf-8');
+        const manifest = JSON.parse(manifestData) as PluginManifest;
+
+        // Validate manifest
+        if (!manifest.id || !manifest.name || !manifest.version) {
+          console.error(`[PluginManager] Invalid manifest in bundled plugin ${bundledPlugin.id}`);
+          continue;
+        }
+
+        // Bundled plugins are enabled by default unless explicitly disabled
+        let state: PluginState = 'enabled';
+        if (this.index?.disabled.includes(manifest.id)) {
+          state = 'disabled';
+        }
+
+        const pluginInfo: PluginInfo = {
+          manifest,
+          state,
+          path: bundledPlugin.path,
+          loadedAt: new Date().toISOString(),
+        };
+
+        this.plugins.set(manifest.id, pluginInfo);
+        console.log(`[PluginManager] Discovered bundled plugin: ${manifest.name} (${manifest.id})`);
+      } catch (err) {
+        console.error(`[PluginManager] Failed to load bundled plugin ${bundledPlugin.id}:`, err);
+      }
+    }
+  }
+
+  /**
+   * Discover user-installed plugins in the plugins directory
+   */
+  private async discoverUserPlugins(): Promise<void> {
     if (!fs.existsSync(this.pluginsDir)) return;
 
     const entries = fs.readdirSync(this.pluginsDir, { withFileTypes: true });
@@ -286,6 +337,7 @@ export class PluginManager {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       if (entry.name === 'data') continue; // Skip data directory
+      if (entry.name === 'index.json') continue; // Skip index file
 
       const pluginPath = path.join(this.pluginsDir, entry.name);
       const manifestPath = path.join(pluginPath, 'manifest.json');
@@ -305,6 +357,12 @@ export class PluginManager {
           continue;
         }
 
+        // Skip if already loaded (bundled plugins take precedence)
+        if (this.plugins.has(manifest.id)) {
+          console.log(`[PluginManager] Skipping user plugin ${manifest.id} (bundled version exists)`);
+          continue;
+        }
+
         // Determine state based on index
         let state: PluginState = 'installed';
         if (this.index?.enabled.includes(manifest.id)) {
@@ -321,7 +379,7 @@ export class PluginManager {
         };
 
         this.plugins.set(manifest.id, pluginInfo);
-        console.log(`[PluginManager] Discovered plugin: ${manifest.name} (${manifest.id})`);
+        console.log(`[PluginManager] Discovered user plugin: ${manifest.name} (${manifest.id})`);
       } catch (err) {
         console.error(`[PluginManager] Failed to load manifest for ${entry.name}:`, err);
       }
@@ -475,55 +533,81 @@ export class PluginManager {
    * Activate a plugin
    */
   async activatePlugin(pluginId: string): Promise<boolean> {
+    console.log(`[PluginManager] Attempting to activate plugin: ${pluginId}`);
+
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
-      console.error(`[PluginManager] Plugin ${pluginId} not found`);
+      console.error(`[PluginManager] Plugin ${pluginId} not found in registry`);
+      console.log(`[PluginManager] Available plugins: ${Array.from(this.plugins.keys()).join(', ')}`);
       return false;
     }
 
     if (plugin.state === 'active') {
-      return true; // Already active
+      console.log(`[PluginManager] Plugin ${pluginId} is already active`);
+      return true;
     }
 
     try {
       // Load the plugin module
       const mainPath = path.join(plugin.path, plugin.manifest.main || 'main.js');
+      console.log(`[PluginManager] Looking for main entry at: ${mainPath}`);
+
       if (!fs.existsSync(mainPath)) {
         console.error(`[PluginManager] Main entry not found: ${mainPath}`);
+        console.log(`[PluginManager] Plugin path: ${plugin.path}`);
+        console.log(`[PluginManager] Files in plugin directory:`);
+        try {
+          const files = fs.readdirSync(plugin.path);
+          files.forEach(f => console.log(`  - ${f}`));
+        } catch (e) {
+          console.error(`[PluginManager] Could not read plugin directory: ${e}`);
+        }
         plugin.state = 'error';
-        plugin.error = 'Main entry file not found';
+        plugin.error = `Main entry file not found: ${mainPath}`;
         return false;
       }
 
       // Dynamic import (in Node.js context)
+      console.log(`[PluginManager] Loading module from: ${mainPath}`);
+      // Clear require cache to ensure fresh load
+      delete require.cache[require.resolve(mainPath)];
       const module = require(mainPath) as PluginModule;
+
       if (typeof module.activate !== 'function') {
         console.error(`[PluginManager] Plugin ${pluginId} has no activate function`);
+        console.log(`[PluginManager] Module exports:`, Object.keys(module));
         plugin.state = 'error';
         plugin.error = 'No activate function exported';
         return false;
       }
 
       // Create context and activate
+      console.log(`[PluginManager] Creating context for ${pluginId}`);
       const context = this.createPluginContext(pluginId);
+      console.log(`[PluginManager] Calling activate() for ${pluginId}`);
       await module.activate(context);
 
       // Update state
       this.loadedModules.set(pluginId, module);
       plugin.state = 'active';
       plugin.activatedAt = new Date().toISOString();
+      plugin.error = undefined; // Clear any previous error
 
-      // Update index
-      if (this.index && !this.index.enabled.includes(pluginId)) {
-        this.index.enabled.push(pluginId);
+      // Update index - ensure persistence
+      if (this.index) {
+        if (!this.index.enabled.includes(pluginId)) {
+          this.index.enabled.push(pluginId);
+        }
         this.index.disabled = this.index.disabled.filter((id) => id !== pluginId);
         this.saveIndex();
+        console.log(`[PluginManager] Saved index with enabled plugins: ${this.index.enabled.join(', ')}`);
       }
 
-      console.log(`[PluginManager] Activated plugin: ${plugin.manifest.name}`);
+      console.log(`[PluginManager] Successfully activated plugin: ${plugin.manifest.name} (${pluginId})`);
       return true;
     } catch (err) {
       console.error(`[PluginManager] Failed to activate ${pluginId}:`, err);
+      console.error(`[PluginManager] Error stack:`, (err as Error).stack);
       plugin.state = 'error';
       plugin.error = err instanceof Error ? err.message : 'Unknown error';
       return false;
@@ -696,15 +780,8 @@ export class PluginManager {
 
       if (!contributes) continue;
 
-      // Normalize renderer config
-      let rendererConfig: PluginRendererConfig | undefined;
-      if (manifest.renderer) {
-        if (typeof manifest.renderer === 'string') {
-          rendererConfig = { entry: manifest.renderer };
-        } else {
-          rendererConfig = manifest.renderer;
-        }
-      }
+      // Note: renderer config is used when resolving plugin UI components
+      // The pluginPath is used to locate the renderer entry point
 
       // Add settings tab contribution
       if (contributes.settingsTab) {

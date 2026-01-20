@@ -1,0 +1,64 @@
+{
+  "id": "com.dexteria.jira",
+  "name": "Jira Integration",
+  "version": "2.0.0",
+  "author": "Dexteria Team",
+  "description": "Import and sync tasks with Jira Cloud. Connect your Jira projects to Dexteria's Kanban board.",
+  "main": "main.js",
+  "permissions": {
+    "tasks": "full",
+    "settings": "write",
+    "ui": {
+      "tabs": true,
+      "contextMenus": true,
+      "sidebars": true
+    }
+  },
+  "contributes": {
+    "settingsTab": {
+      "id": "jira-settings",
+      "title": "Jira",
+      "icon": "Link2",
+      "order": 70
+    },
+    "dockingPanels": [
+      {
+        "id": "jira-panel",
+        "title": "Jira",
+        "icon": "ExternalLink",
+        "singleton": true,
+        "defaultPosition": "right"
+      }
+    ],
+    "slots": [
+      {
+        "slotId": "task-card:badge",
+        "order": 10
+      },
+      {
+        "slotId": "task-detail:sidebar",
+        "order": 10
+      }
+    ],
+    "commands": [
+      { "id": "jira.connect", "title": "Connect to Jira" },
+      { "id": "jira.disconnect", "title": "Disconnect from Jira" },
+      { "id": "jira.import", "title": "Import from Jira" },
+      { "id": "jira.sync", "title": "Sync All Tasks" }
+    ],
+    "contextMenus": [
+      {
+        "location": "task",
+        "items": [
+          { "id": "jira.link", "label": "Link to Jira Issue", "icon": "Link" },
+          { "id": "jira.view", "label": "View in Jira", "icon": "ExternalLink" },
+          { "id": "jira.unlink", "label": "Unlink from Jira", "icon": "Unlink" }
+        ]
+      }
+    ]
+  },
+  "renderer": {
+    "entry": "renderer/index.js",
+    "styles": "renderer/styles.css"
+  }
+}

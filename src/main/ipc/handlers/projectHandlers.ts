@@ -56,10 +56,7 @@ async function openProject(projectPath: string, mainWindow: BrowserWindow | null
       setAgentProvider(new ClaudeCodeProvider({ workingDirectory: projectPath }));
     }
 
-    // Analyze project and set context on provider
-    await analyzeAndSetProjectContext(projectPath, store);
-
-    // Initialize runner and ralph engine
+    // Initialize runner and ralph engine first (fast operations)
     const policy = store.getPolicy();
     const runner = new Runner(projectPath, policy, store);
     setRunner(runner);
@@ -77,12 +74,24 @@ async function openProject(projectPath: string, mainWindow: BrowserWindow | null
     // Add to recent projects
     addToRecentProjects(projectPath);
 
-    // Notify renderer
+    // Notify renderer that project is ready (before analysis completes)
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('project:changed', projectPath);
     }
 
     console.log('Opened project:', projectPath);
+
+    // Analyze project context in background (non-blocking)
+    // Use setImmediate to defer execution and not block the event loop
+    setImmediate(async () => {
+      try {
+        await analyzeAndSetProjectContext(projectPath, store);
+        console.log('[Project] Background analysis complete');
+      } catch (err) {
+        console.error('[Project] Background analysis failed:', err);
+      }
+    });
+
     return true;
   } catch (err) {
     console.error('Failed to open project:', err);

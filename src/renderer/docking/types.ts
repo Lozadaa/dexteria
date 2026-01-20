@@ -1,187 +1,243 @@
 /**
- * Docking System Types
- * VSCode-style flexible panel system with drag-and-drop tabs
+ * Dexteria Layout & View System
+ * Core type definitions
  */
+
+// ============================================================================
+// View Instance
+// ============================================================================
+
+/**
+ * A single view instance within a ViewGroup
+ */
+export interface ViewInstance {
+  readonly id: string;
+  readonly viewType: ViewType;
+  readonly viewKey: string;
+  readonly params: Record<string, unknown>;
+  readonly hasDocument: boolean;
+  readonly documentId?: string;
+  readonly isDirty: boolean;
+}
+
+// ============================================================================
+// View Group
+// ============================================================================
+
+/**
+ * A container for multiple views (tab group)
+ */
+export interface ViewGroup {
+  readonly id: string;
+  readonly viewIds: string[];
+  readonly activeViewId: string | null;
+}
 
 // ============================================================================
 // Layout Tree Nodes
 // ============================================================================
 
 /**
- * Split node - divides space into two children with a resize handle
+ * Leaf node - references a ViewGroup by ID
  */
-export interface SplitNode {
-  id: string;
-  type: 'split';
-  direction: 'horizontal' | 'vertical';
-  children: [LayoutNode, LayoutNode];
-  sizes: [number, number]; // Percentages (e.g., [60, 40])
+export interface LeafNode {
+  readonly type: 'leaf';
+  readonly groupId: string;
 }
 
 /**
- * Panel node - contains tabs
+ * Split node - divides space between two children
+ * direction: 'row' = left/right (horizontal), 'col' = top/bottom (vertical)
+ * ratio: single value 0.1-0.9 for first child's proportion
  */
-export interface PanelNode {
-  id: string;
-  type: 'panel';
-  tabs: string[]; // Tab IDs
-  activeTabId: string | null;
+export interface SplitNode {
+  readonly type: 'split';
+  readonly direction: 'row' | 'col';
+  readonly ratio: number;
+  readonly a: LayoutNode;
+  readonly b: LayoutNode;
 }
 
 /**
  * Union type for layout tree nodes
  */
-export type LayoutNode = SplitNode | PanelNode;
+export type LayoutNode = LeafNode | SplitNode;
 
 // ============================================================================
-// Tab Definitions
+// Layout State
 // ============================================================================
 
 /**
- * Tab definition - describes a tab and its content
+ * Complete layout state
  */
-export interface TabDefinition {
-  id: string;
-  title: string;
-  icon?: string; // Lucide icon name
-  componentKey: string; // Key to look up component in registry
-  closable: boolean;
-  singleton: boolean; // If true, only one instance allowed
-  props?: Record<string, unknown>; // Props to pass to component
-}
-
-/**
- * Tab instance for rendering
- */
-export interface TabInstance {
-  id: string;
-  definition: TabDefinition;
-  panelId: string;
+export interface LayoutState {
+  readonly tree: LayoutNode;
+  readonly groups: Record<string, ViewGroup>;
+  readonly views: Record<string, ViewInstance>;
+  readonly activeGroupId: string;
 }
 
 // ============================================================================
-// Drag and Drop
+// Tree Path
 // ============================================================================
 
 /**
- * Drop zone position
+ * Path through the tree: 0 = child a, 1 = child b
  */
-export type DropZone = 'center' | 'left' | 'right' | 'top' | 'bottom';
+export type TreePath = number[];
+
+// ============================================================================
+// View Types
+// ============================================================================
 
 /**
- * Drag state during tab drag operation
+ * All supported view types
+ */
+export type ViewType =
+  | 'chat'
+  | 'board'
+  | 'taskRunner'
+  | 'taskDetail'
+  | 'plugins'
+  | 'settings'
+  | 'jsonEditor'
+  | 'logs'
+  | 'terminal'
+  | 'themeEditor'
+  | 'welcome';
+
+/**
+ * Instance creation mode for view types
+ */
+export type InstanceMode = 'singleton' | 'dedupeByKey' | 'alwaysNew';
+
+/**
+ * Configuration for a view type
+ */
+export interface ViewTypeConfig {
+  readonly mode: InstanceMode;
+  readonly getDedupeKey?: (params: Record<string, unknown>) => string | null;
+}
+
+// ============================================================================
+// Drop Zones
+// ============================================================================
+
+/**
+ * Drop zone positions for drag & drop
+ */
+export type DropZone = 'center' | 'top' | 'bottom' | 'left' | 'right';
+
+/**
+ * Drop target for move operations
+ */
+export interface DropTarget {
+  readonly groupId: string;
+  readonly zone: DropZone;
+  readonly tabIndex?: number;
+}
+
+/**
+ * Open target for view operations
+ */
+export type OpenTarget =
+  | { readonly type: 'active' }
+  | { readonly type: 'group'; readonly groupId: string }
+  | {
+      readonly type: 'newSplit';
+      readonly groupId?: string;
+      readonly direction?: 'row' | 'col';
+      readonly position?: 'before' | 'after';
+    };
+
+// ============================================================================
+// Drag State
+// ============================================================================
+
+/**
+ * Active drag state during a drag operation
  */
 export interface DragState {
-  tabId: string;
-  sourcePanelId: string;
-  currentDropZone: DropZone | null;
-  currentDropPanelId: string | null;
+  readonly viewId: string;
+  readonly sourceGroupId: string;
+  readonly currentDropZone: DropZone | null;
+  readonly currentTargetGroupId: string | null;
 }
 
 // ============================================================================
-// Docking State
+// Validation
 // ============================================================================
 
 /**
- * Complete docking state
+ * Validation result from invariant checks
  */
-export interface DockingState {
-  root: LayoutNode | null;
-  tabs: Record<string, TabDefinition>;
+export interface ValidationResult {
+  readonly valid: boolean;
+  readonly errors: string[];
 }
 
 /**
- * Serializable layout for persistence
+ * Options for validation
  */
-export interface SerializedLayout {
-  version: number;
-  root: LayoutNode | null;
-  tabs: Record<string, TabDefinition>;
-}
-
-// ============================================================================
-// Context Types
-// ============================================================================
-
-/**
- * Open tab options
- */
-export interface OpenTabOptions {
-  /** Panel to open in (optional, will use focused or create new) */
-  panelId?: string;
-  /** Position relative to target panel */
-  position?: DropZone;
-  /** Focus the tab after opening */
-  focus?: boolean;
-  /** Props to pass to the component */
-  props?: Record<string, unknown>;
-}
-
-/**
- * Docking context value
- */
-export interface DockingContextValue {
-  // State
-  state: DockingState;
-  dragState: DragState | null;
-  focusedPanelId: string | null;
-
-  // Tab operations
-  openTab: (componentKey: string, options?: OpenTabOptions) => string;
-  closeTab: (tabId: string) => void;
-  focusTab: (tabId: string) => void;
-  updateTabProps: (tabId: string, props: Record<string, unknown>) => void;
-
-  // Panel operations
-  focusPanel: (panelId: string) => void;
-  splitPanel: (panelId: string, direction: 'horizontal' | 'vertical', tabId?: string) => string;
-  mergePanel: (panelId: string) => void;
-
-  // Drag operations
-  startDrag: (tabId: string, panelId: string) => void;
-  updateDropZone: (zone: DropZone | null, panelId: string | null) => void;
-  endDrag: () => void;
-
-  // Layout operations
-  updateSizes: (splitId: string, sizes: [number, number]) => void;
-  resetLayout: () => void;
+export interface ValidateOptions {
+  readonly strictEmptyGroups?: boolean;
 }
 
 // ============================================================================
-// Component Registry Types
+// Tree Operation Results
 // ============================================================================
 
 /**
- * Component definition for registry
+ * Result of removing a group from the tree
  */
-export interface ComponentDefinition {
-  key: string;
-  component: React.ComponentType<Record<string, unknown>>;
-  defaultTitle: string;
-  icon?: string;
-  closable?: boolean;
-  singleton?: boolean;
+export type RemoveResult =
+  | { readonly type: 'removed'; readonly tree: LayoutNode }
+  | { readonly type: 'wasLastLeaf' }
+  | { readonly type: 'notFound' };
+
+// ============================================================================
+// Drop Zone Detection
+// ============================================================================
+
+/**
+ * Result from drop zone detection
+ */
+export interface DropZoneResult {
+  readonly zone: DropZone;
+  readonly tabIndex?: number;
 }
 
 /**
- * Component registry value
+ * Configuration for drop zone detection
  */
-export interface ComponentRegistryValue {
-  components: Map<string, ComponentDefinition>;
-  register: (definition: ComponentDefinition) => void;
-  unregister: (key: string) => void;
-  get: (key: string) => ComponentDefinition | undefined;
-  getAll: () => ComponentDefinition[];
+export interface DropZoneConfig {
+  readonly edgeThreshold: number;
+  readonly tabBarHeight: number;
 }
 
 // ============================================================================
 // Type Guards
 // ============================================================================
 
+export function isLeafNode(node: LayoutNode): node is LeafNode {
+  return node.type === 'leaf';
+}
+
 export function isSplitNode(node: LayoutNode): node is SplitNode {
   return node.type === 'split';
 }
 
-export function isPanelNode(node: LayoutNode): node is PanelNode {
-  return node.type === 'panel';
+// ============================================================================
+// Persistence
+// ============================================================================
+
+/**
+ * Serialized layout for persistence
+ */
+export interface SerializedLayout {
+  readonly version: 1;
+  readonly tree: LayoutNode;
+  readonly groups: Record<string, ViewGroup>;
+  readonly views: Record<string, ViewInstance>;
+  readonly activeGroupId: string;
 }

@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAgentState } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
 import Ralph from '../../../assets/ralph.png'
-import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, PanelTop, LayoutGrid, MessageSquare, RotateCcw, Puzzle } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, LayoutGrid, MessageSquare, PanelBottom } from 'lucide-react';
 import LogoIcon from '../../../assets/logoicon.png';
 import { Button, IconButton, ToggleGroup } from 'adnia-ui';
 import type { ProjectProcessStatus } from '../../shared/types';
-import { useDocking, COMPONENT_KEYS, useComponentRegistry } from '../docking';
 import { Slot } from './extension/Slot';
-import { useDockingPanels } from '../contexts/ExtensionPointsContext';
+import { useLayoutStore } from '../docking';
 
   interface RalphProgress {
       total: number;
@@ -22,26 +20,18 @@ import { useDockingPanels } from '../contexts/ExtensionPointsContext';
       status: string;
   }
 
-  // Helper to get Lucide icon by name
-  const getLucideIcon = (iconName: string, size: number = 14): React.ReactNode => {
-      const Icon = (LucideIcons as Record<string, React.FC<{ size?: number }>>)[iconName];
-      if (Icon) {
-          return <Icon size={size} />;
-      }
-      return <Puzzle size={size} />;
-  };
+  interface TopBarProps {
+      onOpenSettings?: () => void;
+      onOpenThemeEditor?: (themeId: string, themeName?: string) => void;
+  }
 
-  export const TopBar: React.FC = () => {
+  export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings }) => {
       const { state, refresh } = useAgentState();
       const { mode, setMode, triggerPlannerBlock } = useMode();
-      const { openTab, resetLayout } = useDocking();
-      const { getAll: getAllComponents } = useComponentRegistry();
-      const pluginDockingPanels = useDockingPanels();
       const [isMaximized, setIsMaximized] = useState(false);
       const [showSettings, setShowSettings] = useState(false);
       const [showFileMenu, setShowFileMenu] = useState(false);
       const [showWindowMenu, setShowWindowMenu] = useState(false);
-      const windowMenuRef = useRef<HTMLDivElement>(null);
       const [ralphRunning, setRalphRunning] = useState(false);
       const [ralphProgress, setRalphProgress] = useState<RalphProgress | null>(null);
       const [stoppingRalph, setStoppingRalph] = useState(false);
@@ -49,7 +39,10 @@ import { useDockingPanels } from '../contexts/ExtensionPointsContext';
       const [buildStatus, setBuildStatus] = useState<ProjectProcessStatus | null>(null);
       const settingsRef = useRef<HTMLDivElement>(null);
       const fileMenuRef = useRef<HTMLDivElement>(null);
+      const windowMenuRef = useRef<HTMLDivElement>(null);
       const ralphIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+      const openView = useLayoutStore((s) => s.openView);
 
       useEffect(() => {
           // Check initial maximized state
@@ -352,17 +345,11 @@ import { useDockingPanels } from '../contexts/ExtensionPointsContext';
                       </Button>
 
                       {showWindowMenu && (
-                          <div className="absolute left-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden max-h-[400px] overflow-y-auto">
-                              <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                  Panels
-                              </div>
+                          <div className="absolute left-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
                               <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
-                                      openTab(COMPONENT_KEYS.BOARD);
-                                      setShowWindowMenu(false);
-                                  }}
+                                  onClick={() => { openView('board'); setShowWindowMenu(false); }}
                                   className="w-full justify-start rounded-none"
                               >
                                   <LayoutGrid size={14} />
@@ -371,80 +358,30 @@ import { useDockingPanels } from '../contexts/ExtensionPointsContext';
                               <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
-                                      openTab(COMPONENT_KEYS.CHAT);
-                                      setShowWindowMenu(false);
-                                  }}
+                                  onClick={() => { openView('chat'); setShowWindowMenu(false); }}
                                   className="w-full justify-start rounded-none"
                               >
                                   <MessageSquare size={14} />
-                                  New Chat
+                                  Chat
                               </Button>
                               <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
-                                      openTab(COMPONENT_KEYS.SETTINGS);
-                                      setShowWindowMenu(false);
-                                  }}
+                                  onClick={() => { openView('taskRunner'); setShowWindowMenu(false); }}
                                   className="w-full justify-start rounded-none"
                               >
-                                  <Settings size={14} />
-                                  Settings
-                              </Button>
-                              <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                      openTab(COMPONENT_KEYS.TASK_RUNNER);
-                                      setShowWindowMenu(false);
-                                  }}
-                                  className="w-full justify-start rounded-none"
-                              >
-                                  <Terminal size={14} />
+                                  <PanelBottom size={14} />
                                   Task Runner
                               </Button>
-
-                              {/* Plugin Docking Panels */}
-                              {pluginDockingPanels.length > 0 && (
-                                  <>
-                                      <div className="h-px bg-border my-1" />
-                                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                          Plugins
-                                      </div>
-                                      {pluginDockingPanels.map((panel) => {
-                                          const componentKey = `plugin:${panel.pluginId}:${panel.id}`;
-                                          return (
-                                              <Button
-                                                  key={componentKey}
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => {
-                                                      openTab(componentKey);
-                                                      setShowWindowMenu(false);
-                                                  }}
-                                                  className="w-full justify-start rounded-none"
-                                              >
-                                                  {getLucideIcon(panel.icon || 'Puzzle', 14)}
-                                                  {panel.title}
-                                              </Button>
-                                          );
-                                      })}
-                                  </>
-                              )}
-
                               <div className="h-px bg-border my-1" />
                               <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
-                                      resetLayout();
-                                      setShowWindowMenu(false);
-                                  }}
+                                  onClick={() => { openView('settings'); setShowWindowMenu(false); }}
                                   className="w-full justify-start rounded-none"
                               >
-                                  <RotateCcw size={14} />
-                                  Reset Layout
+                                  <Settings size={14} />
+                                  Settings
                               </Button>
                           </div>
                       )}
@@ -627,7 +564,7 @@ import { useDockingPanels } from '../contexts/ExtensionPointsContext';
                                   size="sm"
                                   onClick={() => {
                                       setShowSettings(false);
-                                      openTab(COMPONENT_KEYS.SETTINGS);
+                                      onOpenSettings?.();
                                   }}
                                   className="w-full justify-start rounded-none"
                               >

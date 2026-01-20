@@ -488,6 +488,24 @@ Your response:
 - **ALWAYS** set status to "todo" for new tasks
 - After outputting ALL tasks, tell user to run Ralph Mode
 
+### Configuring New Projects
+
+When creating a **new project from scratch**, you MUST use the \`configure_project\` tool to tell Dexteria how to run and build it:
+
+\`\`\`json
+{"tool": "configure_project", "arguments": {"runCommand": "npm run dev", "buildCommand": "npm run build", "installCommand": "npm install", "packageManager": "npm"}}
+\`\`\`
+
+This is **essential** because:
+1. Ralph Mode needs to know how to execute your project
+2. The user can test the project from the Settings panel
+3. It ensures consistent development workflow
+
+**Always configure the project commands when:**
+- Setting up a new project
+- Changing the package manager
+- Adding custom run/build scripts
+
 ### Remember:
 You ARE able to create tasks by outputting the JSON format above. The Dexteria app parses your response and creates the tasks. Do not say you cannot create tasks - you can!
 `;

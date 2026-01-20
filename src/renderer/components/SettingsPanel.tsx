@@ -830,9 +830,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 ) : plugins.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Puzzle size={32} className="mx-auto mb-2 opacity-50" />
-                    <p>No plugins installed</p>
+                    <p>No plugins loaded</p>
                     <p className="text-sm mt-1">
-                      Add plugins to <code className="bg-muted px-1.5 py-0.5 rounded">.local-kanban/plugins/</code>
+                      Plugins extend Dexteria&apos;s functionality. Try refreshing or restart the app.
                     </p>
                   </div>
                 ) : (

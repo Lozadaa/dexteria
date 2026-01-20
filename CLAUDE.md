@@ -15,6 +15,7 @@ Dexteria is an AI project manager that can:
 - **Execute** tasks autonomously using Claude AI
 - **Learn** from failures and retry with context
 - **Track** all changes with full observability
+- **Customize** themes and extend via plugins
 
 ### Core Concepts
 
@@ -34,6 +35,12 @@ Backlog → To Do → In Progress → Review → Done
          (AI executes these)
 ```
 
+#### Jira Alignment
+
+Tasks support **Epic** and **Sprint** fields for Jira integration:
+- **Epic**: Categorizes tasks with a name and color label
+- **Sprint**: Identifies the delivery sprint (e.g., "Sprint 1")
+
 #### Ralph Mode (Autopilot)
 
 "Ralph" is the autonomous execution mode that:
@@ -50,19 +57,37 @@ Backlog → To Do → In Progress → Review → Done
    - Acceptance criteria verification
    - Automatic code generation and testing
 
-2. **Safety First**
+2. **VSCode-Style Docking System**
+   - Flexible panel layout with drag-and-drop tabs
+   - Split panels horizontally/vertically
+   - Layout persistence in localStorage
+   - Window menu for panel management
+
+3. **Theme System**
+   - Customizable color themes
+   - Theme editor with live preview
+   - Import/export themes
+   - Per-project themes
+
+4. **Plugin System**
+   - Hook-based architecture (14 hooks)
+   - UI extensions (tabs, context menus)
+   - Storage API for plugins
+   - Jira integration plugin available
+
+5. **Safety First**
    - Git branch per execution (rollback capability)
    - Policy-based access control
    - Max attempts limit per task
    - Detailed failure logging
 
-3. **Local-First**
+6. **Local-First**
    - All data in `.local-kanban/` folder
    - Human-readable JSON files
    - Works offline
    - Full privacy
 
-4. **Observability**
+7. **Observability**
    - Every action logged
    - Run artifacts saved
    - Failure context preserved
@@ -82,6 +107,7 @@ Backlog → To Do → In Progress → Review → Done
 | Styling | Tailwind CSS |
 | AI | Anthropic Claude API |
 | Drag & Drop | dnd-kit |
+| Panels | react-resizable-panels |
 | Validation | Zod |
 
 ### Architecture
@@ -121,27 +147,43 @@ src/
 │   ├── agent/              # AI agent system
 │   │   ├── AgentRuntime.ts # Task execution engine
 │   │   ├── RalphEngine.ts  # Autonomous batch executor
-│   │   ├── AgentProvider.ts# LLM abstraction
+│   │   ├── AgentProvider.ts# LLM abstraction + prompts
 │   │   ├── providers/      # Claude, Mock providers
 │   │   └── tools/          # File ops, commands, search
 │   ├── ipc/handlers/       # IPC handlers by domain
 │   └── services/           # Business logic
 │       ├── LocalKanbanStore.ts  # Data persistence
 │       ├── PolicyGuard.ts       # Security enforcement
-│       └── CommentService.ts    # Task comments
+│       ├── CommentService.ts    # Task comments
+│       ├── ThemeService.ts      # Theme management
+│       └── PluginManager.ts     # Plugin system
 ├── renderer/               # React frontend
 │   ├── App.tsx            # Root component
 │   ├── components/        # UI components
 │   │   ├── KanbanBoard.tsx
-│   │   ├── TaskCard.tsx
-│   │   ├── TaskDetail.tsx
+│   │   ├── TaskCard.tsx    # Shows Epic label with color
+│   │   ├── TaskDetail.tsx  # Epic/Sprint editing
 │   │   ├── ChatPanel.tsx
-│   │   └── TopBar.tsx
+│   │   ├── TopBar.tsx      # Window menu for panels
+│   │   ├── ThemeEditor.tsx
+│   │   └── SettingsPanel.tsx
+│   ├── docking/           # VSCode-style docking system
+│   │   ├── types.ts       # Layout types (SplitNode, PanelNode)
+│   │   ├── DockingContext.tsx
+│   │   ├── DockingLayout.tsx
+│   │   ├── DockablePanel.tsx
+│   │   ├── ComponentRegistry.tsx
+│   │   ├── treeOperations.ts
+│   │   ├── persistence.ts
+│   │   └── defaultLayout.ts
 │   ├── contexts/          # React context
+│   │   ├── ModeContext.tsx
+│   │   ├── ThemeContext.tsx
+│   │   └── ConfirmContext.tsx
 │   ├── hooks/             # Custom hooks
 │   └── lib/               # Utilities
 └── shared/                # Shared code
-    ├── types.ts           # TypeScript interfaces
+    ├── types.ts           # TypeScript interfaces (Task, Epic, Sprint, Theme, Plugin)
     └── schemas.ts         # Zod validators
 ```
 
@@ -152,9 +194,10 @@ src/
 ```
 .local-kanban/
 ├── board.json              # Kanban columns and order
-├── tasks.json              # All tasks with metadata
+├── tasks.json              # All tasks with metadata (Epic, Sprint)
 ├── state.json              # Current agent mode/state
 ├── policy.json             # Security rules
+├── settings.json           # Project settings
 ├── activity.jsonl          # Activity log (append-only)
 ├── context/
 │   ├── project_context.json
@@ -162,6 +205,12 @@ src/
 ├── chats/
 │   ├── index.json
 │   └── chat-*.json
+├── themes/                 # Theme files
+│   ├── index.json          # Theme registry
+│   └── *.json              # Individual themes
+├── plugins/                # Installed plugins
+│   ├── index.json          # Plugin registry
+│   └── com.example.plugin/ # Plugin directories
 ├── agent-runs/             # Execution artifacts
 │   └── <taskId>/
 │       └── <runId>.json
@@ -171,6 +220,12 @@ src/
 #### Key Types
 
 ```typescript
+// Epic for Jira alignment
+interface TaskEpic {
+  name: string;
+  color: string; // Hex color like "#3b82f6"
+}
+
 // Task with all metadata
 interface Task {
   id: string;
@@ -179,10 +234,28 @@ interface Task {
   status: 'backlog' | 'todo' | 'doing' | 'review' | 'done';
   priority: 'low' | 'medium' | 'high' | 'critical';
   acceptanceCriteria: string[];
-  dependencies: string[];
+  dependsOn: string[];
+  epic?: TaskEpic;           // Epic with name and color
+  sprint?: string;           // Sprint identifier
   comments: TaskComment[];
   runtime: TaskRuntimeState;
-  agentConfig: TaskAgentConfig;
+  agent: TaskAgentConfig;
+}
+
+// Docking system layout
+interface SplitNode {
+  id: string;
+  type: 'split';
+  direction: 'horizontal' | 'vertical';
+  children: [LayoutNode, LayoutNode];
+  sizes: [number, number];
+}
+
+interface PanelNode {
+  id: string;
+  type: 'panel';
+  tabs: string[];
+  activeTabId: string | null;
 }
 
 // Comment types for task communication
@@ -216,10 +289,10 @@ interface AgentRun {
 1. Task Selected
        │
        ▼
-2. Load Task + Acceptance Criteria
+2. Load Task + Acceptance Criteria + Epic/Sprint
        │
        ▼
-3. Build Prompt (with failure context if retry)
+3. Build Prompt (with Epic, Sprint, failure context)
        │
        ▼
 4. Call ClaudeCodeProvider
@@ -230,6 +303,7 @@ interface AgentRun {
        ├── Read files
        ├── Write files
        ├── Run commands
+       ├── Create/Update tasks (with Epic/Sprint)
        └── Search code
        │
        ▼
@@ -241,6 +315,26 @@ interface AgentRun {
        ▼
 7. Save Run Artifact
 ```
+
+#### Agent Tools
+
+The agent has access to these tools:
+
+| Tool | Description |
+|------|-------------|
+| `list_files` | List files matching a glob pattern |
+| `read_file` | Read file contents |
+| `search` | Search for patterns in files |
+| `write_file` | Write content to a file |
+| `apply_patch` | Apply a unified diff patch |
+| `run_command` | Run a shell command |
+| `create_task` | Create task with Epic/Sprint support |
+| `update_task` | Update task including Epic/Sprint |
+| `list_tasks` | List all tasks |
+| `task_complete` | Mark task complete with verification |
+| `task_blocked` | Mark task blocked |
+| `task_failed` | Mark task failed |
+| `save_progress` | Save progress checkpoint |
 
 #### Ralph Mode (Autonomous)
 
@@ -260,7 +354,7 @@ async runAllPending(options: RalphModeOptions) {
       continue;
     }
 
-    // Execute with context
+    // Execute with context (includes Epic/Sprint)
     const result = await this.runTaskWithProvider(task, runId, attempt);
 
     if (result.success) {
@@ -291,6 +385,29 @@ When a task fails:
    - Task marked as `blocked`
    - Requires human intervention
 
+### Docking System
+
+The docking system provides a VSCode-like panel layout:
+
+```
+┌────────────────────────────────────────────────┐
+│                    TopBar                       │
+├─────────────────────────┬──────────────────────┤
+│                         │                       │
+│       Board (60%)       │      Chat (40%)       │
+│                         │                       │
+├─────────────────────────┴──────────────────────┤
+│   Task Runner | Settings | Theme Editor (25%)   │
+└────────────────────────────────────────────────┘
+```
+
+Features:
+- Drag tabs between panels
+- Drop on edges to split panels
+- Resize panels with drag handles
+- Layout persists to localStorage
+- Window menu to open/focus panels
+
 ### IPC Communication
 
 #### Preload Bridge
@@ -313,6 +430,22 @@ window.dexteria = {
     start: (options) => ipcRenderer.invoke('ralph:start', options),
     stop: () => ipcRenderer.invoke('ralph:stop'),
     getProgress: () => ipcRenderer.invoke('ralph:getProgress'),
+  },
+  theme: {
+    getAll: () => ipcRenderer.invoke('theme:getAll'),
+    getActive: () => ipcRenderer.invoke('theme:getActive'),
+    setActive: (id) => ipcRenderer.invoke('theme:setActive', id),
+    create: (theme) => ipcRenderer.invoke('theme:create', theme),
+    update: (id, theme) => ipcRenderer.invoke('theme:update', id, theme),
+    delete: (id) => ipcRenderer.invoke('theme:delete', id),
+    import: (json) => ipcRenderer.invoke('theme:import', json),
+    export: (id) => ipcRenderer.invoke('theme:export', id),
+  },
+  plugin: {
+    getAll: () => ipcRenderer.invoke('plugin:getAll'),
+    enable: (id) => ipcRenderer.invoke('plugin:enable', id),
+    disable: (id) => ipcRenderer.invoke('plugin:disable', id),
+    callApi: (id, method, ...args) => ipcRenderer.invoke('plugin:callApi', id, method, ...args),
   },
   // ... more APIs
 };
@@ -362,12 +495,15 @@ window.dexteria = {
 | Component | Purpose |
 |-----------|---------|
 | `KanbanBoard` | Drag-drop task board |
-| `TaskCard` | Individual task display with context menu |
-| `TaskDetail` | Full task editor panel |
+| `TaskCard` | Task display with Epic label |
+| `TaskDetail` | Full task editor with Epic/Sprint |
 | `TaskComments` | Comments & activity feed |
 | `ChatPanel` | AI chat interface |
 | `TaskRunner` | Execution output panel |
-| `TopBar` | Mode selector, Ralph toggle |
+| `TopBar` | Mode selector, Window menu |
+| `ThemeEditor` | Theme customization |
+| `SettingsPanel` | Project settings |
+| `DockingLayout` | VSCode-style panel system |
 
 #### State Management
 
@@ -375,16 +511,17 @@ window.dexteria = {
 // ModeContext - Global mode state
 const { mode, setMode, triggerPlannerBlock } = useMode();
 
+// ThemeContext - Theme state
+const { activeTheme, setActiveTheme } = useTheme();
+
+// DockingContext - Panel layout state
+const { state, openTab, closeTab, focusTab, splitPanel } = useDocking();
+
 // useBoard - Kanban data with polling
 const { board, tasks, moveTask, createTask, refresh } = useBoard();
 
 // useRunner - Agent execution state
-const {
-  isRunning,
-  streamingContent,
-  currentTask,
-  handleStop
-} = useRunner();
+const { isRunning, streamingContent, currentTask, handleStop } = useRunner();
 ```
 
 ### Streaming Updates
@@ -478,6 +615,73 @@ npm run package
 - **Type safety** - Full TypeScript with Zod validation
 - **Security** - Context isolation, policy enforcement
 - **Modularity** - Domain-specific handlers and services
+- **Extensibility** - Plugin system with 14 hooks
+
+---
+
+## Plugin System
+
+Dexteria supports plugins for extending functionality with 14 hooks and 8 UI extension points.
+
+### Plugin Types
+
+| Type | Location | Description |
+|------|----------|-------------|
+| Bundled | `src/main/plugins/bundled/` | First-party plugins shipped with Dexteria |
+| User | `.local-kanban/plugins/` | Third-party plugins installed by users |
+
+### Available Hooks (14 Total)
+
+| Hook | Description |
+|------|-------------|
+| `chat:beforeSend` | Before message sent to AI |
+| `chat:afterResponse` | After AI response received |
+| `task:beforeCreate` | Before task creation |
+| `task:afterCreate` | After task created |
+| `task:beforeUpdate` | Before task update |
+| `task:afterUpdate` | After task updated |
+| `task:beforeMove` | Before column change |
+| `task:afterMove` | After task moved |
+| `task:beforeDelete` | Before task deletion |
+| `board:refresh` | Board state changed |
+| `agent:beforeRun` | Before agent executes |
+| `agent:afterRun` | After agent completes |
+| `agent:onToolCall` | During tool execution |
+| `agent:onStep` | Each agent step |
+
+### UI Extension Points (8 Slots)
+
+| Slot ID | Location | Use Case |
+|---------|----------|----------|
+| `settings:tab` | SettingsPanel | Plugin configuration tabs |
+| `docking:panel` | Docking system | Full panels as tabs |
+| `topbar:left` | TopBar (left) | Action buttons |
+| `topbar:right` | TopBar (right) | Status indicators |
+| `task-detail:sidebar` | TaskDetail | Additional task info |
+| `task-detail:footer` | TaskDetail | Task-related actions |
+| `task-card:badge` | TaskCard | Status badges |
+| `bottom-panel:tab` | BottomPanel | Tabs next to Runner |
+
+### Plugin Structure
+
+**Bundled plugins (first-party):**
+```
+src/main/plugins/bundled/com.dexteria.jira/
+├── manifest.json    # Plugin manifest
+├── main.js          # Main process entry
+└── lib/             # Plugin libraries
+```
+
+**User plugins (third-party):**
+```
+.local-kanban/plugins/com.example.plugin/
+├── manifest.json    # Plugin manifest
+├── main.js          # Main process entry
+├── renderer/        # UI components
+└── storage.json     # Plugin data (auto-generated)
+```
+
+See `docs/PLUGIN_DEVELOPMENT_GUIDE.md` for full documentation.
 
 ---
 
@@ -488,7 +692,7 @@ npm run package
 3. **Run History Browser** - View past executions
 4. **Multi-provider Support** - OpenAI, local LLMs
 5. **Collaborative Features** - Team task assignment
-6. **Webhooks/Integrations** - GitHub, Jira, etc.
+6. **Webhooks/Integrations** - GitHub, Jira (via plugin)
 
 ---
 

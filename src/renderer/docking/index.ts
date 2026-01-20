@@ -1,71 +1,121 @@
 /**
- * Docking System - Public API
- * VSCode-style flexible panel system with drag-and-drop tabs
+ * Dexteria Layout & View System
+ * Public API
  */
 
 // Types
 export type {
-  LayoutNode,
+  ViewInstance,
+  ViewGroup,
+  LeafNode,
   SplitNode,
-  PanelNode,
-  TabDefinition,
-  TabInstance,
+  LayoutNode,
+  LayoutState,
+  TreePath,
+  ViewType,
+  InstanceMode,
+  ViewTypeConfig,
   DropZone,
+  DropTarget,
+  OpenTarget,
   DragState,
-  DockingState,
+  ValidationResult,
+  ValidateOptions,
+  RemoveResult,
+  DropZoneResult,
+  DropZoneConfig,
   SerializedLayout,
-  OpenTabOptions,
-  DockingContextValue,
-  ComponentDefinition,
-  ComponentRegistryValue,
 } from './types';
 
-export { isSplitNode, isPanelNode } from './types';
+export { isLeafNode, isSplitNode } from './types';
 
-// Context and Hooks
-export { DockingProvider, useDocking } from './DockingContext';
+// Registry
+export { VIEW_TYPE_REGISTRY, generateViewKey, findExistingView } from './registry';
+
+// Navigation
+export {
+  findPathToGroup,
+  getNodeAtPath,
+  replaceNodeAtPath,
+  updateNodeAtPath,
+  findBestFocusTarget,
+  findFirstGroupInNode,
+  findLastGroupInNode,
+  containsGroup,
+  collectGroupIds,
+  collectLeafGroupIds,
+  collectSplitPaths,
+} from './navigation';
+
+// Tree Operations
+export { removeGroupFromTree, insertSplitAtGroup } from './treeOperations';
+
+// Normalization & Validation
+export { normalizeState, validateInvariants, assertInvariants } from './normalize';
+
+// Reducers
+export {
+  createWelcomeState,
+  computeCloseView,
+  computeMoveView,
+  computeOpenView,
+  computeResizeSplit,
+  computeFocusGroup,
+  activateView,
+  computeSetViewDirty,
+  computeUpdateViewParams,
+  reorderTabInGroup,
+} from './reducers';
+
+// Drop Zones
+export {
+  ZONE_CONFIG,
+  detectDropZone,
+  getDropZoneOverlayStyle,
+  getDropZonePreviewRect,
+} from './dropZones';
+
+// Store
+export {
+  useLayoutStore,
+  useLayoutActions,
+  useView,
+  useGroup,
+  useIsGroupFocused,
+  useActiveGroupId,
+  useGroupViews,
+  useDragState,
+  useIsDragging,
+  findGroupContainingView,
+} from './store';
+
+// Component Registry
 export {
   ComponentRegistryProvider,
-  ComponentInstancesProvider,
   useComponentRegistry,
-  useComponentInstances,
-  TabContentRenderer,
-  AllInstancesRenderer,
-  PlaceholderComponent,
+  PlaceholderView,
 } from './ComponentRegistry';
-export { DockingDndProvider } from './DockingDndContext';
+export type { ViewComponentProps, ViewTypeDefinition } from './ComponentRegistry';
 
 // Components
-export { DockablePanel } from './DockablePanel';
-export { LayoutTreeRenderer, usePanelRefs } from './LayoutTreeRenderer';
-export { DockingSystemProvider } from './DockingProvider';
-
-// Utilities
-export {
-  createPanelNode,
-  createSplitNode,
-  findNode,
-  findPanelWithTab,
-  findParentSplit,
-  getAllPanels,
-  getAllTabIds,
-  updateNode,
-  replaceNode,
-  addTabToPanel,
-  removeTabFromPanel,
-  moveTab,
-  splitPanel,
-  removeEmptyPanel,
-  updateSplitSizes,
-  validateLayout,
-  getDirectionFromZone,
-} from './treeOperations';
-
-export { saveLayout, loadLayout, clearLayout, debouncedSaveLayout } from './persistence';
-
-export { createDefaultLayout, getDefaultPanelIds, getDefaultTabIds, isDefaultTab, COMPONENT_KEYS } from './defaultLayout';
-
-// Layout
+export { ViewGroupPanel } from './components/ViewGroupPanel';
+export { SplitContainer } from './components/SplitContainer';
 export { DockingLayout } from './DockingLayout';
-export { dockingComponents, DockingEventsProvider, useDockingEvents, createPluginPanelDefinition } from './DockingComponents';
-export { PluginPanelsRegistrar } from './PluginPanelsRegistrar';
+
+// Persistence
+export {
+  saveLayout,
+  debouncedSaveLayout,
+  loadLayout,
+  loadLayoutOrDefault,
+  clearLayout,
+} from './persistence';
+
+// Utils
+export { generateId, arraysEqual, clamp } from './utils';
+
+// Default Layout
+export { createDefaultLayout, isWelcomeLayout } from './defaultLayout';
+
+// View Definitions
+export { viewDefinitions } from './views';

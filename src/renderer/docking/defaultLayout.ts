@@ -1,159 +1,90 @@
 /**
- * Default Layout
- * Initial layout configuration for new users
+ * Default Layout Configuration
+ * Creates the initial layout for the app
  */
 
-import type { DockingState, SplitNode, PanelNode, TabDefinition } from './types';
-
-// ============================================================================
-// Component Keys (used by ComponentRegistry)
-// ============================================================================
-
-export const COMPONENT_KEYS = {
-  BOARD: 'board',
-  CHAT: 'chat',
-  SETTINGS: 'settings',
-  THEME_EDITOR: 'theme-editor',
-  TASK_DETAIL: 'task-detail',
-  TASK_RUNNER: 'task-runner',
-} as const;
-
-// ============================================================================
-// Default Tab IDs
-// ============================================================================
-
-const DEFAULT_TAB_IDS = {
-  BOARD: 'tab-board-default',
-  CHAT: 'tab-chat-default',
-  RUNNER: 'tab-runner-default',
-} as const;
-
-// ============================================================================
-// Default Tab Definitions
-// ============================================================================
-
-const defaultTabs: Record<string, TabDefinition> = {
-  [DEFAULT_TAB_IDS.BOARD]: {
-    id: DEFAULT_TAB_IDS.BOARD,
-    title: 'Board',
-    icon: 'LayoutGrid',
-    componentKey: COMPONENT_KEYS.BOARD,
-    closable: false, // Board is always open
-    singleton: true,
-  },
-  [DEFAULT_TAB_IDS.CHAT]: {
-    id: DEFAULT_TAB_IDS.CHAT,
-    title: 'Chat',
-    icon: 'MessageSquare',
-    componentKey: COMPONENT_KEYS.CHAT,
-    closable: true,
-    singleton: false, // Can have multiple chat instances
-  },
-  [DEFAULT_TAB_IDS.RUNNER]: {
-    id: DEFAULT_TAB_IDS.RUNNER,
-    title: 'Task Runner',
-    icon: 'Play',
-    componentKey: COMPONENT_KEYS.TASK_RUNNER,
-    closable: true,
-    singleton: true,
-  },
-};
-
-// ============================================================================
-// Default Panel IDs
-// ============================================================================
-
-const DEFAULT_PANEL_IDS = {
-  LEFT: 'panel-left-default',
-  RIGHT: 'panel-right-default',
-  BOTTOM: 'panel-bottom-default',
-} as const;
-
-// ============================================================================
-// Default Layout Structure
-// ============================================================================
-
-/*
-  Layout:
-  ┌────────────────────────────────────────────────┐
-  │                    TopBar (fixed)              │
-  ├─────────────────────────┬──────────────────────┤
-  │                         │                      │
-  │       Board (60%)       │      Chat (40%)      │
-  │                         │                      │
-  ├─────────────────────────┴──────────────────────┤
-  │              Task Runner (25%)                  │
-  └────────────────────────────────────────────────┘
-*/
-
-const leftPanel: PanelNode = {
-  id: DEFAULT_PANEL_IDS.LEFT,
-  type: 'panel',
-  tabs: [DEFAULT_TAB_IDS.BOARD],
-  activeTabId: DEFAULT_TAB_IDS.BOARD,
-};
-
-const rightPanel: PanelNode = {
-  id: DEFAULT_PANEL_IDS.RIGHT,
-  type: 'panel',
-  tabs: [DEFAULT_TAB_IDS.CHAT],
-  activeTabId: DEFAULT_TAB_IDS.CHAT,
-};
-
-const bottomPanel: PanelNode = {
-  id: DEFAULT_PANEL_IDS.BOTTOM,
-  type: 'panel',
-  tabs: [DEFAULT_TAB_IDS.RUNNER],
-  activeTabId: DEFAULT_TAB_IDS.RUNNER,
-};
-
-const topSplit: SplitNode = {
-  id: 'split-top-default',
-  type: 'split',
-  direction: 'horizontal',
-  children: [leftPanel, rightPanel],
-  sizes: [60, 40],
-};
-
-const rootSplit: SplitNode = {
-  id: 'split-root-default',
-  type: 'split',
-  direction: 'vertical',
-  children: [topSplit, bottomPanel],
-  sizes: [75, 25],
-};
-
-// ============================================================================
-// Create Default Layout
-// ============================================================================
+import type { LayoutState } from './types';
+import { generateId } from './utils';
 
 /**
- * Create a fresh default layout
+ * Create the default layout state
+ * Layout: Board (left) | Chat (right) with TaskRunner at bottom
  */
-export function createDefaultLayout(): DockingState {
+export function createDefaultLayout(): LayoutState {
+  // Generate IDs
+  const boardGroupId = generateId('vg');
+  const chatGroupId = generateId('vg');
+  const runnerGroupId = generateId('vg');
+
+  const boardViewId = generateId('vi');
+  const chatViewId = generateId('vi');
+  const runnerViewId = generateId('vi');
+
   return {
-    root: rootSplit,
-    tabs: { ...defaultTabs },
+    tree: {
+      type: 'split',
+      direction: 'col', // Top/bottom split
+      ratio: 0.75,
+      a: {
+        type: 'split',
+        direction: 'row', // Left/right split
+        ratio: 0.6,
+        a: { type: 'leaf', groupId: boardGroupId },
+        b: { type: 'leaf', groupId: chatGroupId },
+      },
+      b: { type: 'leaf', groupId: runnerGroupId },
+    },
+    groups: {
+      [boardGroupId]: {
+        id: boardGroupId,
+        viewIds: [boardViewId],
+        activeViewId: boardViewId,
+      },
+      [chatGroupId]: {
+        id: chatGroupId,
+        viewIds: [chatViewId],
+        activeViewId: chatViewId,
+      },
+      [runnerGroupId]: {
+        id: runnerGroupId,
+        viewIds: [runnerViewId],
+        activeViewId: runnerViewId,
+      },
+    },
+    views: {
+      [boardViewId]: {
+        id: boardViewId,
+        viewType: 'board',
+        viewKey: 'board:default',
+        params: {},
+        hasDocument: false,
+        isDirty: false,
+      },
+      [chatViewId]: {
+        id: chatViewId,
+        viewType: 'chat',
+        viewKey: `chat:${chatViewId}`,
+        params: {},
+        hasDocument: false,
+        isDirty: false,
+      },
+      [runnerViewId]: {
+        id: runnerViewId,
+        viewType: 'taskRunner',
+        viewKey: 'taskRunner',
+        params: {},
+        hasDocument: false,
+        isDirty: false,
+      },
+    },
+    activeGroupId: boardGroupId,
   };
 }
 
 /**
- * Get default panel IDs (for reference)
+ * Check if a layout is the welcome/empty layout
  */
-export function getDefaultPanelIds() {
-  return DEFAULT_PANEL_IDS;
-}
-
-/**
- * Get default tab IDs (for reference)
- */
-export function getDefaultTabIds() {
-  return DEFAULT_TAB_IDS;
-}
-
-/**
- * Check if a tab ID is a default tab
- */
-export function isDefaultTab(tabId: string): boolean {
-  return Object.values(DEFAULT_TAB_IDS).includes(tabId as typeof DEFAULT_TAB_IDS[keyof typeof DEFAULT_TAB_IDS]);
+export function isWelcomeLayout(state: LayoutState): boolean {
+  const views = Object.values(state.views);
+  return views.length === 1 && views[0].viewType === 'welcome';
 }

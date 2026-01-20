@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { TopBar } from './components/TopBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { SetupWizard } from './components/SetupWizard';
-import { TopBar } from './components/TopBar';
 import { ModeProvider, useMode } from './contexts/ModeContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ExtensionPointsProvider } from './contexts/ExtensionPointsContext';
 import { useSystemTheme } from './hooks/useTheme';
-import {
-  DockingProvider,
-  ComponentRegistryProvider,
-  ComponentInstancesProvider,
-  dockingComponents,
-  DockingEventsProvider,
-  PluginPanelsRegistrar,
-} from './docking';
-import { DockingLayout } from './docking/DockingLayout';
 import { AlertTriangle, X } from 'lucide-react';
 import './index.css';
+
+// Docking System
+import {
+  useLayoutStore,
+  DockingLayout,
+  ComponentRegistryProvider,
+  loadLayout,
+  saveLayout,
+  createDefaultLayout,
+} from './docking';
+import { viewDefinitions } from './docking/views';
 
 // Planner Block Modal - shown at App level so it appears regardless of active tab
 const PlannerBlockModal: React.FC = () => {
@@ -75,14 +77,74 @@ interface RecentProject {
   lastOpened: string;
 }
 
-// Main content with docking system
+// Layout persistence hook - uses selective subscriptions to avoid infinite loops
+function useLayoutPersistence(enabled: boolean) {
+  const tree = useLayoutStore((s) => s.tree);
+  const groups = useLayoutStore((s) => s.groups);
+  const views = useLayoutStore((s) => s.views);
+  const activeGroupId = useLayoutStore((s) => s.activeGroupId);
+
+  // Save layout on changes (debounced)
+  useEffect(() => {
+    if (!enabled) return;
+
+    const timeout = setTimeout(() => {
+      saveLayout({ tree, groups, views, activeGroupId });
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [enabled, tree, groups, views, activeGroupId]);
+}
+
+// Layout initializer component
+const LayoutInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const setState = useLayoutStore((s) => s.setState);
+  const [initialized, setInitialized] = useState(false);
+
+  // Initialize layout once on mount
+  useEffect(() => {
+    const savedLayout = loadLayout();
+    if (savedLayout) {
+      setState(savedLayout);
+    } else {
+      setState(createDefaultLayout());
+    }
+    setInitialized(true);
+  }, [setState]);
+
+  // Enable persistence only after initialization
+  useLayoutPersistence(initialized);
+
+  if (!initialized) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
+// Main docking content
 const DockingContent: React.FC = () => {
+  const openView = useLayoutStore((s) => s.openView);
+
+  const handleOpenSettings = () => {
+    openView('settings');
+  };
+
+  const handleOpenThemeEditor = (themeId: string, themeName?: string) => {
+    openView('themeEditor', { themeId, themeName });
+  };
+
   return (
-    <ComponentInstancesProvider>
-      <DockingEventsProvider>
-        <DockingLayout components={dockingComponents} />
-      </DockingEventsProvider>
-    </ComponentInstancesProvider>
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
+      <TopBar onOpenSettings={handleOpenSettings} onOpenThemeEditor={handleOpenThemeEditor} />
+      <div className="flex-1 overflow-hidden">
+        <DockingLayout />
+      </div>
+    </div>
   );
 };
 
@@ -131,8 +193,7 @@ function AppContent() {
     // Listen for project changes
     const cleanupProject = window.dexteria?.project?.onProjectChanged?.((path) => {
       setCurrentProject(path);
-      setIsOpeningProject(false); // Reset loading state when project changes
-      // Refresh recent projects
+      setIsOpeningProject(false);
       window.dexteria?.project?.getRecent?.().then(setRecentProjects);
     });
 
@@ -152,11 +213,9 @@ function AppContent() {
     setIsOpeningProject(true);
     try {
       const result = await window.dexteria?.project?.open?.();
-      // If cancelled, don't keep loading
       if (!result?.success) {
         setIsOpeningProject(false);
       }
-      // If success, the project:changed event will update currentProject
     } catch (err) {
       console.error('Failed to open project:', err);
       setIsOpeningProject(false);
@@ -167,25 +226,20 @@ function AppContent() {
     setIsOpeningProject(true);
     try {
       const result = await window.dexteria?.project?.create?.();
-      // If cancelled, don't keep loading
       if (!result?.success) {
         setIsOpeningProject(false);
       }
-      // If success, the project:changed event will update currentProject
     } catch (err) {
       console.error('Failed to create project:', err);
       setIsOpeningProject(false);
     }
   };
 
-  // Handler for when setup wizard completes
   const handleSetupComplete = async (selectedThemeId?: string) => {
     setProviderReady(true);
-    // Store selected theme ID to apply when project opens
     if (selectedThemeId) {
       setPendingThemeId(selectedThemeId);
     }
-    // Load project info now that provider is ready
     try {
       const [current, recent] = await Promise.all([
         window.dexteria?.project?.getCurrent?.(),
@@ -203,20 +257,16 @@ function AppContent() {
     const applyPendingTheme = async () => {
       if (currentProject && pendingThemeId) {
         try {
-          // Get the preset theme content
           const presetTheme = await window.dexteria?.settings?.getPresetTheme?.(pendingThemeId);
           if (presetTheme) {
-            // Import the preset theme to the project's theme service
             const imported = await window.dexteria?.theme?.import?.(JSON.stringify(presetTheme));
             if (imported) {
-              // Set it as the active theme
               await window.dexteria?.theme?.setActive?.((imported as { id: string }).id);
             }
           }
         } catch (err) {
           console.error('Failed to apply preset theme:', err);
         }
-        // Clear pending theme regardless of success
         setPendingThemeId(null);
       }
     };
@@ -293,25 +343,17 @@ function AppContent() {
     );
   }
 
-  // Main app with docking - wrap with providers so TopBar can access docking
+  // Main app with docking system
   return (
-    <ComponentRegistryProvider defaultComponents={dockingComponents}>
-      <ExtensionPointsProvider>
-        {/* PluginPanelsRegistrar dynamically registers plugin docking panels */}
-        <PluginPanelsRegistrar>
-          <DockingProvider>
-            <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
-              <TopBar />
-              <div className="flex-1 overflow-hidden">
-                <DockingContent />
-              </div>
-            </div>
-            {/* Global modal for planner mode block */}
-            <PlannerBlockModal />
-          </DockingProvider>
-        </PluginPanelsRegistrar>
-      </ExtensionPointsProvider>
-    </ComponentRegistryProvider>
+    <ExtensionPointsProvider>
+      <ComponentRegistryProvider definitions={viewDefinitions}>
+        <LayoutInitializer>
+          <DockingContent />
+        </LayoutInitializer>
+      </ComponentRegistryProvider>
+      {/* Global modal for planner mode block */}
+      <PlannerBlockModal />
+    </ExtensionPointsProvider>
   );
 }
 
