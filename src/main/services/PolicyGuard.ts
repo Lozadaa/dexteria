@@ -204,11 +204,48 @@ export class PolicyGuard {
   }
 
   /**
+   * Check for dangerous shell metacharacters that could enable injection.
+   * These characters can be used to chain commands, redirect output,
+   * or perform other shell-specific operations.
+   */
+  private containsDangerousMetacharacters(cmd: string): { dangerous: boolean; char?: string } {
+    // Characters that can enable command injection or other dangerous operations
+    const dangerousPatterns: Array<{ pattern: RegExp; description: string }> = [
+      { pattern: /`/, description: 'backtick (command substitution)' },
+      { pattern: /\$\(/, description: '$() (command substitution)' },
+      { pattern: /\$\{/, description: '${} (variable expansion)' },
+      { pattern: /[|](?![|])/, description: 'pipe (command chaining)' }, // single |, not ||
+      { pattern: /[&](?![&])/, description: 'background/chaining' }, // single &, not &&
+      { pattern: /[>]/, description: 'output redirection' },
+      { pattern: /[<]/, description: 'input redirection' },
+      { pattern: /;/, description: 'semicolon (command separator)' },
+      { pattern: /\n/, description: 'newline (command separator)' },
+    ];
+
+    for (const { pattern, description } of dangerousPatterns) {
+      if (pattern.test(cmd)) {
+        return { dangerous: true, char: description };
+      }
+    }
+
+    return { dangerous: false };
+  }
+
+  /**
    * Validate a shell command.
    */
   validateCommand(cmd: string): ValidationResult {
     const trimmed = cmd.trim();
     const lowerCmd = trimmed.toLowerCase();
+
+    // Check for dangerous shell metacharacters first (highest priority for security)
+    const metaCheck = this.containsDangerousMetacharacters(trimmed);
+    if (metaCheck.dangerous) {
+      return {
+        allowed: false,
+        reason: `Command contains potentially dangerous shell metacharacter: ${metaCheck.char}`,
+      };
+    }
 
     // Check blocked commands/patterns
     for (const blocked of this.policy.shellCommands.blocked) {

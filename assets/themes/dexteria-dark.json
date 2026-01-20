@@ -1,29 +1,29 @@
 {
-  "id": "default",
-  "name": "Default",
+  "id": "dexteria-dark",
+  "name": "Dexteria Dark",
   "version": 1,
-  "description": "The default Dexteria theme",
+  "description": "The original dark theme with cyan accents and modern typography",
   "colors": {
     "core": {
       "background": "224 71% 4%",
       "foreground": "213 31% 91%",
-      "card": "224 71% 6%",
+      "card": "220 13% 10%",
       "cardForeground": "213 31% 91%",
       "popover": "224 71% 6%",
       "popoverForeground": "215 20.2% 65.1%",
-      "primary": "210 40% 98%",
-      "primaryForeground": "222.2 47.4% 1.2%",
-      "secondary": "222.2 47.4% 11.2%",
+      "primary": "188 94% 50%",
+      "primaryForeground": "0 0% 0%",
+      "secondary": "217 33% 17%",
       "secondaryForeground": "210 40% 98%",
       "muted": "223 47% 11%",
-      "mutedForeground": "215.4 16.3% 56.9%",
-      "accent": "216 34% 17%",
-      "accentForeground": "210 40% 98%",
-      "destructive": "0 63% 31%",
-      "destructiveForeground": "210 40% 98%",
-      "border": "216 34% 17%",
-      "input": "216 34% 17%",
-      "ring": "224 64% 33%"
+      "mutedForeground": "215 16% 47%",
+      "accent": "188 94% 50%",
+      "accentForeground": "0 0% 0%",
+      "destructive": "0 84% 60%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "217 33% 17%",
+      "input": "217 33% 17%",
+      "ring": "188 94% 50%"
     },
     "code": {
       "background": "220 13% 10%",
@@ -48,20 +48,20 @@
     "terminal": {
       "background": "220 13% 6%",
       "foreground": "220 14% 90%",
-      "cursor": "210 40% 98%",
-      "selection": "224 64% 33%"
+      "cursor": "188 94% 50%",
+      "selection": "188 94% 25%"
     },
     "lineNumber": "220 10% 35%",
     "lineHighlight": "220 13% 12%"
   },
   "fonts": {
-    "sans": "Janna, system-ui, sans-serif",
-    "mono": "JetBrains Mono, Menlo, Monaco, monospace",
-    "display": "Janna, system-ui, sans-serif",
+    "sans": "Inter, system-ui, sans-serif",
+    "mono": "JetBrains Mono, Consolas, monospace",
+    "display": "Inter, system-ui, sans-serif",
     "baseFontSize": "14px",
     "codeFontSize": "13px"
   },
   "radius": "0.5rem",
-  "createdAt": "2026-01-16T00:00:00.000Z",
-  "updatedAt": "2026-01-16T00:00:00.000Z"
+  "createdAt": "2026-01-17T20:46:02.072Z",
+  "updatedAt": "2026-01-17T20:46:02.072Z"
 }

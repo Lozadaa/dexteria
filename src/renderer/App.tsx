@@ -236,6 +236,13 @@ function AppContent() {
   };
 
   const handleSetupComplete = async (selectedThemeId?: string) => {
+    // Mark setup as completed so the wizard won't show again
+    try {
+      await window.dexteria?.settings?.completeSetup?.();
+    } catch (err) {
+      console.error('Failed to mark setup as complete:', err);
+    }
+
     setProviderReady(true);
     if (selectedThemeId) {
       setPendingThemeId(selectedThemeId);

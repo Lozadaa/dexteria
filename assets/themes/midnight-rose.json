@@ -1,0 +1,67 @@
+{
+  "id": "midnight-rose",
+  "name": "Midnight Rose",
+  "version": 1,
+  "description": "Dark theme with pink and rose gold accents",
+  "colors": {
+    "core": {
+      "background": "330 30% 6%",
+      "foreground": "330 15% 90%",
+      "card": "330 25% 12%",
+      "cardForeground": "330 15% 90%",
+      "popover": "330 30% 8%",
+      "popoverForeground": "330 15% 85%",
+      "primary": "350 89% 65%",
+      "primaryForeground": "0 0% 0%",
+      "secondary": "330 25% 18%",
+      "secondaryForeground": "330 15% 95%",
+      "muted": "330 20% 14%",
+      "mutedForeground": "330 10% 52%",
+      "accent": "340 82% 67%",
+      "accentForeground": "0 0% 0%",
+      "destructive": "0 84% 60%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "330 25% 18%",
+      "input": "330 25% 18%",
+      "ring": "350 89% 65%"
+    },
+    "code": {
+      "background": "330 30% 7%",
+      "foreground": "330 15% 87%",
+      "comment": "330 10% 47%",
+      "keyword": "350 89% 70%",
+      "string": "90 50% 65%",
+      "number": "340 82% 72%",
+      "function": "280 70% 70%",
+      "operator": "320 60% 65%",
+      "variable": "350 75% 68%",
+      "class": "30 70% 65%"
+    },
+    "diff": {
+      "addBackground": "142 76% 20%",
+      "addForeground": "142 76% 88%",
+      "removeBackground": "0 63% 24%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 80% 24%",
+      "changeForeground": "45 93% 88%"
+    },
+    "terminal": {
+      "background": "330 30% 5%",
+      "foreground": "330 15% 92%",
+      "cursor": "350 89% 65%",
+      "selection": "350 89% 28%"
+    },
+    "lineNumber": "330 10% 38%",
+    "lineHighlight": "330 25% 10%"
+  },
+  "fonts": {
+    "sans": "Lato, system-ui, sans-serif",
+    "mono": "Hack, Menlo, monospace",
+    "display": "Lato, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.625rem",
+  "createdAt": "2026-01-17T20:46:10.081Z",
+  "updatedAt": "2026-01-17T20:46:10.081Z"
+}

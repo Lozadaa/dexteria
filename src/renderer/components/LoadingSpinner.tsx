@@ -45,14 +45,7 @@ export const Skeleton: FC<SkeletonProps> = ({ className = '' }) => (
 );
 
 export const TaskCardSkeleton: FC = () => (
-  <div className="bg-card rounded-lg p-3 border border-border">
-    <AdniaSkeleton className="h-4 w-3/4 mb-2" />
-    <AdniaSkeleton className="h-3 w-1/2 mb-3" />
-    <div className="flex gap-1">
-      <AdniaSkeleton className="h-5 w-12 rounded-full" />
-      <AdniaSkeleton className="h-5 w-16 rounded-full" />
-    </div>
-  </div>
+  <AdniaSkeleton className="h-20 w-full rounded-lg" />
 );
 
 export const BoardSkeleton: FC = () => (

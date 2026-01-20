@@ -437,6 +437,7 @@ export class LocalKanbanStore {
       epic: epicValue,
       sprint: sprintValue,
       agent: patch.agent ? { ...task.agent, ...patch.agent } : task.agent,
+      runtime: patch.runtime ? { ...task.runtime, ...patch.runtime } : task.runtime,
       updatedAt: new Date().toISOString(),
     };
 

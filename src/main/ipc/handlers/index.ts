@@ -21,6 +21,7 @@ import { registerProjectHandlers } from './projectHandlers';
 import { registerThemeHandlers } from './themeHandlers';
 import { registerPluginHandlers } from './pluginHandlers';
 import { registerOpenCodeHandlers } from './opencodeHandlers';
+import { registerVSCodeHandlers } from './vscodeHandlers';
 
 // Re-export shared utilities for external use
 export { getProjectRoot } from './shared';
@@ -71,4 +72,5 @@ export async function initializeIpcHandlers(root?: string): Promise<void> {
   registerThemeHandlers();
   registerPluginHandlers();
   registerOpenCodeHandlers();
+  registerVSCodeHandlers();
 }

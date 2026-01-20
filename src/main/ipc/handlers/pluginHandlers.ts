@@ -31,21 +31,40 @@ export function registerPluginHandlers(): void {
   });
 
   // Enable a plugin
-  ipcMain.handle('plugin:enable', async (_, pluginId: string): Promise<boolean> => {
+  ipcMain.handle('plugin:enable', async (_, pluginId: string): Promise<{ success: boolean; error?: string }> => {
     const manager = getPluginManager();
     if (!manager) {
-      return false;
+      return { success: false, error: 'Plugin manager not initialized' };
     }
-    return manager.enablePlugin(pluginId);
+
+    const success = await manager.enablePlugin(pluginId);
+
+    if (!success) {
+      // Get the plugin to retrieve the error
+      const plugin = manager.getPlugin(pluginId);
+      return {
+        success: false,
+        error: plugin?.error || 'Unknown error activating plugin',
+      };
+    }
+
+    return { success: true };
   });
 
   // Disable a plugin
-  ipcMain.handle('plugin:disable', async (_, pluginId: string): Promise<boolean> => {
+  ipcMain.handle('plugin:disable', async (_, pluginId: string): Promise<{ success: boolean; error?: string }> => {
     const manager = getPluginManager();
     if (!manager) {
-      return false;
+      return { success: false, error: 'Plugin manager not initialized' };
     }
-    return manager.disablePlugin(pluginId);
+
+    const success = await manager.disablePlugin(pluginId);
+
+    if (!success) {
+      return { success: false, error: 'Failed to disable plugin' };
+    }
+
+    return { success: true };
   });
 
   // Get plugin settings

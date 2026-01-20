@@ -1,0 +1,67 @@
+{
+  "id": "nebula-purple",
+  "name": "Nebula Purple",
+  "version": 1,
+  "description": "Deep space theme with purple and pink cosmic vibes",
+  "colors": {
+    "core": {
+      "background": "265 50% 6%",
+      "foreground": "280 20% 92%",
+      "card": "265 45% 12%",
+      "cardForeground": "280 20% 92%",
+      "popover": "265 50% 8%",
+      "popoverForeground": "280 20% 85%",
+      "primary": "286 85% 65%",
+      "primaryForeground": "0 0% 0%",
+      "secondary": "265 40% 20%",
+      "secondaryForeground": "280 20% 95%",
+      "muted": "265 40% 15%",
+      "mutedForeground": "270 15% 55%",
+      "accent": "320 85% 65%",
+      "accentForeground": "0 0% 0%",
+      "destructive": "340 84% 60%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "265 40% 20%",
+      "input": "265 40% 20%",
+      "ring": "286 85% 65%"
+    },
+    "code": {
+      "background": "265 50% 8%",
+      "foreground": "280 20% 88%",
+      "comment": "270 15% 50%",
+      "keyword": "286 85% 75%",
+      "string": "320 70% 70%",
+      "number": "350 80% 70%",
+      "function": "250 75% 70%",
+      "operator": "280 60% 65%",
+      "variable": "310 70% 72%",
+      "class": "340 75% 68%"
+    },
+    "diff": {
+      "addBackground": "142 76% 22%",
+      "addForeground": "142 76% 88%",
+      "removeBackground": "340 63% 28%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 80% 28%",
+      "changeForeground": "45 93% 88%"
+    },
+    "terminal": {
+      "background": "265 50% 5%",
+      "foreground": "280 20% 90%",
+      "cursor": "286 85% 65%",
+      "selection": "286 85% 30%"
+    },
+    "lineNumber": "270 15% 40%",
+    "lineHighlight": "265 45% 10%"
+  },
+  "fonts": {
+    "sans": "Poppins, system-ui, sans-serif",
+    "mono": "Fira Code, Menlo, monospace",
+    "display": "Poppins, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.75rem",
+  "createdAt": "2026-01-17T20:46:12.484Z",
+  "updatedAt": "2026-01-17T20:46:12.484Z"
+}

@@ -1,0 +1,67 @@
+{
+  "id": "tokyo-night",
+  "name": "Tokyo Night",
+  "version": 1,
+  "description": "Inspired by neon-lit Tokyo streets at night",
+  "colors": {
+    "core": {
+      "background": "235 39% 9%",
+      "foreground": "230 20% 85%",
+      "card": "235 35% 14%",
+      "cardForeground": "230 20% 85%",
+      "popover": "235 39% 11%",
+      "popoverForeground": "230 20% 82%",
+      "primary": "310 80% 65%",
+      "primaryForeground": "0 0% 0%",
+      "secondary": "235 30% 20%",
+      "secondaryForeground": "230 20% 92%",
+      "muted": "235 25% 16%",
+      "mutedForeground": "230 15% 55%",
+      "accent": "188 90% 58%",
+      "accentForeground": "0 0% 0%",
+      "destructive": "0 84% 60%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "235 30% 20%",
+      "input": "235 30% 20%",
+      "ring": "310 80% 65%"
+    },
+    "code": {
+      "background": "235 39% 10%",
+      "foreground": "230 20% 83%",
+      "comment": "230 15% 50%",
+      "keyword": "310 80% 70%",
+      "string": "120 70% 65%",
+      "number": "24 90% 65%",
+      "function": "188 90% 63%",
+      "operator": "200 70% 60%",
+      "variable": "280 75% 68%",
+      "class": "350 80% 65%"
+    },
+    "diff": {
+      "addBackground": "142 76% 20%",
+      "addForeground": "142 76% 88%",
+      "removeBackground": "0 63% 24%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 80% 24%",
+      "changeForeground": "45 93% 88%"
+    },
+    "terminal": {
+      "background": "235 39% 8%",
+      "foreground": "230 20% 88%",
+      "cursor": "310 80% 65%",
+      "selection": "310 80% 30%"
+    },
+    "lineNumber": "230 15% 42%",
+    "lineHighlight": "235 35% 12%"
+  },
+  "fonts": {
+    "sans": "Manrope, system-ui, sans-serif",
+    "mono": "Victor Mono, Menlo, monospace",
+    "display": "Manrope, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.5rem",
+  "createdAt": "2026-01-17T20:46:19.833Z",
+  "updatedAt": "2026-01-17T20:46:19.833Z"
+}

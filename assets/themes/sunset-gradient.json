@@ -1,0 +1,67 @@
+{
+  "id": "sunset-gradient",
+  "name": "Sunset Gradient",
+  "version": 1,
+  "description": "Warm light theme with sunset colors and soft gradients",
+  "colors": {
+    "core": {
+      "background": "30 40% 97%",
+      "foreground": "20 60% 8%",
+      "card": "35 35% 94%",
+      "cardForeground": "20 60% 8%",
+      "popover": "30 40% 96%",
+      "popoverForeground": "20 60% 8%",
+      "primary": "340 85% 50%",
+      "primaryForeground": "0 0% 100%",
+      "secondary": "35 30% 88%",
+      "secondaryForeground": "20 60% 10%",
+      "muted": "35 30% 91%",
+      "mutedForeground": "25 30% 35%",
+      "accent": "24 95% 48%",
+      "accentForeground": "0 0% 100%",
+      "destructive": "0 84% 55%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "35 30% 82%",
+      "input": "35 30% 85%",
+      "ring": "340 85% 50%"
+    },
+    "code": {
+      "background": "35 35% 95%",
+      "foreground": "20 50% 12%",
+      "comment": "25 20% 45%",
+      "keyword": "340 85% 42%",
+      "string": "142 65% 32%",
+      "number": "24 95% 40%",
+      "function": "250 70% 45%",
+      "operator": "20 60% 38%",
+      "variable": "280 65% 45%",
+      "class": "45 85% 40%"
+    },
+    "diff": {
+      "addBackground": "142 60% 88%",
+      "addForeground": "142 76% 25%",
+      "removeBackground": "0 70% 92%",
+      "removeForeground": "0 84% 40%",
+      "changeBackground": "45 80% 88%",
+      "changeForeground": "45 93% 32%"
+    },
+    "terminal": {
+      "background": "35 35% 96%",
+      "foreground": "20 50% 10%",
+      "cursor": "340 85% 50%",
+      "selection": "340 70% 85%"
+    },
+    "lineNumber": "25 20% 55%",
+    "lineHighlight": "35 40% 92%"
+  },
+  "fonts": {
+    "sans": "DM Sans, system-ui, sans-serif",
+    "mono": "Overpass Mono, Consolas, monospace",
+    "display": "DM Sans, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.75rem",
+  "createdAt": "2026-01-17T20:46:17.363Z",
+  "updatedAt": "2026-01-17T21:30:00.000Z"
+}

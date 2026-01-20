@@ -36,6 +36,52 @@ function getPresetsThemesDir(): string {
     : path.join(process.resourcesPath, 'assets', 'themes');
 }
 
+// ============================================
+// Global App Config (AppData)
+// ============================================
+
+interface GlobalAppConfig {
+  hasCompletedSetup: boolean;
+  setupCompletedAt?: string;
+  wantsCodeViewing?: boolean;
+  vscodePreferenceSetAt?: string;
+}
+
+/**
+ * Get path to global app config file in AppData
+ */
+function getGlobalConfigPath(): string {
+  return path.join(app.getPath('userData'), 'dexteria-config.json');
+}
+
+/**
+ * Read global app config
+ */
+function readGlobalConfig(): GlobalAppConfig {
+  const configPath = getGlobalConfigPath();
+  try {
+    if (fs.existsSync(configPath)) {
+      const data = fs.readFileSync(configPath, 'utf-8');
+      return JSON.parse(data) as GlobalAppConfig;
+    }
+  } catch (err) {
+    console.error('Failed to read global config:', err);
+  }
+  return { hasCompletedSetup: false };
+}
+
+/**
+ * Write global app config
+ */
+function writeGlobalConfig(config: GlobalAppConfig): void {
+  const configPath = getGlobalConfigPath();
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write global config:', err);
+  }
+}
+
 /**
  * Preset theme info for the wizard
  */
@@ -56,11 +102,14 @@ export interface PresetThemeInfo {
  */
 export function registerSettingsHandlers(): void {
   // Get current provider info
+  // Returns ready: false if setup hasn't been completed, even if a provider is available
   ipcMain.handle('settings:getProvider', async (): Promise<{
     name: string;
     ready: boolean;
     type: ProviderType;
+    hasCompletedSetup: boolean;
   }> => {
+    const globalConfig = readGlobalConfig();
     const provider = getOrCreateProvider();
     let type: ProviderType = 'mock';
     if (provider instanceof OpenCodeProvider) {
@@ -70,11 +119,59 @@ export function registerSettingsHandlers(): void {
     } else if (provider instanceof AnthropicProvider) {
       type = 'anthropic';
     }
+
+    // Provider is only considered "ready" if:
+    // 1. The provider itself is ready (has valid config)
+    // 2. User has completed the setup wizard at least once
+    const isReady = provider.isReady() && globalConfig.hasCompletedSetup;
+
     return {
       name: provider.getName(),
-      ready: provider.isReady(),
+      ready: isReady,
       type,
+      hasCompletedSetup: globalConfig.hasCompletedSetup,
     };
+  });
+
+  // Mark setup as completed (called when user finishes the setup wizard)
+  ipcMain.handle('settings:completeSetup', async (): Promise<{ success: boolean }> => {
+    const config = readGlobalConfig();
+    config.hasCompletedSetup = true;
+    config.setupCompletedAt = new Date().toISOString();
+    writeGlobalConfig(config);
+    return { success: true };
+  });
+
+  // Reset setup flag (for testing purposes - allows re-showing the wizard)
+  ipcMain.handle('settings:resetSetup', async (): Promise<{ success: boolean }> => {
+    const config = readGlobalConfig();
+    config.hasCompletedSetup = false;
+    config.setupCompletedAt = undefined;
+    writeGlobalConfig(config);
+    return { success: true };
+  });
+
+  // Get VSCode preference (for code viewing integration)
+  ipcMain.handle('settings:getVSCodePreference', async (): Promise<{
+    wantsCodeViewing: boolean;
+    setAt?: string;
+  }> => {
+    const config = readGlobalConfig();
+    return {
+      wantsCodeViewing: config.wantsCodeViewing ?? false,
+      setAt: config.vscodePreferenceSetAt,
+    };
+  });
+
+  // Set VSCode preference
+  ipcMain.handle('settings:setVSCodePreference', async (_, wantsCodeViewing: boolean): Promise<{
+    success: boolean;
+  }> => {
+    const config = readGlobalConfig();
+    config.wantsCodeViewing = wantsCodeViewing;
+    config.vscodePreferenceSetAt = new Date().toISOString();
+    writeGlobalConfig(config);
+    return { success: true };
   });
 
   // Get available providers

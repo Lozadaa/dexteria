@@ -39,6 +39,10 @@ import {
   Clock,
   Settings2,
   Link2,
+  Copy,
+  X,
+  Code2,
+  ExternalLink,
 } from 'lucide-react';
 import { JiraPanel } from './JiraPanel';
 import { useThemeContext } from '../contexts/ThemeContext';
@@ -48,7 +52,7 @@ import * as LucideIcons from 'lucide-react';
 import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo } from '../../shared/types';
 
 // Built-in tabs
-type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'themes' | 'plugins' | 'jira';
+type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'integrations' | 'themes' | 'plugins' | 'jira';
 // All tabs including plugin tabs (plugin tabs use format: plugin:pluginId:tabId)
 type SettingsTab = BuiltInSettingsTab | `plugin:${string}`;
 
@@ -79,8 +83,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loadingPlugins, setLoadingPlugins] = useState(false);
   const [togglingPlugin, setTogglingPlugin] = useState<string | null>(null);
+  const [pluginError, setPluginError] = useState<{ pluginId: string; error: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<ProjectSettings | null>(null);
+
+  // VSCode integration state
+  const [vscodeEnabled, setVscodeEnabled] = useState(false);
+  const [vscodeInstalled, setVscodeInstalled] = useState(false);
+  const [vscodeVersion, setVscodeVersion] = useState<string | null>(null);
+  const [checkingVscode, setCheckingVscode] = useState(true);
 
   // Theme context
   const {
@@ -100,6 +111,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   // Load settings on mount
   useEffect(() => {
     loadSettings();
+    loadVSCodeStatus();
   }, []);
 
   // Track changes
@@ -132,6 +144,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     setLoadingPlugins(true);
     try {
       const pluginList = await window.dexteria?.plugin?.getAll?.();
+      console.log('[SettingsPanel] Loaded plugins:', pluginList?.map((p: PluginInfo) => ({
+        id: p.manifest?.id,
+        state: p.state,
+        error: p.error,
+      })));
       setPlugins((pluginList as PluginInfo[]) || []);
     } catch (error) {
       console.error('Failed to load plugins:', error);
@@ -139,19 +156,94 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     setLoadingPlugins(false);
   };
 
+  const loadVSCodeStatus = async () => {
+    setCheckingVscode(true);
+    try {
+      // Check user preference
+      const pref = await window.dexteria?.settings?.getVSCodePreference?.();
+      setVscodeEnabled(pref?.wantsCodeViewing ?? false);
+
+      // Check if installed
+      const status = await window.dexteria?.vscode?.getStatus?.();
+      setVscodeInstalled(status?.installed ?? false);
+      setVscodeVersion(status?.version ?? null);
+    } catch (error) {
+      console.error('Failed to load VSCode status:', error);
+    }
+    setCheckingVscode(false);
+  };
+
+  const toggleVscodeIntegration = async (enabled: boolean) => {
+    try {
+      await window.dexteria?.settings?.setVSCodePreference?.(enabled);
+      setVscodeEnabled(enabled);
+    } catch (error) {
+      console.error('Failed to toggle VSCode integration:', error);
+    }
+  };
+
+  const handleOpenDownloadPage = async () => {
+    try {
+      await window.dexteria?.vscode?.openDownloadPage?.();
+    } catch (error) {
+      console.error('Failed to open download page:', error);
+    }
+  };
+
+  const handleRefreshVSCode = async () => {
+    setCheckingVscode(true);
+    try {
+      const status = await window.dexteria?.vscode?.refresh?.();
+      setVscodeInstalled(status?.installed ?? false);
+      setVscodeVersion(status?.version ?? null);
+    } catch (error) {
+      console.error('Failed to refresh VSCode status:', error);
+    }
+    setCheckingVscode(false);
+  };
+
   const togglePlugin = async (pluginId: string, currentState: string) => {
     setTogglingPlugin(pluginId);
+    setPluginError(null);
+    console.log(`[SettingsPanel] Toggling plugin ${pluginId}, current state: ${currentState}`);
+
     try {
+      let result: { success: boolean; error?: string } | undefined;
+
       if (currentState === 'active' || currentState === 'enabled') {
-        await window.dexteria?.plugin?.disable?.(pluginId);
+        console.log(`[SettingsPanel] Disabling plugin ${pluginId}...`);
+        result = await window.dexteria?.plugin?.disable?.(pluginId);
       } else {
-        await window.dexteria?.plugin?.enable?.(pluginId);
+        console.log(`[SettingsPanel] Enabling plugin ${pluginId}...`);
+        result = await window.dexteria?.plugin?.enable?.(pluginId);
       }
+
+      console.log(`[SettingsPanel] Plugin toggle result:`, result);
+
       await loadPlugins();
+
+      // Show error if activation failed
+      if (result && !result.success) {
+        const errorMsg = result.error || 'Unknown error (no message returned)';
+        console.error(`[SettingsPanel] Plugin activation failed:`, errorMsg);
+        setPluginError({ pluginId, error: errorMsg });
+      }
     } catch (error) {
-      console.error('Failed to toggle plugin:', error);
+      console.error('[SettingsPanel] Failed to toggle plugin:', error);
+      setPluginError({
+        pluginId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
     setTogglingPlugin(null);
+  };
+
+  const copyErrorToClipboard = async (error: string) => {
+    try {
+      await navigator.clipboard.writeText(error);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
   };
 
   const handleSave = async () => {
@@ -242,6 +334,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     { id: 'notifications', label: 'Notifications', icon: <Bell size={16} /> },
     { id: 'commands', label: 'Commands', icon: <Terminal size={16} /> },
     { id: 'runner', label: 'Runner', icon: <Clock size={16} /> },
+    { id: 'integrations', label: 'Integrations', icon: <Code2 size={16} /> },
     { id: 'themes', label: 'Themes', icon: <Palette size={16} /> },
     { id: 'plugins', label: 'Plugins', icon: <Puzzle size={16} /> },
     { id: 'jira', label: 'Jira', icon: <Link2 size={16} /> },
@@ -604,6 +697,127 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
             </div>
           )}
 
+          {/* Integrations Tab */}
+          {activeTab === 'integrations' && (
+            <div className="space-y-6 max-w-2xl">
+              <div>
+                <h3 className="text-lg font-semibold mb-1">Integrations</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configure external tool integrations.
+                </p>
+              </div>
+
+              {/* VSCode Integration */}
+              <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center",
+                      vscodeEnabled && vscodeInstalled
+                        ? "bg-blue-500/20 text-blue-500"
+                        : "bg-muted text-muted-foreground"
+                    )}>
+                      <Code2 size={20} />
+                    </div>
+                    <div>
+                      <div className="font-medium flex items-center gap-2">
+                        VSCode Integration
+                        {vscodeInstalled && (
+                          <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
+                            Installed
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Open project files directly in Visual Studio Code
+                      </div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={vscodeEnabled}
+                    onCheckedChange={toggleVscodeIntegration}
+                    disabled={checkingVscode}
+                  />
+                </div>
+
+                {/* VSCode status details */}
+                {vscodeEnabled && (
+                  <div className="pl-13 space-y-3">
+                    {checkingVscode ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Spinner size="xs" />
+                        Checking VSCode installation...
+                      </div>
+                    ) : vscodeInstalled ? (
+                      <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm text-green-500">
+                            <Check size={14} />
+                            VSCode detected
+                            {vscodeVersion && (
+                              <span className="text-xs text-green-500/70">
+                                (v{vscodeVersion})
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={handleRefreshVSCode}
+                            disabled={checkingVscode}
+                          >
+                            <RefreshCw size={12} className={cn(checkingVscode && "animate-spin")} />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-green-500/70 mt-1">
+                          "Open in VSCode" is available in the File menu
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle size={16} className="text-amber-500 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-amber-500">
+                              VSCode not detected
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Install VSCode to use this integration. The "Open in VSCode" button will appear once installed.
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                variant="secondary"
+                                size="xs"
+                                onClick={handleOpenDownloadPage}
+                              >
+                                <Download size={12} className="mr-1" />
+                                Download VSCode
+                                <ExternalLink size={10} className="ml-1" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={handleRefreshVSCode}
+                                disabled={checkingVscode}
+                              >
+                                <RefreshCw size={12} className={cn("mr-1", checkingVscode && "animate-spin")} />
+                                Check Again
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                More integrations coming soon...
+              </p>
+            </div>
+          )}
+
           {/* Themes Tab */}
           {activeTab === 'themes' && (
             <div className="space-y-6 max-w-2xl">
@@ -893,11 +1107,36 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                   by {plugin.manifest.author}
                                 </p>
                               )}
-                              {isError && plugin.error && (
-                                <p className="text-sm text-red-400 mt-2">
-                                  Error: {plugin.error}
-                                </p>
-                              )}
+                              {(isError && plugin.error) || (pluginError?.pluginId === plugin.manifest.id) ? (
+                                <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm text-red-400 font-medium">
+                                      Error: {plugin.error || pluginError?.error}
+                                    </p>
+                                    <div className="flex gap-1 shrink-0">
+                                      <button
+                                        onClick={() => copyErrorToClipboard(plugin.error || pluginError?.error || '')}
+                                        className="p-1 hover:bg-red-500/20 rounded text-red-400"
+                                        title="Copy error"
+                                      >
+                                        <Copy size={14} />
+                                      </button>
+                                      {pluginError?.pluginId === plugin.manifest.id && (
+                                        <button
+                                          onClick={() => setPluginError(null)}
+                                          className="p-1 hover:bg-red-500/20 rounded text-red-400"
+                                          title="Dismiss"
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-red-400/70 mt-1">
+                                    Check DevTools console (F12) for more details
+                                  </p>
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">

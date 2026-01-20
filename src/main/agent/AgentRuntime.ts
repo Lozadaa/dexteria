@@ -97,6 +97,15 @@ export class AgentRuntime {
       throw new Error(`Task not found: ${taskId}`);
     }
 
+    // CRITICAL: Refuse to execute Human-Only tasks BEFORE calling AI (saves tokens)
+    if (task.humanOnly) {
+      throw new Error(
+        `Task "${task.title}" is marked as Human-Only. ` +
+        `AI agents cannot execute Human-Only tasks. ` +
+        `Please uncheck the Human-Only option if you want the AI to work on this task.`
+      );
+    }
+
     // Validate task has acceptance criteria
     if (task.acceptanceCriteria.length === 0) {
       throw new Error('Task MUST have at least one acceptance criterion');

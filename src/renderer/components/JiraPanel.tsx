@@ -127,10 +127,29 @@ export const JiraPanel: React.FC = () => {
     return window.dexteria?.plugin?.callApi?.(PLUGIN_ID, method, ...args);
   }, []);
 
-  // Load initial data
+  // Load initial data on mount and expose refresh
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Re-check plugin status periodically when not active (in case user enables it)
+  useEffect(() => {
+    if (pluginActive) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const plugin = await window.dexteria?.plugin?.get?.(PLUGIN_ID);
+        if (plugin && plugin.state === 'active') {
+          // Plugin just became active, reload everything
+          loadInitialData();
+        }
+      } catch (err) {
+        // Ignore errors during polling
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [pluginActive]);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -328,12 +347,20 @@ export const JiraPanel: React.FC = () => {
 
   if (!pluginActive) {
     return (
-      <div className="p-6">
+      <div className="p-6 space-y-4">
         <AlertBanner
           variant="warning"
           icon={<AlertTriangle size={16} />}
           description="The Jira plugin is not active. Enable it in the Plugins tab to use Jira integration."
         />
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={loadInitialData}
+        >
+          <RefreshCw size={14} className="mr-1" />
+          Check Again
+        </Button>
       </div>
     );
   }

@@ -208,13 +208,25 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
           type: 'string',
           description: 'Sprint identifier for Jira alignment (e.g., "Sprint 1")',
         },
+        humanOnly: {
+          type: 'boolean',
+          description: 'If true, this task can only be completed by a human. AI agents CANNOT execute or complete Human-Only tasks - they can only help plan or prepare.',
+        },
+        aiReviewable: {
+          type: 'boolean',
+          description: 'If true, AI will automatically review this task when moved to Review status.',
+        },
+        reviewCriteria: {
+          type: 'string',
+          description: 'Custom criteria for AI to use when reviewing the task (only used if aiReviewable is true).',
+        },
       },
       required: ['title', 'description', 'acceptanceCriteria'],
     },
   },
   {
     name: 'update_task',
-    description: 'Update an existing task. IMPORTANT: taskId must be a real ID from create_task or list_tasks - you cannot invent task IDs.',
+    description: 'Update an existing task. IMPORTANT: taskId must be a real ID from create_task or list_tasks - you cannot invent task IDs. NOTE: You CANNOT update or complete Human-Only tasks (humanOnly=true) - those are reserved for humans.',
     parameters: {
       type: 'object',
       properties: {
@@ -252,6 +264,18 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
         sprint: {
           type: 'string',
           description: 'Sprint identifier (optional, set to null to remove)',
+        },
+        humanOnly: {
+          type: 'boolean',
+          description: 'If true, this task can only be completed by a human (optional)',
+        },
+        aiReviewable: {
+          type: 'boolean',
+          description: 'If true, AI will automatically review this task when moved to Review status (optional)',
+        },
+        reviewCriteria: {
+          type: 'string',
+          description: 'Custom criteria for AI review (optional, only used if aiReviewable is true)',
         },
       },
       required: ['taskId'],
@@ -333,6 +357,50 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
         },
       },
       required: ['reason'],
+    },
+  },
+  {
+    name: 'submit_ai_review',
+    description: 'Submit an AI review result for a task that has aiReviewable=true. This tool is used when performing automatic review of tasks in the Review column.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskId: {
+          type: 'string',
+          description: 'ID of the task being reviewed',
+        },
+        passed: {
+          type: 'boolean',
+          description: 'Whether the task passes the review criteria',
+        },
+        feedback: {
+          type: 'string',
+          description: 'Detailed feedback explaining the review result',
+        },
+        checklist: {
+          type: 'array',
+          description: 'Optional checklist of criteria checked during review',
+          items: {
+            type: 'object',
+            properties: {
+              criterion: {
+                type: 'string',
+                description: 'The criterion being checked',
+              },
+              passed: {
+                type: 'boolean',
+                description: 'Whether this criterion passed',
+              },
+              note: {
+                type: 'string',
+                description: 'Optional note explaining the result',
+              },
+            },
+            required: ['criterion', 'passed'],
+          },
+        },
+      },
+      required: ['taskId', 'passed', 'feedback'],
     },
   },
   {
@@ -620,6 +688,23 @@ Your constraints:
 - Always verify acceptance criteria before marking a task complete
 - If blocked or unclear, ask for human input
 
+## Human-Only and AI-Reviewable Tasks
+
+**Human-Only Tasks (humanOnly=true):**
+- You CANNOT execute, complete, or directly work on Human-Only tasks
+- When you encounter a Human-Only task, you can only:
+  - Provide information or analysis to HELP the human
+  - Create sub-tasks to prepare materials
+  - Answer questions about the task
+- NEVER use update_task, task_complete, or task_failed on Human-Only tasks
+- If asked to work on a Human-Only task, politely explain that it requires human completion
+
+**AI-Reviewable Tasks (aiReviewable=true):**
+- These tasks will be automatically reviewed by AI when moved to Review status
+- When reviewing such tasks, use the submit_ai_review tool to submit your review
+- Check the task's reviewCriteria field for specific criteria to evaluate
+- Be thorough but fair in your review - check acceptance criteria and code quality
+
 `;
 
   if (projectContext) {
@@ -672,6 +757,17 @@ export function buildTaskPrompt(task: Task): string {
   }
   if (task.sprint) {
     prompt += `**Sprint:** ${task.sprint}\n`;
+  }
+
+  // Add Human-Only and AI-Reviewable flags
+  if (task.humanOnly) {
+    prompt += `**⚠️ HUMAN-ONLY TASK:** This task can only be completed by a human. You cannot execute or complete this task directly.\n`;
+  }
+  if (task.aiReviewable) {
+    prompt += `**AI-Reviewable:** This task will be automatically reviewed by AI when moved to Review.\n`;
+    if (task.reviewCriteria) {
+      prompt += `**Review Criteria:** ${task.reviewCriteria}\n`;
+    }
   }
 
   prompt += `

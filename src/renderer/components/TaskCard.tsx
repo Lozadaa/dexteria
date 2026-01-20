@@ -3,7 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../lib/utils';
 import { Badge, Button } from 'adnia-ui';
-import { GripVertical, AlertCircle, CheckCircle, Clock, Ban, Trash2, Loader2, StopCircle, Play } from 'lucide-react';
+import { GripVertical, AlertCircle, CheckCircle, Clock, Ban, Trash2, Loader2, StopCircle, Play, User, Sparkles, XCircle } from 'lucide-react';
 import { DoneTimeChip } from './DoneTimeChip';
 import { Slot } from './extension/Slot';
 import type { Task } from '../../shared/types';
@@ -157,7 +157,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                 </div>
             )}
 
-            {/* Epic label and plugin badges */}
+            {/* Epic label, Human-Only/AI-Reviewable badges, and plugin badges */}
             <div className="flex items-center gap-1.5 -mt-0.5 mb-1 flex-wrap">
                 {task.epic && (
                     <>
@@ -178,6 +178,64 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                         )}
                     </>
                 )}
+
+                {/* Human-Only badge */}
+                {task.humanOnly && (
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border-amber-500/30"
+                        title="This task can only be completed by a human"
+                    >
+                        <User className="w-3 h-3 mr-0.5" />
+                        Human-Only
+                    </Badge>
+                )}
+
+                {/* AI-Reviewable badge */}
+                {task.aiReviewable && !task.aiReview && (
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 border-purple-500/30"
+                        title="AI will auto-review when moved to Review"
+                    >
+                        <Sparkles className="w-3 h-3 mr-0.5" />
+                        AI-Review
+                    </Badge>
+                )}
+
+                {/* AI Processing indicator */}
+                {task.aiProcessing && (
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse"
+                        title="AI is reviewing this task"
+                    >
+                        <Loader2 className="w-3 h-3 mr-0.5 animate-spin" />
+                        Reviewing...
+                    </Badge>
+                )}
+
+                {/* AI Review result badge */}
+                {task.aiReview && (
+                    <Badge
+                        variant="outline"
+                        className={cn(
+                            "text-[10px] px-1.5 py-0.5",
+                            task.aiReview.passed
+                                ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                : "bg-red-500/10 text-red-400 border-red-500/30"
+                        )}
+                        title={task.aiReview.passed ? "AI Review Passed" : "AI Review Failed - needs attention"}
+                    >
+                        {task.aiReview.passed ? (
+                            <CheckCircle className="w-3 h-3 mr-0.5" />
+                        ) : (
+                            <XCircle className="w-3 h-3 mr-0.5" />
+                        )}
+                        {task.aiReview.passed ? "AI ✓" : "AI ✗"}
+                    </Badge>
+                )}
+
                 {/* Plugin slot for task card badges */}
                 <Slot
                     id="task-card:badge"

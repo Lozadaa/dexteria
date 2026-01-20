@@ -587,10 +587,12 @@ This helps if the task is interrupted - you can resume from where you left off.
   /**
    * Build task queue with dependency resolution (topological sort).
    * Returns tasks in order they should be executed.
+   * Note: Human-Only tasks are excluded from automated execution.
    */
   private buildTaskQueue(): Task[] {
     const allTasks = this.store.getTasks();
-    const backlogTasks = allTasks.filter(t => t.status === 'todo');
+    // Filter out Human-Only tasks - they cannot be executed by AI
+    const backlogTasks = allTasks.filter(t => t.status === 'todo' && !t.humanOnly);
     const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
     // Topological sort with priority

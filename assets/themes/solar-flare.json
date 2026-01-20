@@ -1,0 +1,67 @@
+{
+  "id": "solar-flare",
+  "name": "Solar Flare",
+  "version": 1,
+  "description": "Warm theme with orange and amber solar energy",
+  "colors": {
+    "core": {
+      "background": "20 50% 5%",
+      "foreground": "30 30% 90%",
+      "card": "20 45% 10%",
+      "cardForeground": "30 30% 90%",
+      "popover": "20 50% 7%",
+      "popoverForeground": "30 30% 85%",
+      "primary": "24 95% 53%",
+      "primaryForeground": "0 0% 0%",
+      "secondary": "20 40% 18%",
+      "secondaryForeground": "30 30% 95%",
+      "muted": "20 35% 13%",
+      "mutedForeground": "25 20% 55%",
+      "accent": "45 93% 53%",
+      "accentForeground": "0 0% 0%",
+      "destructive": "0 84% 60%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "20 40% 18%",
+      "input": "20 40% 18%",
+      "ring": "24 95% 53%"
+    },
+    "code": {
+      "background": "20 50% 6%",
+      "foreground": "30 30% 87%",
+      "comment": "25 20% 48%",
+      "keyword": "340 75% 65%",
+      "string": "90 55% 62%",
+      "number": "24 95% 65%",
+      "function": "45 93% 60%",
+      "operator": "30 60% 58%",
+      "variable": "15 85% 65%",
+      "class": "60 70% 60%"
+    },
+    "diff": {
+      "addBackground": "142 76% 22%",
+      "addForeground": "142 76% 88%",
+      "removeBackground": "0 63% 28%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 80% 28%",
+      "changeForeground": "45 93% 88%"
+    },
+    "terminal": {
+      "background": "20 50% 4%",
+      "foreground": "30 30% 92%",
+      "cursor": "24 95% 53%",
+      "selection": "24 95% 25%"
+    },
+    "lineNumber": "25 20% 40%",
+    "lineHighlight": "20 45% 9%"
+  },
+  "fonts": {
+    "sans": "Nunito, system-ui, sans-serif",
+    "mono": "Cascadia Code, Consolas, monospace",
+    "display": "Nunito, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.5rem",
+  "createdAt": "2026-01-17T20:46:15.220Z",
+  "updatedAt": "2026-01-17T20:46:15.220Z"
+}

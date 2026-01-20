@@ -16,12 +16,13 @@ const GITHUB_REPO = 'sst/opencode';
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
 // Asset name mapping for different platforms
+// Based on actual GitHub release asset names from sst/opencode
 const ASSET_NAMES: Record<string, string> = {
-  'win32-x64': 'opencode_Windows_x86_64.zip',
-  'darwin-x64': 'opencode_Darwin_x86_64.tar.gz',
-  'darwin-arm64': 'opencode_Darwin_arm64.tar.gz',
-  'linux-x64': 'opencode_Linux_x86_64.tar.gz',
-  'linux-arm64': 'opencode_Linux_arm64.tar.gz',
+  'win32-x64': 'opencode-windows-x64.zip',
+  'darwin-x64': 'opencode-darwin-x64.zip',
+  'darwin-arm64': 'opencode-darwin-arm64.zip',
+  'linux-x64': 'opencode-linux-x64.tar.gz',
+  'linux-arm64': 'opencode-linux-arm64.tar.gz',
 };
 
 export interface OpenCodeInstallProgress {

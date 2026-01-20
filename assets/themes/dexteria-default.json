@@ -1,0 +1,68 @@
+{
+  "id": "dexteria-default",
+  "name": "Dexteria",
+  "version": 1,
+  "author": "Dexteria Team",
+  "description": "Default Dexteria dark theme",
+  "colors": {
+    "core": {
+      "background": "224 71% 4%",
+      "foreground": "213 31% 91%",
+      "card": "224 71% 6%",
+      "cardForeground": "213 31% 91%",
+      "popover": "224 71% 6%",
+      "popoverForeground": "215 20% 65%",
+      "primary": "217 91% 60%",
+      "primaryForeground": "222 47% 11%",
+      "secondary": "222 47% 11%",
+      "secondaryForeground": "210 40% 98%",
+      "muted": "223 47% 11%",
+      "mutedForeground": "215 16% 57%",
+      "accent": "216 34% 17%",
+      "accentForeground": "210 40% 98%",
+      "destructive": "0 63% 31%",
+      "destructiveForeground": "210 40% 98%",
+      "border": "216 34% 17%",
+      "input": "216 34% 17%",
+      "ring": "217 91% 60%"
+    },
+    "code": {
+      "background": "220 13% 10%",
+      "foreground": "220 14% 85%",
+      "comment": "220 10% 45%",
+      "keyword": "286 60% 72%",
+      "string": "95 38% 67%",
+      "number": "29 54% 66%",
+      "function": "207 82% 71%",
+      "operator": "187 47% 60%",
+      "variable": "355 65% 70%",
+      "class": "39 67% 74%"
+    },
+    "diff": {
+      "addBackground": "142 76% 20%",
+      "addForeground": "142 76% 90%",
+      "removeBackground": "0 63% 25%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 80% 25%",
+      "changeForeground": "45 93% 90%"
+    },
+    "terminal": {
+      "background": "220 13% 6%",
+      "foreground": "220 14% 90%",
+      "cursor": "217 91% 60%",
+      "selection": "217 91% 60%"
+    },
+    "lineNumber": "220 10% 35%",
+    "lineHighlight": "220 13% 12%"
+  },
+  "fonts": {
+    "sans": "Inter, system-ui, sans-serif",
+    "mono": "JetBrains Mono, Menlo, Monaco, monospace",
+    "display": "Inter, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.5rem",
+  "createdAt": "2026-01-17T00:00:00.000Z",
+  "updatedAt": "2026-01-17T00:00:00.000Z"
+}

@@ -24,12 +24,14 @@ import {
     Zap,
     Palette,
     Check,
+    Code2,
+    Download,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import SplashImage from '../../../assets/splash.png';
 
 type ProviderType = 'opencode' | 'claude-code' | 'anthropic';
-type WizardStep = 'select' | 'configure' | 'test' | 'theme';
+type WizardStep = 'select' | 'configure' | 'test' | 'theme' | 'codeViewing';
 
 interface OpenCodeInstallProgress {
     phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
@@ -73,6 +75,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [openCodeInstallProgress, setOpenCodeInstallProgress] = useState<OpenCodeInstallProgress | null>(null);
     const [openCodeError, setOpenCodeError] = useState<string | null>(null);
 
+    // VSCode state
+    const [vscodeInstalled, setVscodeInstalled] = useState<boolean | null>(null);
+    const [checkingVscode, setCheckingVscode] = useState(true);
+    const [wantsCodeViewing, setWantsCodeViewing] = useState<boolean | null>(null);
+    const [vscodeDownloadUrl, setVscodeDownloadUrl] = useState<string>('');
+
     // Helper function to reset OpenCode state on error or cancel
     const resetOpenCodeState = () => {
         setInstallingOpenCode(false);
@@ -86,6 +94,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         checkOpenCodeAvailability();
         checkClaudeCodeAvailability();
         loadPresetThemes();
+        checkVSCodeAvailability();
     }, []);
 
     // Listen for OpenCode install progress
@@ -219,6 +228,22 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         setCheckingClaudeCode(false);
     };
 
+    const checkVSCodeAvailability = async () => {
+        setCheckingVscode(true);
+        try {
+            const status = await window.dexteria?.vscode?.getStatus?.();
+            setVscodeInstalled(status?.installed ?? false);
+
+            // Get download URL
+            const url = await window.dexteria?.vscode?.getDownloadUrl?.();
+            setVscodeDownloadUrl(url || 'https://code.visualstudio.com/download');
+        } catch (err) {
+            console.error('[SetupWizard] Error checking VSCode:', err);
+            setVscodeInstalled(false);
+        }
+        setCheckingVscode(false);
+    };
+
     const handleSelectProvider = (provider: ProviderType) => {
         setSelectedProvider(provider);
         setTestResult(null);
@@ -300,13 +325,37 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         }
     };
 
+    const handleThemeComplete = () => {
+        setStep('codeViewing');
+    };
+
+    const handleVSCodeChoice = async (wants: boolean) => {
+        setWantsCodeViewing(wants);
+        // Save the preference
+        try {
+            await window.dexteria?.settings?.setVSCodePreference?.(wants);
+        } catch (err) {
+            console.error('Failed to save VSCode preference:', err);
+        }
+    };
+
+    const handleOpenDownloadPage = async () => {
+        try {
+            await window.dexteria?.vscode?.openDownloadPage?.();
+        } catch (err) {
+            console.error('Failed to open download page:', err);
+        }
+    };
+
     const handleComplete = () => {
         // Pass selected theme ID to parent, theme will be applied when project opens
         onComplete(selectedTheme);
     };
 
     const handleBack = () => {
-        if (step === 'theme') {
+        if (step === 'codeViewing') {
+            setStep('theme');
+        } else if (step === 'theme') {
             setStep('test');
         } else if (step === 'test') {
             setStep('configure');
@@ -323,6 +372,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             case 'configure': return 2;
             case 'test': return 3;
             case 'theme': return 4;
+            case 'codeViewing': return 5;
         }
     };
 
@@ -383,14 +433,16 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                         <p className="text-muted-foreground">
                             {step === 'theme'
                                 ? 'Choose a theme for your workspace'
-                                : "Let's configure your AI provider to get started"
+                                : step === 'codeViewing'
+                                    ? 'Would you like to view code in VSCode?'
+                                    : "Let's configure your AI provider to get started"
                             }
                         </p>
                     </div>
 
                     {/* Progress indicator */}
                     <div className="flex items-center justify-center gap-2 mb-8">
-                        {[1, 2, 3, 4].map((num, idx) => (
+                        {[1, 2, 3, 4, 5].map((num, idx) => (
                             <React.Fragment key={num}>
                                 <div className={cn(
                                     "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
@@ -402,7 +454,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 )}>
                                     {currentStepNum > num ? <Check size={14} /> : num}
                                 </div>
-                                {idx < 3 && <div className="w-8 h-0.5 bg-border" />}
+                                {idx < 4 && <div className="w-6 h-0.5 bg-border" />}
                             </React.Fragment>
                         ))}
                     </div>
@@ -880,9 +932,147 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     Back
                                 </Button>
                                 <Button
-                                    onClick={handleComplete}
+                                    onClick={handleThemeComplete}
                                     className="flex-1"
                                     disabled={loadingThemes}
+                                >
+                                    Continue
+                                    <ArrowRight size={16} className="ml-2" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step: Code Viewing (VSCode Integration) */}
+                    {step === 'codeViewing' && (
+                        <div className="space-y-4">
+                            <h2 className="text-lg font-semibold text-center mb-4">
+                                Code Viewing Integration
+                            </h2>
+
+                            <p className="text-sm text-muted-foreground text-center mb-6">
+                                Enable VSCode integration to quickly open project files in your editor.
+                            </p>
+
+                            {checkingVscode ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Spinner size="md" label="Checking for VSCode..." />
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {/* Yes, enable VSCode integration */}
+                                    <button
+                                        onClick={() => handleVSCodeChoice(true)}
+                                        className={cn(
+                                            "w-full p-4 rounded-lg border text-left transition-all",
+                                            "hover:border-primary/50 hover:bg-muted/50",
+                                            wantsCodeViewing === true
+                                                ? "border-primary ring-2 ring-primary/20"
+                                                : "border-border"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <div className={cn(
+                                                "w-12 h-12 rounded-lg flex items-center justify-center",
+                                                wantsCodeViewing === true
+                                                    ? "bg-primary/20 text-primary"
+                                                    : "bg-muted text-muted-foreground"
+                                            )}>
+                                                <Code2 size={24} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-semibold">Yes, enable VSCode integration</span>
+                                                    {vscodeInstalled && (
+                                                        <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
+                                                            VSCode Detected
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-1">
+                                                    Add "Open in VSCode" button to quickly view project files.
+                                                </p>
+                                            </div>
+                                            {wantsCodeViewing === true && (
+                                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center mt-3">
+                                                    <Check size={12} className="text-primary-foreground" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
+
+                                    {/* Show download link if VSCode not installed but user wants it */}
+                                    {wantsCodeViewing === true && !vscodeInstalled && (
+                                        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                                            <div className="flex items-start gap-3">
+                                                <Download size={18} className="text-amber-500 mt-0.5" />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-amber-500">
+                                                        VSCode not detected
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        You can still enable this feature and install VSCode later.
+                                                    </p>
+                                                    <button
+                                                        onClick={handleOpenDownloadPage}
+                                                        className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-2"
+                                                    >
+                                                        <ExternalLink size={12} />
+                                                        Download VSCode
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* No, skip this feature */}
+                                    <button
+                                        onClick={() => handleVSCodeChoice(false)}
+                                        className={cn(
+                                            "w-full p-4 rounded-lg border text-left transition-all",
+                                            "hover:border-primary/50 hover:bg-muted/50",
+                                            wantsCodeViewing === false
+                                                ? "border-primary ring-2 ring-primary/20"
+                                                : "border-border"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <div className={cn(
+                                                "w-12 h-12 rounded-lg flex items-center justify-center",
+                                                wantsCodeViewing === false
+                                                    ? "bg-primary/20 text-primary"
+                                                    : "bg-muted text-muted-foreground"
+                                            )}>
+                                                <XCircle size={24} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <span className="font-semibold">No, skip this feature</span>
+                                                <p className="text-sm text-muted-foreground mt-1">
+                                                    You can enable this later in Settings.
+                                                </p>
+                                            </div>
+                                            {wantsCodeViewing === false && (
+                                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center mt-3">
+                                                    <Check size={12} className="text-primary-foreground" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
+                                </div>
+                            )}
+
+                            <p className="text-xs text-muted-foreground text-center">
+                                You can change this later in Settings
+                            </p>
+
+                            <div className="flex gap-2">
+                                <Button variant="ghost" onClick={handleBack}>
+                                    Back
+                                </Button>
+                                <Button
+                                    onClick={handleComplete}
+                                    className="flex-1"
+                                    disabled={wantsCodeViewing === null}
                                 >
                                     <Palette size={16} className="mr-2" />
                                     Get Started

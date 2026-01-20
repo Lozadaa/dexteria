@@ -14,6 +14,7 @@ import {
   Play,
   Puzzle,
   Home,
+  Wrench,
 } from 'lucide-react';
 import type { ViewTypeDefinition, ViewComponentProps } from '../ComponentRegistry';
 
@@ -198,8 +199,8 @@ export const viewDefinitions: ViewTypeDefinition[] = [
   {
     viewType: 'taskRunner',
     component: TaskRunnerView,
-    title: 'Task Runner',
-    icon: Terminal,
+    title: 'Tools',
+    icon: Wrench,
     closable: true,
   },
   {

@@ -1,0 +1,67 @@
+{
+  "id": "forest-terminal",
+  "name": "Forest Terminal",
+  "version": 1,
+  "description": "Earthy dark theme with moss green accents",
+  "colors": {
+    "core": {
+      "background": "150 30% 6%",
+      "foreground": "150 15% 88%",
+      "card": "150 25% 11%",
+      "cardForeground": "150 15% 88%",
+      "popover": "150 30% 8%",
+      "popoverForeground": "150 15% 85%",
+      "primary": "142 70% 45%",
+      "primaryForeground": "0 0% 100%",
+      "secondary": "150 20% 17%",
+      "secondaryForeground": "150 15% 93%",
+      "muted": "150 18% 13%",
+      "mutedForeground": "150 12% 50%",
+      "accent": "90 65% 55%",
+      "accentForeground": "0 0% 0%",
+      "destructive": "0 84% 60%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "150 20% 17%",
+      "input": "150 20% 17%",
+      "ring": "142 70% 45%"
+    },
+    "code": {
+      "background": "150 30% 7%",
+      "foreground": "150 15% 85%",
+      "comment": "150 12% 45%",
+      "keyword": "142 70% 55%",
+      "string": "90 65% 60%",
+      "number": "60 70% 60%",
+      "function": "170 60% 55%",
+      "operator": "120 55% 52%",
+      "variable": "100 65% 58%",
+      "class": "80 68% 56%"
+    },
+    "diff": {
+      "addBackground": "142 76% 18%",
+      "addForeground": "142 76% 85%",
+      "removeBackground": "0 63% 22%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 80% 22%",
+      "changeForeground": "45 93% 88%"
+    },
+    "terminal": {
+      "background": "150 30% 5%",
+      "foreground": "150 15% 90%",
+      "cursor": "142 70% 45%",
+      "selection": "142 70% 22%"
+    },
+    "lineNumber": "150 12% 36%",
+    "lineHighlight": "150 25% 9%"
+  },
+  "fonts": {
+    "sans": "Work Sans, system-ui, sans-serif",
+    "mono": "Inconsolata, Courier New, monospace",
+    "display": "Work Sans, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.5rem",
+  "createdAt": "2026-01-17T20:46:06.904Z",
+  "updatedAt": "2026-01-17T20:46:06.904Z"
+}

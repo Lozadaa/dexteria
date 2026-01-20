@@ -623,23 +623,27 @@ export class PluginManager {
       return false;
     }
 
-    if (plugin.state !== 'active') {
-      return true; // Not active
+    // Already disabled
+    if (plugin.state === 'disabled') {
+      return true;
     }
 
     try {
-      const module = this.loadedModules.get(pluginId);
-      if (module?.deactivate) {
-        await module.deactivate();
+      // Only call deactivate if the plugin was actually active
+      if (plugin.state === 'active') {
+        const module = this.loadedModules.get(pluginId);
+        if (module?.deactivate) {
+          await module.deactivate();
+        }
+
+        // Clear UI items registered by this plugin
+        this.clearPluginUIItems(pluginId);
+
+        // Remove from loaded modules
+        this.loadedModules.delete(pluginId);
       }
 
-      // Clear UI items registered by this plugin
-      this.clearPluginUIItems(pluginId);
-
-      // Remove from loaded modules
-      this.loadedModules.delete(pluginId);
-
-      // Update state
+      // Update state (works for both 'active' and 'enabled' states)
       plugin.state = 'disabled';
       plugin.activatedAt = undefined;
 

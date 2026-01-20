@@ -1,0 +1,67 @@
+{
+  "id": "arctic-frost",
+  "name": "Arctic Frost",
+  "version": 1,
+  "description": "Cool blue ice theme with frosty tones",
+  "colors": {
+    "core": {
+      "background": "210 50% 8%",
+      "foreground": "200 20% 90%",
+      "card": "210 45% 11%",
+      "cardForeground": "200 20% 90%",
+      "popover": "210 45% 11%",
+      "popoverForeground": "200 15% 70%",
+      "primary": "195 85% 55%",
+      "primaryForeground": "210 50% 8%",
+      "secondary": "210 40% 15%",
+      "secondaryForeground": "195 85% 85%",
+      "muted": "210 35% 14%",
+      "mutedForeground": "200 15% 55%",
+      "accent": "195 60% 20%",
+      "accentForeground": "195 85% 90%",
+      "destructive": "0 70% 45%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "210 30% 18%",
+      "input": "210 30% 18%",
+      "ring": "195 85% 55%"
+    },
+    "code": {
+      "background": "210 45% 8%",
+      "foreground": "200 20% 85%",
+      "comment": "200 15% 45%",
+      "keyword": "195 90% 65%",
+      "string": "160 60% 55%",
+      "number": "30 80% 60%",
+      "function": "210 90% 70%",
+      "operator": "195 50% 60%",
+      "variable": "340 70% 70%",
+      "class": "45 80% 65%"
+    },
+    "diff": {
+      "addBackground": "160 60% 15%",
+      "addForeground": "160 60% 85%",
+      "removeBackground": "0 60% 20%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 60% 20%",
+      "changeForeground": "45 80% 85%"
+    },
+    "terminal": {
+      "background": "210 50% 6%",
+      "foreground": "200 20% 88%",
+      "cursor": "195 85% 55%",
+      "selection": "195 60% 30%"
+    },
+    "lineNumber": "200 15% 35%",
+    "lineHighlight": "210 40% 12%"
+  },
+  "fonts": {
+    "sans": "Inter, system-ui, sans-serif",
+    "mono": "JetBrains Mono, Menlo, Monaco, monospace",
+    "display": "Inter, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.5rem",
+  "createdAt": "2026-01-17T20:20:01.653Z",
+  "updatedAt": "2026-01-17T21:00:00.000Z"
+}

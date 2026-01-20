@@ -1,4 +1,33 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  Board,
+  Task,
+  TaskComment,
+  TaskPatch,
+  TaskStatus,
+  AgentState,
+  Policy,
+  ProjectContext,
+  RepoIndex,
+  ChatIndex,
+  Chat,
+  AgentRun,
+  CustomTheme,
+  PluginInfo,
+  UIContributions,
+  ProjectSettings,
+  ProjectProcessStatus,
+} from '../shared/types';
+
+/** Clarification request from a task */
+export interface ClarificationRequest {
+  commentId: string;
+  runId?: string;
+  reason: string;
+  question: string;
+  timestamp: string;
+  resolved: boolean;
+}
 
 /**
  * Dexteria Preload Script
@@ -6,6 +35,148 @@ import { contextBridge, ipcRenderer } from 'electron';
  * Exposes a safe, limited API to the renderer process.
  * All communication with the main process goes through this bridge.
  */
+
+// ============================================
+// Response Types
+// ============================================
+
+/** Result of task state analysis */
+export interface TaskAnalysisResult {
+  success: boolean;
+  summary: string;
+  criteria: { criterion: string; passed: boolean; evidence: string }[];
+  suggestedStatus: TaskStatus;
+  error?: string;
+}
+
+/** Comment context for a task */
+export interface TaskCommentContext {
+  formattedContext: string;
+  failureCount: number;
+  hasUnresolvedClarifications: boolean;
+}
+
+/** Agent run result */
+export interface AgentRunResult {
+  success: boolean;
+  run: AgentRun;
+  error?: string;
+}
+
+/** Ralph mode progress */
+export interface RalphProgress {
+  total: number;
+  completed: number;
+  failed: number;
+  blocked: number;
+  currentTaskId: string | null;
+  currentTaskTitle: string | null;
+  status: 'idle' | 'running' | 'paused' | 'stopped';
+}
+
+/** Ralph mode result */
+export interface RalphResult {
+  success: boolean;
+  processed: number;
+  completed: number;
+  failed: number;
+  blocked: number;
+  stoppedReason?: string;
+}
+
+/** Provider info */
+export interface ProviderInfo {
+  name: string;
+  ready: boolean;
+  type: 'mock' | 'anthropic' | 'claude-code' | 'opencode';
+}
+
+/** Provider type */
+export type ProviderType = 'mock' | 'anthropic' | 'claude-code' | 'opencode';
+
+/** Available providers response */
+export interface AvailableProvidersResponse {
+  providers: Array<{ type: ProviderType; name: string; description: string; available: boolean }>;
+  current: ProviderType;
+}
+
+/** Project action result */
+export interface ProjectActionResult {
+  success: boolean;
+  path?: string;
+  error?: string;
+}
+
+/** Recent project entry */
+export interface RecentProject {
+  path: string;
+  name: string;
+  lastOpened: string;
+}
+
+/** Process run result */
+export interface ProcessRunResult {
+  runId: string;
+  success: boolean;
+  logPath: string;
+  error?: string;
+}
+
+/** Theme index entry */
+export interface ThemeIndexEntry {
+  id: string;
+  name: string;
+  isBuiltIn: boolean;
+  path: string;
+}
+
+/** Theme set result */
+export interface ThemeSetResult {
+  success: boolean;
+  theme?: CustomTheme;
+  css?: { light: string; dark: string };
+}
+
+/** Plugin enable/disable result */
+export interface PluginActionResult {
+  success: boolean;
+  error?: string;
+}
+
+/** OpenCode release info */
+export interface OpenCodeRelease {
+  version: string;
+  assetUrl: string;
+  assetName: string;
+}
+
+/** OpenCode update check result */
+export interface OpenCodeUpdateCheck {
+  updateAvailable: boolean;
+  currentVersion: string | null;
+  latestVersion: string;
+  error?: string;
+}
+
+/** OpenCode install progress */
+export interface OpenCodeInstallProgress {
+  phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
+  percent: number;
+  message: string;
+}
+
+/** VSCode status */
+export interface VSCodeStatus {
+  installed: boolean;
+  path: string | null;
+  version: string | null;
+}
+
+/** VSCode preference */
+export interface VSCodePreference {
+  wantsCodeViewing: boolean;
+  setAt?: string;
+}
 
 // ============================================
 // API Type Definitions
@@ -26,134 +197,85 @@ export interface DexteriaAPI {
     openDevTools: () => Promise<void>;
   };
   board: {
-    get: () => Promise<unknown>;
-    save: (board: unknown) => Promise<void>;
+    get: () => Promise<Board>;
+    save: (board: Board) => Promise<void>;
   };
   tasks: {
-    getAll: () => Promise<unknown[]>;
-    get: (taskId: string) => Promise<unknown>;
-    create: (title: string, status?: string) => Promise<unknown>;
-    update: (taskId: string, patch: unknown) => Promise<unknown>;
+    getAll: () => Promise<Task[]>;
+    get: (taskId: string) => Promise<Task | null>;
+    create: (title: string, status?: TaskStatus) => Promise<Task>;
+    update: (taskId: string, patch: TaskPatch) => Promise<Task>;
     delete: (taskId: string) => Promise<void>;
-    move: (taskId: string, toColumnId: string, newOrder?: number) => Promise<void>;
-    addComment: (taskId: string, comment: unknown) => Promise<void>;
+    move: (taskId: string, toColumnId: TaskStatus, newOrder?: number) => Promise<void>;
+    addComment: (taskId: string, comment: TaskComment) => Promise<void>;
     addTypedComment: (
       taskId: string,
-      type: string,
+      type: TaskComment['type'],
       author: string,
       content: string,
       runId?: string
-    ) => Promise<unknown>;
-    getPending: (strategy?: string) => Promise<unknown[]>;
-    analyzeState: (taskId: string) => Promise<{
-      success: boolean;
-      summary: string;
-      criteria: { criterion: string; passed: boolean; evidence: string }[];
-      suggestedStatus: string;
-      error?: string;
-    }>;
-    getCommentContext: (taskId: string) => Promise<{
-      formattedContext: string;
-      failureCount: number;
-      hasUnresolvedClarifications: boolean;
-    }>;
-    getPendingClarifications: (taskId: string) => Promise<{
-      commentId: string;
-      reason: string;
-      question: string;
-      timestamp: string;
-      resolved: boolean;
-    }[]>;
-    markFailuresAddressed: (taskId: string, note?: string) => Promise<unknown>;
+    ) => Promise<TaskComment>;
+    getPending: (strategy?: 'fifo' | 'priority' | 'dependency') => Promise<Task[]>;
+    analyzeState: (taskId: string) => Promise<TaskAnalysisResult>;
+    getCommentContext: (taskId: string) => Promise<TaskCommentContext>;
+    getPendingClarifications: (taskId: string) => Promise<ClarificationRequest[]>;
+    markFailuresAddressed: (taskId: string, note?: string) => Promise<TaskComment>;
   };
   state: {
-    get: () => Promise<unknown>;
-    set: (patch: unknown) => Promise<unknown>;
+    get: () => Promise<AgentState>;
+    set: (patch: Partial<AgentState>) => Promise<AgentState>;
   };
   policy: {
-    get: () => Promise<unknown>;
+    get: () => Promise<Policy>;
   };
   agent: {
-    runTask: (taskId: string, options?: unknown) => Promise<{
-      success: boolean;
-      run: unknown;
-      error?: string;
-    }>;
+    runTask: (taskId: string, options?: { mode?: 'manual' | 'dexter'; maxSteps?: number }) => Promise<AgentRunResult>;
     cancel: () => Promise<void>;
     isRunning: () => Promise<boolean>;
-    getCurrentRun: () => Promise<unknown>;
+    getCurrentRun: () => Promise<AgentRun | null>;
     onStreamUpdate: (callback: (data: { taskId: string; taskTitle?: string; content: string; done: boolean; cancelled?: boolean }) => void) => () => void;
   };
   ralph: {
-    start: (options?: unknown) => Promise<{
-      success: boolean;
-      processed: number;
-      completed: number;
-      failed: number;
-      blocked: number;
-      stoppedReason?: string;
-    }>;
+    start: (options?: { strategy?: 'fifo' | 'priority' | 'dependency'; maxTasks?: number; maxAttempts?: number }) => Promise<RalphResult>;
     stop: () => Promise<void>;
     pause: () => Promise<void>;
     resume: () => Promise<void>;
-    getProgress: () => Promise<{
-      total: number;
-      completed: number;
-      failed: number;
-      blocked: number;
-      currentTaskId: string | null;
-      currentTaskTitle: string | null;
-      status: string;
-    }>;
+    getProgress: () => Promise<RalphProgress>;
     isRunning: () => Promise<boolean>;
   };
   runs: {
     getLog: (taskId: string, runId: string) => Promise<string | null>;
     tailLog: (taskId: string, runId: string, lines?: number) => Promise<string | null>;
-    getMetadata: (taskId: string, runId: string) => Promise<unknown>;
+    getMetadata: (taskId: string, runId: string) => Promise<AgentRun | null>;
   };
   context: {
-    getProject: () => Promise<unknown>;
-    saveProject: (context: unknown) => Promise<void>;
-    getRepoIndex: () => Promise<unknown>;
-    saveRepoIndex: (index: unknown) => Promise<void>;
+    getProject: () => Promise<ProjectContext>;
+    saveProject: (context: ProjectContext) => Promise<void>;
+    getRepoIndex: () => Promise<RepoIndex>;
+    saveRepoIndex: (index: RepoIndex) => Promise<void>;
   };
   chat: {
-    getAll: () => Promise<unknown[]>;
-    get: (chatId: string) => Promise<unknown>;
-    create: (title: string) => Promise<unknown>;
+    getAll: () => Promise<ChatIndex['chats']>;
+    get: (chatId: string) => Promise<Chat | null>;
+    create: (title: string) => Promise<Chat>;
     delete: (chatId: string) => Promise<boolean>;
-    sendMessage: (chatId: string, content: string, mode?: 'planner' | 'agent') => Promise<unknown>;
+    sendMessage: (chatId: string, content: string, mode?: 'planner' | 'agent') => Promise<Chat>;
     onStreamUpdate: (callback: (data: { chatId: string; content: string; done: boolean }) => void) => () => void;
   };
   settings: {
-    getProvider: () => Promise<{
-      name: string;
-      ready: boolean;
-      type: 'mock' | 'anthropic' | 'claude-code' | 'opencode';
-    }>;
-    getAvailableProviders: () => Promise<{
-      providers: Array<{ type: 'mock' | 'anthropic' | 'claude-code' | 'opencode'; name: string; description: string; available: boolean }>;
-      current: 'mock' | 'anthropic' | 'claude-code' | 'opencode';
-    }>;
-    setProvider: (providerType: 'mock' | 'anthropic' | 'claude-code' | 'opencode', apiKey?: string) => Promise<{
-      success: boolean;
-      provider: string;
-      error?: string;
-    }>;
-    setApiKey: (apiKey: string) => Promise<{
-      success: boolean;
-      provider: string;
-      error?: string;
-    }>;
-    testProvider: () => Promise<{
-      success: boolean;
-      message: string;
-    }>;
-    getProject: () => Promise<unknown>;
-    saveProject: (settings: unknown) => Promise<{ success: boolean; error?: string }>;
-    updateProject: (patch: unknown) => Promise<{ success: boolean; settings?: unknown; error?: string }>;
-    detectCommands: () => Promise<unknown>;
+    getProvider: () => Promise<ProviderInfo & { hasCompletedSetup: boolean }>;
+    getAvailableProviders: () => Promise<AvailableProvidersResponse>;
+    setProvider: (providerType: ProviderType, apiKey?: string) => Promise<{ success: boolean; provider: string; error?: string }>;
+    setApiKey: (apiKey: string) => Promise<{ success: boolean; provider: string; error?: string }>;
+    testProvider: () => Promise<{ success: boolean; message: string }>;
+    // Setup wizard completion tracking
+    completeSetup: () => Promise<{ success: boolean }>;
+    resetSetup: () => Promise<{ success: boolean }>;
+    // Project settings
+    getProject: () => Promise<ProjectSettings>;
+    saveProject: (settings: ProjectSettings) => Promise<{ success: boolean; error?: string }>;
+    updateProject: (patch: Partial<ProjectSettings>) => Promise<{ success: boolean; settings?: ProjectSettings; error?: string }>;
+    detectCommands: () => Promise<{ run?: string; build?: string; install?: string; packageManager?: string }>;
     getEffectiveCommand: (type: 'run' | 'build' | 'install') => Promise<string>;
     testSound: (preset: 'system' | 'chime' | 'bell' | 'success' | 'ding' | 'complete') => Promise<void>;
     getSoundPresets: () => Promise<Array<{ id: string; name: string; description: string }>>;
@@ -163,47 +285,50 @@ export interface DexteriaAPI {
       description?: string;
       preview: { background: string; foreground: string; primary: string; accent: string };
     }>>;
-    getPresetTheme: (themeId: string) => Promise<unknown | null>;
+    getPresetTheme: (themeId: string) => Promise<CustomTheme | null>;
+    // VSCode preferences
+    getVSCodePreference: () => Promise<VSCodePreference>;
+    setVSCodePreference: (wantsCodeViewing: boolean) => Promise<{ success: boolean }>;
   };
   project: {
-    open: () => Promise<{ success: boolean; path?: string; error?: string }>;
-    create: () => Promise<{ success: boolean; path?: string; error?: string }>;
+    open: () => Promise<ProjectActionResult>;
+    create: () => Promise<ProjectActionResult>;
     openPath: (path: string) => Promise<{ success: boolean; error?: string }>;
     close: () => Promise<void>;
     getCurrent: () => Promise<string | null>;
-    getRecent: () => Promise<Array<{ path: string; name: string; lastOpened: string }>>;
+    getRecent: () => Promise<RecentProject[]>;
     onProjectChanged: (callback: (path: string | null) => void) => () => void;
     onProjectOpening: (callback: (path: string) => void) => () => void;
     onOpenShortcut: (callback: () => void) => () => void;
-    startRun: () => Promise<{ runId: string; success: boolean; logPath: string; error?: string }>;
+    startRun: () => Promise<ProcessRunResult>;
     stopRun: () => Promise<boolean>;
-    startBuild: () => Promise<{ runId: string; success: boolean; logPath: string; error?: string }>;
+    startBuild: () => Promise<ProcessRunResult>;
     stopBuild: () => Promise<boolean>;
-    getProcessStatus: (type: 'run' | 'build') => Promise<unknown>;
-    getAllProcessStatus: () => Promise<unknown[]>;
-    onStatusUpdate: (callback: (status: unknown) => void) => () => void;
+    getProcessStatus: (type: 'run' | 'build') => Promise<ProjectProcessStatus>;
+    getAllProcessStatus: () => Promise<ProjectProcessStatus[]>;
+    onStatusUpdate: (callback: (status: ProjectProcessStatus) => void) => () => void;
     onOutput: (callback: (data: { type: string; runId: string; data: string }) => void) => () => void;
   };
   theme: {
-    getAll: () => Promise<Array<{ id: string; name: string; isBuiltIn: boolean; path: string }>>;
-    getActive: () => Promise<unknown | null>;
-    load: (themeId: string) => Promise<unknown | null>;
-    setActive: (themeId: string) => Promise<{ success: boolean; theme?: unknown; css?: { light: string; dark: string } }>;
-    save: (theme: unknown) => Promise<{ success: boolean }>;
-    create: (name: string, baseThemeId?: string) => Promise<unknown | null>;
+    getAll: () => Promise<ThemeIndexEntry[]>;
+    getActive: () => Promise<CustomTheme | null>;
+    load: (themeId: string) => Promise<CustomTheme | null>;
+    setActive: (themeId: string) => Promise<ThemeSetResult>;
+    save: (theme: CustomTheme) => Promise<{ success: boolean }>;
+    create: (name: string, baseThemeId?: string) => Promise<CustomTheme | null>;
     delete: (themeId: string) => Promise<boolean>;
-    import: (jsonString: string) => Promise<unknown | null>;
+    import: (jsonString: string) => Promise<CustomTheme | null>;
     export: (themeId: string) => Promise<string | null>;
     getFilePath: (themeId: string) => Promise<string | null>;
     openInEditor: (themeId: string) => Promise<boolean>;
     getCSS: (themeId: string) => Promise<{ light: string; dark: string } | null>;
-    onChanged: (callback: (data: { theme: unknown; css: { light: string; dark: string } }) => void) => () => void;
+    onChanged: (callback: (data: { theme: CustomTheme; css: { light: string; dark: string } }) => void) => () => void;
   };
   plugin: {
-    getAll: () => Promise<unknown[]>;
-    get: (pluginId: string) => Promise<unknown | null>;
-    enable: (pluginId: string) => Promise<boolean>;
-    disable: (pluginId: string) => Promise<boolean>;
+    getAll: () => Promise<PluginInfo[]>;
+    get: (pluginId: string) => Promise<PluginInfo | null>;
+    enable: (pluginId: string) => Promise<PluginActionResult>;
+    disable: (pluginId: string) => Promise<PluginActionResult>;
     getSettings: (pluginId: string) => Promise<Record<string, unknown>>;
     setSettings: (pluginId: string, settings: Record<string, unknown>) => Promise<void>;
     // UI Extensions
@@ -243,63 +368,32 @@ export interface DexteriaAPI {
       location: 'task' | 'board' | 'column';
       order?: number;
     }>>;
-    executeContextMenuItem: (itemId: string, context: unknown) => Promise<void>;
+    executeContextMenuItem: (itemId: string, context: Record<string, unknown>) => Promise<void>;
     callApi: (pluginId: string, methodName: string, ...args: unknown[]) => Promise<unknown>;
     // UI Contributions
-    getUIContributions: () => Promise<{
-      settingsTabs: Array<{
-        id: string;
-        title: string;
-        icon: string;
-        order?: number;
-        pluginId: string;
-        pluginPath: string;
-      }>;
-      dockingPanels: Array<{
-        id: string;
-        title: string;
-        icon: string;
-        singleton?: boolean;
-        defaultPosition?: 'left' | 'right' | 'bottom';
-        pluginId: string;
-        pluginPath: string;
-      }>;
-      slots: Record<string, Array<{
-        slotId: string;
-        order?: number;
-        when?: string;
-        pluginId: string;
-        pluginPath: string;
-      }>>;
-    }>;
+    getUIContributions: () => Promise<UIContributions>;
   };
   opencode: {
     isInstalled: () => Promise<boolean>;
     getBinaryPath: () => Promise<string>;
     getVersion: () => Promise<string | null>;
-    getLatestRelease: () => Promise<{
-      version: string;
-      assetUrl: string;
-      assetName: string;
-    } | null>;
-    checkUpdates: () => Promise<{
-      updateAvailable: boolean;
-      currentVersion: string | null;
-      latestVersion: string;
-      error?: string;
-    }>;
+    getLatestRelease: () => Promise<OpenCodeRelease | null>;
+    checkUpdates: () => Promise<OpenCodeUpdateCheck>;
     install: () => Promise<{ success: boolean; version?: string; error?: string }>;
     update: () => Promise<{ success: boolean; version?: string; error?: string }>;
     uninstall: () => Promise<{ success: boolean; error?: string }>;
-    onInstallProgress: (callback: (progress: {
-      phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
-      percent: number;
-      message: string;
-    }) => void) => () => void;
-    onSetupStatus: (callback: (status: {
-      installed: boolean;
-      version: string | null;
-    }) => void) => () => void;
+    onInstallProgress: (callback: (progress: OpenCodeInstallProgress) => void) => () => void;
+    onSetupStatus: (callback: (status: { installed: boolean; version: string | null }) => void) => () => void;
+  };
+  vscode: {
+    isInstalled: () => Promise<boolean>;
+    getStatus: () => Promise<VSCodeStatus>;
+    refresh: () => Promise<VSCodeStatus>;
+    openProject: () => Promise<{ success: boolean; error?: string }>;
+    openFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
+    openFile: (filePath: string, line?: number) => Promise<{ success: boolean; error?: string }>;
+    getDownloadUrl: () => Promise<string>;
+    openDownloadPage: () => Promise<void>;
   };
 }
 
@@ -401,6 +495,10 @@ const api: DexteriaAPI = {
     setProvider: (providerType, apiKey) => ipcRenderer.invoke('settings:setProvider', providerType, apiKey),
     setApiKey: (apiKey) => ipcRenderer.invoke('settings:setApiKey', apiKey),
     testProvider: () => ipcRenderer.invoke('settings:testProvider'),
+    // Setup wizard completion tracking
+    completeSetup: () => ipcRenderer.invoke('settings:completeSetup'),
+    resetSetup: () => ipcRenderer.invoke('settings:resetSetup'),
+    // Project settings
     getProject: () => ipcRenderer.invoke('settings:getProject'),
     saveProject: (settings) => ipcRenderer.invoke('settings:saveProject', settings),
     updateProject: (patch) => ipcRenderer.invoke('settings:updateProject', patch),
@@ -410,6 +508,9 @@ const api: DexteriaAPI = {
     getSoundPresets: () => ipcRenderer.invoke('settings:getSoundPresets'),
     getPresetThemes: () => ipcRenderer.invoke('settings:getPresetThemes'),
     getPresetTheme: (themeId) => ipcRenderer.invoke('settings:getPresetTheme', themeId),
+    // VSCode preferences
+    getVSCodePreference: () => ipcRenderer.invoke('settings:getVSCodePreference'),
+    setVSCodePreference: (wantsCodeViewing) => ipcRenderer.invoke('settings:setVSCodePreference', wantsCodeViewing),
   },
   project: {
     open: () => ipcRenderer.invoke('project:open'),
@@ -439,8 +540,8 @@ const api: DexteriaAPI = {
     stopBuild: () => ipcRenderer.invoke('project:stopBuild'),
     getProcessStatus: (type) => ipcRenderer.invoke('project:getProcessStatus', type),
     getAllProcessStatus: () => ipcRenderer.invoke('project:getAllProcessStatus'),
-    onStatusUpdate: (callback: (status: unknown) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, status: unknown) => callback(status);
+    onStatusUpdate: (callback: (status: ProjectProcessStatus) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: ProjectProcessStatus) => callback(status);
       ipcRenderer.on('project:status-update', handler);
       return () => ipcRenderer.removeListener('project:status-update', handler);
     },
@@ -463,8 +564,8 @@ const api: DexteriaAPI = {
     getFilePath: (themeId) => ipcRenderer.invoke('theme:getFilePath', themeId),
     openInEditor: (themeId) => ipcRenderer.invoke('theme:openInEditor', themeId),
     getCSS: (themeId) => ipcRenderer.invoke('theme:getCSS', themeId),
-    onChanged: (callback: (data: { theme: unknown; css: { light: string; dark: string } }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: { theme: unknown; css: { light: string; dark: string } }) => callback(data);
+    onChanged: (callback: (data: { theme: CustomTheme; css: { light: string; dark: string } }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { theme: CustomTheme; css: { light: string; dark: string } }) => callback(data);
       ipcRenderer.on('theme:changed', handler);
       return () => ipcRenderer.removeListener('theme:changed', handler);
     },
@@ -518,6 +619,16 @@ const api: DexteriaAPI = {
       ipcRenderer.on('opencode:setup-status', handler);
       return () => ipcRenderer.removeListener('opencode:setup-status', handler);
     },
+  },
+  vscode: {
+    isInstalled: () => ipcRenderer.invoke('vscode:isInstalled'),
+    getStatus: () => ipcRenderer.invoke('vscode:getStatus'),
+    refresh: () => ipcRenderer.invoke('vscode:refresh'),
+    openProject: () => ipcRenderer.invoke('vscode:openProject'),
+    openFolder: (folderPath) => ipcRenderer.invoke('vscode:openFolder', folderPath),
+    openFile: (filePath, line) => ipcRenderer.invoke('vscode:openFile', filePath, line),
+    getDownloadUrl: () => ipcRenderer.invoke('vscode:getDownloadUrl'),
+    openDownloadPage: () => ipcRenderer.invoke('vscode:openDownloadPage'),
   },
 };
 

@@ -3,7 +3,7 @@ import { useAgentState } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
 import Ralph from '../../../assets/ralph.png'
-import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, LayoutGrid, MessageSquare, PanelBottom } from 'lucide-react';
+import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, LayoutGrid, MessageSquare, Wrench, Code2 } from 'lucide-react';
 import LogoIcon from '../../../assets/logoicon.png';
 import { Button, IconButton, ToggleGroup } from 'adnia-ui';
 import type { ProjectProcessStatus } from '../../shared/types';
@@ -37,6 +37,8 @@ import { useLayoutStore } from '../docking';
       const [stoppingRalph, setStoppingRalph] = useState(false);
       const [runStatus, setRunStatus] = useState<ProjectProcessStatus | null>(null);
       const [buildStatus, setBuildStatus] = useState<ProjectProcessStatus | null>(null);
+      const [vscodeEnabled, setVscodeEnabled] = useState(false);
+      const [vscodeInstalled, setVscodeInstalled] = useState(false);
       const settingsRef = useRef<HTMLDivElement>(null);
       const fileMenuRef = useRef<HTMLDivElement>(null);
       const windowMenuRef = useRef<HTMLDivElement>(null);
@@ -143,6 +145,25 @@ import { useLayoutStore } from '../docking';
           });
 
           return () => cleanup?.();
+      }, []);
+
+      // Check VSCode preference and installation status
+      useEffect(() => {
+          const checkVSCode = async () => {
+              try {
+                  // Check user preference
+                  const pref = await window.dexteria?.settings?.getVSCodePreference?.();
+                  setVscodeEnabled(pref?.wantsCodeViewing ?? false);
+
+                  // Check if installed
+                  const status = await window.dexteria?.vscode?.getStatus?.();
+                  setVscodeInstalled(status?.installed ?? false);
+              } catch (err) {
+                  console.error('Failed to check VSCode status:', err);
+              }
+          };
+
+          checkVSCode();
       }, []);
 
       const handleStartRun = async () => {
@@ -260,6 +281,18 @@ import { useLayoutStore } from '../docking';
           }
       };
 
+      const handleOpenInVSCode = async () => {
+          setShowFileMenu(false);
+          try {
+              const result = await window.dexteria?.vscode?.openProject?.();
+              if (!result?.success) {
+                  console.error('Failed to open in VSCode:', result?.error);
+              }
+          } catch (err) {
+              console.error('Failed to open in VSCode:', err);
+          }
+      };
+
       return (
           <div className="h-10 border-b border-border bg-background flex items-center justify-between select-none">
               {/* Left side - Draggable area with logo */}
@@ -315,6 +348,20 @@ import { useLayoutStore } from '../docking';
                                   <FolderX size={14} />
                                   Close Project
                               </Button>
+                              {vscodeEnabled && vscodeInstalled && (
+                                  <>
+                                      <div className="h-px bg-border my-1" />
+                                      <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={handleOpenInVSCode}
+                                          className="w-full justify-start rounded-none"
+                                      >
+                                          <Code2 size={14} />
+                                          Open in VSCode
+                                      </Button>
+                                  </>
+                              )}
                               <div className="h-px bg-border my-1" />
                               <Button
                                   variant="ghost"
@@ -370,8 +417,8 @@ import { useLayoutStore } from '../docking';
                                   onClick={() => { openView('taskRunner'); setShowWindowMenu(false); }}
                                   className="w-full justify-start rounded-none"
                               >
-                                  <PanelBottom size={14} />
-                                  Task Runner
+                                  <Wrench size={14} />
+                                  Tools
                               </Button>
                               <div className="h-px bg-border my-1" />
                               <Button

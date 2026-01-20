@@ -1,0 +1,67 @@
+{
+  "id": "deep-ocean",
+  "name": "Deep Ocean",
+  "version": 1,
+  "description": "Ultra dark theme with deep blue underwater tones",
+  "colors": {
+    "core": {
+      "background": "210 100% 2%",
+      "foreground": "200 30% 88%",
+      "card": "210 80% 6%",
+      "cardForeground": "200 30% 88%",
+      "popover": "210 100% 4%",
+      "popoverForeground": "200 30% 85%",
+      "primary": "192 82% 50%",
+      "primaryForeground": "0 0% 0%",
+      "secondary": "210 60% 12%",
+      "secondaryForeground": "200 30% 95%",
+      "muted": "210 50% 10%",
+      "mutedForeground": "200 20% 50%",
+      "accent": "192 82% 50%",
+      "accentForeground": "0 0% 0%",
+      "destructive": "0 84% 60%",
+      "destructiveForeground": "0 0% 100%",
+      "border": "210 60% 12%",
+      "input": "210 60% 12%",
+      "ring": "192 82% 50%"
+    },
+    "code": {
+      "background": "210 100% 3%",
+      "foreground": "200 30% 85%",
+      "comment": "200 20% 45%",
+      "keyword": "250 70% 65%",
+      "string": "170 60% 60%",
+      "number": "192 82% 60%",
+      "function": "207 75% 65%",
+      "operator": "180 60% 55%",
+      "variable": "200 65% 65%",
+      "class": "220 70% 60%"
+    },
+    "diff": {
+      "addBackground": "142 76% 18%",
+      "addForeground": "142 76% 85%",
+      "removeBackground": "0 63% 20%",
+      "removeForeground": "0 0% 95%",
+      "changeBackground": "45 80% 20%",
+      "changeForeground": "45 93% 88%"
+    },
+    "terminal": {
+      "background": "210 100% 1%",
+      "foreground": "200 30% 90%",
+      "cursor": "192 82% 50%",
+      "selection": "192 82% 22%"
+    },
+    "lineNumber": "200 20% 32%",
+    "lineHighlight": "210 80% 5%"
+  },
+  "fonts": {
+    "sans": "Ubuntu, system-ui, sans-serif",
+    "mono": "Ubuntu Mono, Consolas, monospace",
+    "display": "Ubuntu, system-ui, sans-serif",
+    "baseFontSize": "14px",
+    "codeFontSize": "13px"
+  },
+  "radius": "0.375rem",
+  "createdAt": "2026-01-17T20:45:58.813Z",
+  "updatedAt": "2026-01-17T20:45:58.813Z"
+}

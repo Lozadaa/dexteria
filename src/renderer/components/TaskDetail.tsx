@@ -3,33 +3,12 @@ import { useActiveTask, useBoard } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { cn } from '../lib/utils';
-import { Play, RotateCw, Plus, X, Link, ChevronDown, Search, CheckCircle, XCircle, AlertCircle, Edit2, Trash2, Check, AlertTriangle, Ban, GripHorizontal, Tag, Calendar } from 'lucide-react';
+import { Play, RotateCw, Plus, X, Link, ChevronDown, Search, CheckCircle, XCircle, AlertCircle, Edit2, Trash2, Check, AlertTriangle, Ban, GripHorizontal, Tag, Calendar, User, Sparkles, Loader2 } from 'lucide-react';
 import { TaskComments } from './TaskComments';
 import { Button, IconButton, Input, Textarea, ScrollArea } from 'adnia-ui';
 import { Slot } from './extension/Slot';
+import { EPIC_COLORS, TaskAIReview, TaskAnalysis, type AnalysisResult } from './TaskDetail/index';
 import type { RunTaskOptions, AcceptanceCriterionResult, TaskEpic } from '../../shared/types';
-
-// Predefined epic colors
-const EPIC_COLORS = [
-    '#3b82f6', // blue
-    '#8b5cf6', // violet
-    '#ec4899', // pink
-    '#ef4444', // red
-    '#f97316', // orange
-    '#eab308', // yellow
-    '#22c55e', // green
-    '#14b8a6', // teal
-    '#06b6d4', // cyan
-    '#6366f1', // indigo
-];
-
-interface AnalysisResult {
-    status: 'analyzing' | 'complete' | 'error';
-    summary?: string;
-    criteria?: AcceptanceCriterionResult[];
-    suggestedStatus?: string;
-    error?: string;
-}
 
 interface TaskDetailProps {
     taskId: string;
@@ -384,10 +363,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
         }
     };
 
-    // Mark as blocked
+    // Mark as blocked (updates the runtime status, not the Kanban column status)
     const handleMarkBlocked = async () => {
         try {
-            await window.dexteria.tasks.update(task.id, { status: 'blocked' as any });
+            await window.dexteria.tasks.update(task.id, { runtime: { status: 'blocked' } });
             refresh();
         } catch (err) {
             console.error('Failed to mark as blocked:', err);
@@ -583,6 +562,127 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                         </button>
                     )}
                 </div>
+
+                {/* Human-Only and AI-Reviewable options */}
+                <div className="flex items-center gap-4 mt-3 flex-wrap">
+                    {/* Human-Only checkbox */}
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                            type="checkbox"
+                            checked={task.humanOnly || false}
+                            onChange={async (e) => {
+                                try {
+                                    await window.dexteria.tasks.update(task.id, { humanOnly: e.target.checked });
+                                    refresh();
+                                } catch (err) {
+                                    console.error('Failed to update humanOnly:', err);
+                                }
+                            }}
+                            className="w-4 h-4 rounded border-amber-500/50 bg-transparent text-amber-500 focus:ring-amber-500/50 cursor-pointer"
+                        />
+                        <span className={cn(
+                            "flex items-center gap-1.5 text-xs transition-colors",
+                            task.humanOnly ? "text-amber-400" : "text-muted-foreground group-hover:text-amber-400/70"
+                        )}>
+                            <User size={14} />
+                            Human-Only
+                        </span>
+                    </label>
+
+                    {/* AI-Reviewable checkbox */}
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                            type="checkbox"
+                            checked={task.aiReviewable || false}
+                            onChange={async (e) => {
+                                try {
+                                    await window.dexteria.tasks.update(task.id, { aiReviewable: e.target.checked });
+                                    refresh();
+                                } catch (err) {
+                                    console.error('Failed to update aiReviewable:', err);
+                                }
+                            }}
+                            className="w-4 h-4 rounded border-purple-500/50 bg-transparent text-purple-500 focus:ring-purple-500/50 cursor-pointer"
+                        />
+                        <span className={cn(
+                            "flex items-center gap-1.5 text-xs transition-colors",
+                            task.aiReviewable ? "text-purple-400" : "text-muted-foreground group-hover:text-purple-400/70"
+                        )}>
+                            <Sparkles size={14} />
+                            AI-Reviewable
+                        </span>
+                    </label>
+
+                    {/* AI Processing indicator */}
+                    {task.aiProcessing && (
+                        <span className="flex items-center gap-1.5 text-xs text-blue-400 animate-pulse">
+                            <Loader2 size={14} className="animate-spin" />
+                            AI is reviewing...
+                        </span>
+                    )}
+                </div>
+
+                {/* AI Review Result */}
+                {task.aiReview && (
+                    <div className={cn(
+                        "mt-3 p-3 rounded-lg border",
+                        task.aiReview.passed
+                            ? "bg-green-500/10 border-green-500/30"
+                            : "bg-red-500/10 border-red-500/30"
+                    )}>
+                        <div className="flex items-center gap-2 mb-2">
+                            {task.aiReview.passed ? (
+                                <CheckCircle size={16} className="text-green-500" />
+                            ) : (
+                                <XCircle size={16} className="text-red-500" />
+                            )}
+                            <span className={cn(
+                                "text-sm font-medium",
+                                task.aiReview.passed ? "text-green-400" : "text-red-400"
+                            )}>
+                                AI Review: {task.aiReview.passed ? 'Passed' : 'Needs Attention'}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                                {new Date(task.aiReview.reviewedAt).toLocaleString()}
+                            </span>
+                        </div>
+                        <p className="text-sm text-foreground/80">{task.aiReview.feedback}</p>
+                        {task.aiReview.checklist && task.aiReview.checklist.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                                {task.aiReview.checklist.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-xs">
+                                        {item.passed ? (
+                                            <CheckCircle size={12} className="text-green-500 mt-0.5 shrink-0" />
+                                        ) : (
+                                            <XCircle size={12} className="text-red-500 mt-0.5 shrink-0" />
+                                        )}
+                                        <span className={item.passed ? "text-green-300" : "text-red-300"}>
+                                            {item.criterion}
+                                            {item.note && <span className="text-muted-foreground ml-1">- {item.note}</span>}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {/* Clear AI Review button */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 text-xs"
+                            onClick={async () => {
+                                try {
+                                    await window.dexteria.tasks.update(task.id, { aiReview: null });
+                                    refresh();
+                                } catch (err) {
+                                    console.error('Failed to clear AI review:', err);
+                                }
+                            }}
+                        >
+                            <X size={12} />
+                            Clear Review
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* Content Scroller */}
@@ -919,6 +1019,32 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                         </div>
                     </div>
                 </div>
+
+                {/* AI Review Criteria - shown when AI-Reviewable is enabled */}
+                {task.aiReviewable && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Sparkles size={14} className="text-purple-400" />
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400">AI Review Criteria</h3>
+                        </div>
+                        <Textarea
+                            value={task.reviewCriteria || ''}
+                            onChange={async (e) => {
+                                try {
+                                    await window.dexteria.tasks.update(task.id, { reviewCriteria: e.target.value });
+                                    refresh();
+                                } catch (err) {
+                                    console.error('Failed to update reviewCriteria:', err);
+                                }
+                            }}
+                            placeholder="Describe what the AI should check when reviewing this task...&#10;Example: Verify code compiles, all tests pass, and documentation is updated."
+                            className="w-full min-h-[80px] resize-y bg-purple-500/5 border-purple-500/30 focus:border-purple-500/50"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                            The AI will use these criteria when auto-reviewing the task upon moving to Review.
+                        </p>
+                    </div>
+                )}
 
                 {/* Agent Config */}
                 <div>
