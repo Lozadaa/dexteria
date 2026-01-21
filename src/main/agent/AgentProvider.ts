@@ -603,9 +603,10 @@ export class MockAgentProvider extends AgentProvider {
   private generateDefaultResponse(_content: string, messages: AgentMessage[]): AgentResponse {
     // Check if we're in a tool result chain
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === 'user' && lastMessage.content.includes('Tool result')) {
+    const lastMessageContent = lastMessage?.content || '';
+    if (lastMessage?.role === 'user' && lastMessageContent.includes('Tool result')) {
       // After tool result, decide next step
-      if (lastMessage.content.includes('error') || lastMessage.content.includes('failed')) {
+      if (lastMessageContent.includes('error') || lastMessageContent.includes('failed')) {
         return {
           content: 'The operation encountered an error. I will mark the task as failed.',
           toolCalls: [

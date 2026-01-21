@@ -188,10 +188,13 @@ export class AgentRuntime {
         // Get agent response (with streaming callback if available)
         const response = await this.provider.complete(messages, AGENT_TOOLS, this.onStreamChunk);
 
+        // Ensure content is never null
+        const responseContent = response.content || '';
+
         // Add assistant message
         messages.push({
           role: 'assistant',
-          content: response.content,
+          content: responseContent,
         });
 
         // Execute onStep hook
@@ -200,7 +203,7 @@ export class AgentRuntime {
             taskId,
             runId: run.id,
             stepNumber: stepCount,
-            content: response.content,
+            content: responseContent,
             isComplete: response.finishReason === 'stop' && !response.toolCalls?.length,
           });
         }
@@ -208,7 +211,7 @@ export class AgentRuntime {
         // Handle finish reasons
         if (response.finishReason === 'stop') {
           // Agent finished without tool calls - check if stuck
-          if (!response.content.toLowerCase().includes('complete')) {
+          if (!responseContent.toLowerCase().includes('complete')) {
             const result = this.handleFailure(task, run, 'Agent stopped without completing the task');
             await this.executeAfterRunHook(result);
             return result;
