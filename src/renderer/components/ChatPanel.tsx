@@ -25,6 +25,7 @@ import {
 } from 'adnia-ui';
 import type { Chat, ChatMessage } from '../../shared/types';
 
+import { useTranslation } from '../i18n/useTranslation';
 // Creative placeholders for the chat input
 const CHAT_PLACEHOLDERS = [
     "Ask me to build something amazing...",
@@ -54,6 +55,7 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
+    const { t } = useTranslation();
     const { chats, refresh } = useChats();
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -67,6 +69,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     const [dontShowAgainChecked, setDontShowAgainChecked] = useState(false);
     const [currentProvider, setCurrentProvider] = useState<string>('claude-code');
     const [providerName, setProviderName] = useState<string>('Claude Code');
+    const [availableProviders, setAvailableProviders] = useState<Array<{
+        type: string;
+        name: string;
+        description: string;
+        available: boolean;
+    }>>([]);
+    const [changingProvider, setChangingProvider] = useState(false);
     const {
         mode,
         showFirstMessageWarning,
@@ -75,15 +84,50 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         switchToAgentAndClose
     } = useMode();
 
-    // Load provider info on mount
+    // Load provider info and available providers on mount
     useEffect(() => {
-        window.dexteria?.settings?.getProvider?.().then((info) => {
-            if (info) {
-                setCurrentProvider(info.type);
-                setProviderName(info.name);
+        const loadProviders = async () => {
+            try {
+                const [providerInfo, availableInfo] = await Promise.all([
+                    window.dexteria?.settings?.getProvider?.(),
+                    window.dexteria?.settings?.getAvailableProviders?.()
+                ]);
+
+                if (providerInfo) {
+                    setCurrentProvider(providerInfo.type);
+                    setProviderName(providerInfo.name);
+                }
+
+                if (availableInfo?.providers) {
+                    setAvailableProviders(availableInfo.providers);
+                }
+            } catch (err) {
+                console.error('Failed to load providers:', err);
             }
-        });
+        };
+
+        loadProviders();
     }, []);
+
+    // Handle provider change
+    const handleProviderChange = async (providerType: string) => {
+        if (providerType === currentProvider || changingProvider) return;
+
+        setChangingProvider(true);
+        try {
+            const result = await window.dexteria?.settings?.setProvider?.(providerType as 'opencode' | 'codex' | 'claude-code' | 'anthropic' | 'mock');
+            if (result?.success) {
+                setCurrentProvider(providerType);
+                setProviderName(result.provider);
+            } else {
+                console.error('Failed to change provider:', result?.error);
+            }
+        } catch (err) {
+            console.error('Failed to change provider:', err);
+        } finally {
+            setChangingProvider(false);
+        }
+    };
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const historyRef = useRef<HTMLDivElement>(null);
@@ -432,11 +476,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                         {activeChat?.title || 'Chat'}
                     </span>
                 </div>
+
                 <IconButton
                     variant="ghost"
                     size="sm"
                     onClick={handleCreateChat}
-                    title="New Chat"
+                    title={t('views.chat.newChat')}
                 >
                     <Plus size={16} />
                 </IconButton>
@@ -452,8 +497,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     <div className="h-full flex flex-col items-center justify-center text-muted-foreground animate-fade-in">
                         <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 border border-border/30 animate-scale-in">
                             <MessageSquare size={40} className="text-primary/40 mb-3 mx-auto" />
-                            <p className="text-sm text-center opacity-70">Start a conversation with Dexter</p>
-                            <p className="text-xs text-center opacity-40 mt-1">Ask anything about your project</p>
+                            <p className="text-sm text-center opacity-70">{t('views.chat.startConversation')}</p>
+                            <p className="text-xs text-center opacity-40 mt-1">{t('views.chat.askAnything')}</p>
                         </div>
                     </div>
                 ) : (
@@ -562,43 +607,33 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     {/* Provider Selector */}
                     <DropdownMenuRoot>
                         <DropdownMenuTrigger asChild>
-                            <button className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
-                                <Cpu size={12} />
+                            <button
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+                                disabled={changingProvider}
+                            >
+                                <Cpu size={12} className={changingProvider ? 'animate-spin' : ''} />
                                 <span className="font-medium">{providerName}</span>
                                 <ChevronDown size={10} />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>AI Provider</DropdownMenuLabel>
+                            <DropdownMenuLabel>{t('views.chat.aiProvider')}</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuRadioGroup
-                                value={currentProvider}
-                                onValueChange={async (value) => {
-                                    const result = await window.dexteria?.settings?.setProvider?.(value as 'mock' | 'anthropic' | 'claude-code');
-                                    if (result?.success) {
-                                        setCurrentProvider(value);
-                                        setProviderName(result.provider);
-                                    }
-                                }}
-                            >
-                                <DropdownMenuRadioItem value="claude-code">
-                                    <div className="flex flex-col">
-                                        <span>Claude Code</span>
-                                        <span className="text-xs text-muted-foreground">Uses CLI (recommended)</span>
-                                    </div>
-                                </DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="anthropic">
-                                    <div className="flex flex-col">
-                                        <span>Anthropic API</span>
-                                        <span className="text-xs text-muted-foreground">Direct API (requires key)</span>
-                                    </div>
-                                </DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="mock">
-                                    <div className="flex flex-col">
-                                        <span>Mock</span>
-                                        <span className="text-xs text-muted-foreground">For testing</span>
-                                    </div>
-                                </DropdownMenuRadioItem>
+                            <DropdownMenuRadioGroup value={currentProvider} onValueChange={handleProviderChange}>
+                                {availableProviders.map((provider) => (
+                                    <DropdownMenuRadioItem
+                                        key={provider.type}
+                                        value={provider.type}
+                                        disabled={!provider.available}
+                                    >
+                                        <div className="flex flex-col">
+                                            <span>{provider.name}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {provider.available ? provider.description : 'Not installed'}
+                                            </span>
+                                        </div>
+                                    </DropdownMenuRadioItem>
+                                ))}
                             </DropdownMenuRadioGroup>
                         </DropdownMenuContent>
                     </DropdownMenuRoot>
@@ -623,7 +658,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                         <Button
                             variant="danger"
                             onClick={handleCancel}
-                            title="Cancel"
+                            title={t('actions.cancel')}
                             className="animate-pulse"
                         >
                             <StopCircle size={16} />
@@ -676,7 +711,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     </div>
                     <DialogFooter className="p-4 border-t border-border">
                         <Button variant="ghost" onClick={handleCancelWarning}>
-                            Cancel
+                            {t('actions.cancel')}
                         </Button>
                         <Button variant="secondary" onClick={handleContinueInPlanner}>
                             Continue in Planner

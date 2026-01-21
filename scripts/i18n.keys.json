@@ -1,0 +1,632 @@
+{
+  "mappings": [
+    {
+      "original": "Settings",
+      "key": "labels.settings"
+    },
+    {
+      "original": "Save Changes",
+      "key": "actions.saveChanges"
+    },
+    {
+      "original": "Unsaved",
+      "key": "labels.unsaved"
+    },
+    {
+      "original": "Notifications",
+      "key": "labels.notifications"
+    },
+    {
+      "original": "Configure how Dexteria notifies you about task completions.",
+      "key": "views.settings.notifications.description"
+    },
+    {
+      "original": "Sound on Task Complete",
+      "key": "views.settings.notifications.soundOnTaskComplete"
+    },
+    {
+      "original": "Play a sound when Ralph completes a task",
+      "key": "views.settings.notifications.soundOnTaskCompleteDesc"
+    },
+    {
+      "original": "Notification Sound",
+      "key": "views.settings.notifications.notificationSound"
+    },
+    {
+      "original": "Badge on Task Complete",
+      "key": "views.settings.notifications.badgeOnTaskComplete"
+    },
+    {
+      "original": "Show app badge when Ralph completes a task",
+      "key": "views.settings.notifications.badgeOnTaskCompleteDesc"
+    },
+    {
+      "original": "Project Commands",
+      "key": "views.settings.commands.title"
+    },
+    {
+      "original": "Configure commands for running and building your project.",
+      "key": "views.settings.commands.description"
+    },
+    {
+      "original": "Auto-Detect",
+      "key": "actions.autoDetect"
+    },
+    {
+      "original": "Run (Dev Server)",
+      "key": "views.settings.commands.runDevServer"
+    },
+    {
+      "original": "Auto-detect if empty",
+      "key": "views.settings.commands.autoDetectIfEmpty"
+    },
+    {
+      "original": "Test",
+      "key": "actions.test"
+    },
+    {
+      "original": "Build",
+      "key": "views.settings.commands.build"
+    },
+    {
+      "original": "Includes install",
+      "key": "views.settings.commands.includesInstall"
+    },
+    {
+      "original": "Install",
+      "key": "views.settings.commands.install"
+    },
+    {
+      "original": "Allow Unsafe Commands",
+      "key": "views.settings.commands.allowUnsafeCommands"
+    },
+    {
+      "original": "Enable commands that might be destructive",
+      "key": "views.settings.commands.allowUnsafeCommandsDesc"
+    },
+    {
+      "original": "Runner Settings",
+      "key": "views.settings.runner.title"
+    },
+    {
+      "original": "Configure execution limits and timeouts.",
+      "key": "views.settings.runner.description"
+    },
+    {
+      "original": "Default Timeout",
+      "key": "views.settings.runner.defaultTimeout"
+    },
+    {
+      "original": "Maximum time for command execution",
+      "key": "views.settings.runner.defaultTimeoutDesc"
+    },
+    {
+      "original": "seconds",
+      "key": "views.settings.runner.seconds"
+    },
+    {
+      "original": "Integrations",
+      "key": "labels.integrations"
+    },
+    {
+      "original": "Configure external tool integrations.",
+      "key": "views.settings.integrations.description"
+    },
+    {
+      "original": "VSCode Integration",
+      "key": "views.settings.integrations.vscodeIntegration"
+    },
+    {
+      "original": "Installed",
+      "key": "labels.installed"
+    },
+    {
+      "original": "Open project files directly in Visual Studio Code",
+      "key": "views.settings.integrations.vscodeDesc"
+    },
+    {
+      "original": "Checking VSCode installation...",
+      "key": "views.settings.integrations.checkingVscode"
+    },
+    {
+      "original": "VSCode detected",
+      "key": "views.settings.integrations.vscodeDetected"
+    },
+    {
+      "original": "\"Open in VSCode\" is available in the File menu",
+      "key": "views.settings.integrations.vscodeAvailable"
+    },
+    {
+      "original": "VSCode not detected",
+      "key": "views.settings.integrations.vscodeNotDetected"
+    },
+    {
+      "original": "Install VSCode to use this integration. The \"Open in VSCode\" button will appear once installed.",
+      "key": "views.settings.integrations.vscodeNotDetectedDesc"
+    },
+    {
+      "original": "Download VSCode",
+      "key": "views.settings.integrations.downloadVscode"
+    },
+    {
+      "original": "Check Again",
+      "key": "actions.checkAgain"
+    },
+    {
+      "original": "More integrations coming soon...",
+      "key": "views.settings.integrations.moreIntegrations"
+    },
+    {
+      "original": "Themes",
+      "key": "labels.themes"
+    },
+    {
+      "original": "Customize the appearance of Dexteria.",
+      "key": "views.settings.themes.description"
+    },
+    {
+      "original": "No themes loaded. Create one to get started.",
+      "key": "views.settings.themes.noThemes"
+    },
+    {
+      "original": "Built-in",
+      "key": "labels.builtIn"
+    },
+    {
+      "original": "Active",
+      "key": "labels.active"
+    },
+    {
+      "original": "Edit",
+      "key": "actions.edit"
+    },
+    {
+      "original": "Export",
+      "key": "actions.export"
+    },
+    {
+      "original": "New Theme",
+      "key": "actions.newTheme"
+    },
+    {
+      "original": "Import",
+      "key": "actions.import"
+    },
+    {
+      "original": "Create",
+      "key": "actions.create"
+    },
+    {
+      "original": "Cancel",
+      "key": "actions.cancel"
+    },
+    {
+      "original": "Plugins",
+      "key": "labels.plugins"
+    },
+    {
+      "original": "Extend Dexteria's functionality with plugins.",
+      "key": "views.settings.plugins.description"
+    },
+    {
+      "original": "Refresh",
+      "key": "actions.refresh"
+    },
+    {
+      "original": "Loading plugins...",
+      "key": "common.loadingPlugins"
+    },
+    {
+      "original": "No plugins loaded",
+      "key": "views.settings.plugins.noPlugins"
+    },
+    {
+      "original": "Plugins extend Dexteria's functionality. Try refreshing or restart the app.",
+      "key": "views.settings.plugins.noPluginsDesc"
+    },
+    {
+      "original": "Error",
+      "key": "labels.error"
+    },
+    {
+      "original": "Check DevTools console (F12) for more details",
+      "key": "views.settings.plugins.checkDevTools"
+    },
+    {
+      "original": "On",
+      "key": "labels.on"
+    },
+    {
+      "original": "Off",
+      "key": "labels.off"
+    },
+    {
+      "original": "Plugin tab not found",
+      "key": "views.settings.plugins.pluginTabNotFound"
+    },
+    {
+      "original": "Loading settings...",
+      "key": "common.loadingSettings"
+    },
+    {
+      "original": "No project open. Open a project to configure settings.",
+      "key": "common.noProjectOpen"
+    },
+    {
+      "original": "Designed for humans. Powered by AI.",
+      "key": "views.welcome.tagline"
+    },
+    {
+      "original": "Open Project",
+      "key": "views.welcome.openProject"
+    },
+    {
+      "original": "Open an existing project folder",
+      "key": "views.welcome.openProjectDesc"
+    },
+    {
+      "original": "New Project",
+      "key": "actions.newProject"
+    },
+    {
+      "original": "Create a new Dexteria project",
+      "key": "views.welcome.newProjectDesc"
+    },
+    {
+      "original": "Press",
+      "key": "views.welcome.pressToOpen"
+    },
+    {
+      "original": "to open a project",
+      "key": "views.welcome.toOpenProject"
+    },
+    {
+      "original": "Chat",
+      "key": "labels.chat"
+    },
+    {
+      "original": "Type a message...",
+      "key": "placeholders.typeMessage"
+    },
+    {
+      "original": "Start a conversation with Dexter",
+      "key": "views.chat.startConversation"
+    },
+    {
+      "original": "Ask anything about your project",
+      "key": "views.chat.askAnything"
+    },
+    {
+      "original": "AI Provider",
+      "key": "views.chat.aiProvider"
+    },
+    {
+      "original": "Claude Code",
+      "key": "views.chat.claudeCode"
+    },
+    {
+      "original": "Uses CLI (recommended)",
+      "key": "views.chat.usesCliRecommended"
+    },
+    {
+      "original": "Anthropic API",
+      "key": "views.chat.anthropicApi"
+    },
+    {
+      "original": "Direct API (requires key)",
+      "key": "views.chat.directApiRequiresKey"
+    },
+    {
+      "original": "Mock",
+      "key": "views.chat.mock"
+    },
+    {
+      "original": "For testing",
+      "key": "views.chat.forTesting"
+    },
+    {
+      "original": "New Chat",
+      "key": "views.chat.newChat"
+    },
+    {
+      "original": "Clear Chat",
+      "key": "views.chat.clearChat"
+    },
+    {
+      "original": "Thinking...",
+      "key": "views.chat.thinking"
+    },
+    {
+      "original": "Task Details",
+      "key": "views.taskDetail.title"
+    },
+    {
+      "original": "Description",
+      "key": "views.taskDetail.description"
+    },
+    {
+      "original": "No description",
+      "key": "views.taskDetail.noDescription"
+    },
+    {
+      "original": "Acceptance Criteria",
+      "key": "views.taskDetail.acceptanceCriteria"
+    },
+    {
+      "original": "Add acceptance criterion...",
+      "key": "placeholders.addAcceptanceCriterion"
+    },
+    {
+      "original": "Dependencies",
+      "key": "views.taskDetail.dependencies"
+    },
+    {
+      "original": "No dependencies",
+      "key": "views.taskDetail.noDependencies"
+    },
+    {
+      "original": "Epic",
+      "key": "views.taskDetail.epic"
+    },
+    {
+      "original": "Sprint",
+      "key": "views.taskDetail.sprint"
+    },
+    {
+      "original": "Agent Plan",
+      "key": "views.taskDetail.agentPlan"
+    },
+    {
+      "original": "Goal",
+      "key": "views.taskDetail.goal"
+    },
+    {
+      "original": "Scope (one per line)",
+      "key": "views.taskDetail.scope"
+    },
+    {
+      "original": "What should the agent accomplish?",
+      "key": "placeholders.agentGoal"
+    },
+    {
+      "original": "Files or areas the agent should focus on...",
+      "key": "placeholders.agentScope"
+    },
+    {
+      "original": "AI Review Criteria",
+      "key": "views.taskDetail.aiReviewCriteria"
+    },
+    {
+      "original": "Loading task details...",
+      "key": "common.loadingTaskDetails"
+    },
+    {
+      "original": "Task not found",
+      "key": "views.taskDetail.notFound"
+    },
+    {
+      "original": "Task Runner",
+      "key": "views.taskRunner.title"
+    },
+    {
+      "original": "No pending tasks",
+      "key": "views.taskRunner.noPendingTasks"
+    },
+    {
+      "original": "Create tasks from the board or chat",
+      "key": "views.taskRunner.createTasksHint"
+    },
+    {
+      "original": "Running...",
+      "key": "views.taskRunner.running"
+    },
+    {
+      "original": "No output yet",
+      "key": "views.taskRunner.noOutput"
+    },
+    {
+      "original": "Progress",
+      "key": "views.taskRunner.progress"
+    },
+    {
+      "original": "Completed",
+      "key": "views.taskRunner.completed"
+    },
+    {
+      "original": "Failed",
+      "key": "views.taskRunner.failed"
+    },
+    {
+      "original": "Cancelled",
+      "key": "views.taskRunner.cancelled"
+    },
+    {
+      "original": "Backlog",
+      "key": "views.kanban.backlog"
+    },
+    {
+      "original": "To Do",
+      "key": "views.kanban.todo"
+    },
+    {
+      "original": "In Progress",
+      "key": "views.kanban.doing"
+    },
+    {
+      "original": "Review",
+      "key": "views.kanban.review"
+    },
+    {
+      "original": "Done",
+      "key": "views.kanban.done"
+    },
+    {
+      "original": "New Task",
+      "key": "actions.newTask"
+    },
+    {
+      "original": "No tasks yet",
+      "key": "views.kanban.noTasks"
+    },
+    {
+      "original": "Task name...",
+      "key": "placeholders.taskName"
+    },
+    {
+      "original": "File",
+      "key": "views.topbar.file"
+    },
+    {
+      "original": "View",
+      "key": "views.topbar.view"
+    },
+    {
+      "original": "Window",
+      "key": "views.topbar.window"
+    },
+    {
+      "original": "Help",
+      "key": "views.topbar.help"
+    },
+    {
+      "original": "Open Project...",
+      "key": "views.topbar.openProject"
+    },
+    {
+      "original": "Open in VSCode",
+      "key": "views.topbar.openInVscode"
+    },
+    {
+      "original": "Quit",
+      "key": "views.topbar.quit"
+    },
+    {
+      "original": "Toggle Sidebar",
+      "key": "views.topbar.toggleSidebar"
+    },
+    {
+      "original": "Reset Layout",
+      "key": "views.topbar.resetLayout"
+    },
+    {
+      "original": "Minimize",
+      "key": "views.topbar.minimize"
+    },
+    {
+      "original": "Toggle Fullscreen",
+      "key": "views.topbar.toggleFullscreen"
+    },
+    {
+      "original": "Documentation",
+      "key": "views.topbar.documentation"
+    },
+    {
+      "original": "Report Issue",
+      "key": "views.topbar.reportIssue"
+    },
+    {
+      "original": "About Dexteria",
+      "key": "views.topbar.about"
+    },
+    {
+      "original": "Planner",
+      "key": "views.topbar.planner"
+    },
+    {
+      "original": "Agent",
+      "key": "views.topbar.agent"
+    },
+    {
+      "original": "Running",
+      "key": "views.topbar.running"
+    },
+    {
+      "original": "Building",
+      "key": "views.topbar.building"
+    },
+    {
+      "original": "Run Output",
+      "key": "views.bottomPanel.runOutput"
+    },
+    {
+      "original": "Build Output",
+      "key": "views.bottomPanel.buildOutput"
+    },
+    {
+      "original": "Output",
+      "key": "views.logViewer.output"
+    },
+    {
+      "original": "No output...",
+      "key": "views.logViewer.noOutput"
+    },
+    {
+      "original": "Loading theme...",
+      "key": "views.themeEditor.loading"
+    },
+    {
+      "original": "No task selected",
+      "key": "views.docking.noTaskSelected"
+    },
+    {
+      "original": "Open a panel from the menu to get started",
+      "key": "views.docking.openPanelHint"
+    },
+    {
+      "original": "Delete",
+      "key": "actions.delete"
+    },
+    {
+      "original": "Save",
+      "key": "actions.save"
+    },
+    {
+      "original": "Close",
+      "key": "actions.close"
+    },
+    {
+      "original": "Send",
+      "key": "actions.send"
+    },
+    {
+      "original": "Copy",
+      "key": "actions.copy"
+    },
+    {
+      "original": "Download",
+      "key": "actions.download"
+    },
+    {
+      "original": "Reset",
+      "key": "actions.reset"
+    },
+    {
+      "original": "Apply",
+      "key": "actions.apply"
+    },
+    {
+      "original": "Stop",
+      "key": "actions.stop"
+    },
+    {
+      "original": "Run",
+      "key": "actions.run"
+    },
+    {
+      "original": "Start",
+      "key": "actions.start"
+    },
+    {
+      "original": "Loading...",
+      "key": "common.loading"
+    },
+    {
+      "original": "Status",
+      "key": "labels.status"
+    },
+    {
+      "original": "Priority",
+      "key": "labels.priority"
+    }
+  ]
+}

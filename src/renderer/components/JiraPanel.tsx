@@ -13,6 +13,7 @@ import {
   AlertBanner,
 } from 'adnia-ui';
 import { cn } from '../lib/utils';
+import { t } from '../i18n/t';
 import {
   Link2,
   Unlink,
@@ -359,7 +360,7 @@ export const JiraPanel: React.FC = () => {
           onClick={loadInitialData}
         >
           <RefreshCw size={14} className="mr-1" />
-          Check Again
+          {t('actions.checkAgain')}
         </Button>
       </div>
     );
@@ -780,11 +781,11 @@ export const JiraPanel: React.FC = () => {
                             }}
                             className="bg-muted border border-border rounded px-2 py-1 text-sm"
                           >
-                            <option value="backlog">Backlog</option>
-                            <option value="todo">To Do</option>
+                            <option value="backlog">{t('views.kanban.backlog')}</option>
+                            <option value="todo">{t('views.kanban.todo')}</option>
                             <option value="doing">Doing</option>
-                            <option value="review">Review</option>
-                            <option value="done">Done</option>
+                            <option value="review">{t('views.kanban.review')}</option>
+                            <option value="done">{t('views.kanban.done')}</option>
                           </select>
                         </div>
                       ))}

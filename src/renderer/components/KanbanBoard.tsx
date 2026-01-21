@@ -19,6 +19,7 @@ import { ErrorDisplay } from './ErrorDisplay';
 import { Button, IconButton, Input } from 'adnia-ui';
 import type { Task, Column as ColumnType, TaskStatus } from '../../shared/types';
 import { Plus } from 'lucide-react';
+import { t } from '../i18n/t';
 
 // --- Column Component ---
 interface ColumnProps {
@@ -84,7 +85,7 @@ const Column: React.FC<ColumnProps> = ({
                     size="xs"
                     onClick={() => onCreateTask(column.id)}
                     className="opacity-50 hover:opacity-100 hover:bg-white/10"
-                    title="Crear nueva tarea"
+                    title={t('tooltips.newTask')}
                 >
                     <Plus className="w-3.5 h-3.5" />
                 </IconButton>
@@ -108,7 +109,7 @@ const Column: React.FC<ColumnProps> = ({
                                     onCancelCreate();
                                 }
                             }}
-                            placeholder="Nombre de la tarea..."
+                            placeholder={t('placeholders.taskName')}
                             className="h-8 text-sm bg-background border-white/10"
                             autoFocus
                         />
@@ -119,14 +120,14 @@ const Column: React.FC<ColumnProps> = ({
                                 size="xs"
                                 className="flex-1"
                             >
-                                Crear
+                                {t('actions.create')}
                             </Button>
                             <Button
                                 variant="muted"
                                 size="xs"
                                 onClick={onCancelCreate}
                             >
-                                Cancelar
+                                {t('actions.cancel')}
                             </Button>
                         </div>
                     </div>
@@ -151,7 +152,7 @@ const Column: React.FC<ColumnProps> = ({
                             {draggedTask.title}
                         </div>
                         <div className="text-xs text-primary/50 mt-1">
-                            Drop here to move
+                            {t('views.kanban.dragToMove')}
                         </div>
                     </div>
                 )}
@@ -308,7 +309,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onTaskSelect, activeTa
     }
 
     if (!board) {
-        return <div className="p-8 text-center text-muted-foreground">No board data available</div>;
+        return <div className="p-8 text-center text-muted-foreground">{t('views.kanban.noBoardData')}</div>;
     }
 
     // Default columns if board is empty or structure is different

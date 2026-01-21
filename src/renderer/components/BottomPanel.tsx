@@ -7,6 +7,7 @@ import { ProcessOutput } from './ProcessOutput';
 import { useSlotContributions, type SlotContribution } from '../contexts/ExtensionPointsContext';
 import { PluginComponentLoader } from '../plugins/PluginComponentLoader';
 
+import { useTranslation } from '../i18n/useTranslation';
 // Built-in tabs
 type BuiltInTabId = 'runner' | 'run' | 'build';
 // All tabs including plugin tabs
@@ -22,6 +23,7 @@ const getLucideIcon = (iconName: string, size: number = 14): React.ReactNode => 
 };
 
 export const BottomPanel: React.FC = () => {
+    const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<TabId>('runner');
 
     // Get plugin contributions for bottom panel tabs
@@ -64,8 +66,8 @@ export const BottomPanel: React.FC = () => {
             {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
                 {activeTab === 'runner' && <TaskRunner />}
-                {activeTab === 'run' && <ProcessOutput type="run" title="Run Output" />}
-                {activeTab === 'build' && <ProcessOutput type="build" title="Build Output" />}
+                {activeTab === 'run' && <ProcessOutput type="run" title={t('views.bottomPanel.runOutput')} />}
+                {activeTab === 'build' && <ProcessOutput type="build" title={t('views.bottomPanel.buildOutput')} />}
 
                 {/* Plugin tab content */}
                 {activePluginContribution && (

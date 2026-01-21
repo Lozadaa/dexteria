@@ -29,12 +29,20 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import SplashImage from '../../../assets/splash.png';
+import { useThemeContext } from '../contexts/ThemeContext';
 
-type ProviderType = 'opencode' | 'claude-code' | 'anthropic';
+import { useTranslation } from '../i18n/useTranslation';
+type ProviderType = 'opencode' | 'codex' | 'claude-code' | 'anthropic';
 type WizardStep = 'select' | 'configure' | 'test' | 'theme' | 'codeViewing';
 
 interface OpenCodeInstallProgress {
     phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';
+    percent: number;
+    message: string;
+}
+
+interface CodexInstallProgress {
+    phase: 'checking' | 'installing' | 'verifying' | 'complete' | 'error';
     percent: number;
     message: string;
 }
@@ -56,6 +64,8 @@ interface SetupWizardProps {
 }
 
 export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
+    const { t } = useTranslation();
+    const { setActiveTheme } = useThemeContext();
     const [step, setStep] = useState<WizardStep>('select');
     const [selectedProvider, setSelectedProvider] = useState<ProviderType | null>(null);
     const [apiKey, setApiKey] = useState('');
@@ -75,6 +85,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [openCodeInstallProgress, setOpenCodeInstallProgress] = useState<OpenCodeInstallProgress | null>(null);
     const [openCodeError, setOpenCodeError] = useState<string | null>(null);
 
+    // Codex state
+    const [codexAvailable, setCodexAvailable] = useState<boolean | null>(null);
+    const [checkingCodex, setCheckingCodex] = useState(true);
+    const [installingCodex, setInstallingCodex] = useState(false);
+    const [codexInstallProgress, setCodexInstallProgress] = useState<CodexInstallProgress | null>(null);
+    const [codexError, setCodexError] = useState<string | null>(null);
+    const [npmAvailable, setNpmAvailable] = useState<boolean | null>(null);
+
     // VSCode state
     const [vscodeInstalled, setVscodeInstalled] = useState<boolean | null>(null);
     const [checkingVscode, setCheckingVscode] = useState(true);
@@ -89,9 +107,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         setOpenCodeError(null);
     };
 
+    // Helper function to reset Codex state on error or cancel
+    const resetCodexState = () => {
+        setInstallingCodex(false);
+        setCheckingCodex(false);
+        setCodexInstallProgress(null);
+        setCodexError(null);
+    };
+
     // Check if providers are available on mount
     useEffect(() => {
         checkOpenCodeAvailability();
+        checkCodexAvailability();
         checkClaudeCodeAvailability();
         loadPresetThemes();
         checkVSCodeAvailability();
@@ -121,6 +148,43 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             } else if (progress.phase === 'error') {
                 resetOpenCodeState();
                 setOpenCodeError(progress.message);
+                setTestResult({
+                    success: false,
+                    message: progress.message,
+                });
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            cleanup?.();
+        };
+    }, []);
+
+    // Listen for Codex install progress
+    useEffect(() => {
+        let isMounted = true;
+
+        // Check if Codex API is available
+        if (!window.dexteria?.codex?.onInstallProgress) {
+            console.warn('[SetupWizard] Codex API not available for progress updates');
+            return;
+        }
+
+        const cleanup = window.dexteria.codex.onInstallProgress((progress) => {
+            // Don't update state if component is unmounted
+            if (!isMounted) return;
+
+            setCodexInstallProgress(progress);
+
+            if (progress.phase === 'complete') {
+                setInstallingCodex(false);
+                setCodexAvailable(true);
+                // Move to test step after successful install
+                setStep('test');
+            } else if (progress.phase === 'error') {
+                resetCodexState();
+                setCodexError(progress.message);
                 setTestResult({
                     success: false,
                     message: progress.message,
@@ -211,6 +275,54 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         }
     };
 
+    const handleInstallCodex = async () => {
+        // Check if Codex API is available
+        if (!window.dexteria?.codex?.install) {
+            setTestResult({
+                success: false,
+                message: 'Codex installer API not available',
+            });
+            return;
+        }
+
+        // Check if npm is available
+        if (!npmAvailable) {
+            setCodexError('npm is not available. Please install Node.js first.');
+            setTestResult({
+                success: false,
+                message: 'npm is not available. Please install Node.js first.',
+            });
+            return;
+        }
+
+        setInstallingCodex(true);
+        setCodexInstallProgress(null);
+        setCodexError(null);
+        setTestResult(null);
+
+        try {
+            const result = await window.dexteria.codex.install();
+            if (!result?.success) {
+                resetCodexState();
+                const errorMessage = result?.error || 'Installation failed';
+                setCodexError(errorMessage);
+                setTestResult({
+                    success: false,
+                    message: errorMessage,
+                });
+            }
+            // Success is handled by the progress listener
+        } catch (err) {
+            resetCodexState();
+            const errorMessage = err instanceof Error ? err.message : 'Installation failed';
+            setCodexError(errorMessage);
+            setTestResult({
+                success: false,
+                message: errorMessage,
+            });
+        }
+    };
+
     const checkClaudeCodeAvailability = async () => {
         setCheckingClaudeCode(true);
         try {
@@ -218,7 +330,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             const result = await window.dexteria?.settings?.setProvider?.('claude-code');
             if (result?.success) {
                 const provider = await window.dexteria?.settings?.getProvider?.();
-                setClaudeCodeAvailable(provider?.ready ?? false);
+                // Use providerReady instead of ready (ready includes hasCompletedSetup check)
+                setClaudeCodeAvailable(provider?.providerReady ?? false);
             } else {
                 setClaudeCodeAvailable(false);
             }
@@ -226,6 +339,28 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             setClaudeCodeAvailable(false);
         }
         setCheckingClaudeCode(false);
+    };
+
+    const checkCodexAvailability = async () => {
+        setCheckingCodex(true);
+        try {
+            // Check if Codex is installed via the installer API
+            const isInstalled = await window.dexteria?.codex?.isInstalled?.();
+            setCodexAvailable(isInstalled ?? false);
+
+            // Also check if npm is available for installation
+            const hasNpm = await window.dexteria?.codex?.isNpmAvailable?.();
+            setNpmAvailable(hasNpm ?? false);
+
+            // If installed, set it as the provider
+            if (isInstalled) {
+                await window.dexteria?.settings?.setProvider?.('codex');
+            }
+        } catch (err) {
+            setCodexAvailable(false);
+            setNpmAvailable(false);
+        }
+        setCheckingCodex(false);
     };
 
     const checkVSCodeAvailability = async () => {
@@ -254,6 +389,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                 setStep('test');
             } else {
                 // Show install/configure step
+                setStep('configure');
+            }
+        } else if (provider === 'codex') {
+            if (codexAvailable) {
+                // Codex is ready, go straight to test
+                setStep('test');
+            } else {
+                // Show instructions to install
                 setStep('configure');
             }
         } else if (provider === 'claude-code') {
@@ -466,7 +609,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 Choose your AI Provider
                             </h2>
 
-                            {(checkingOpenCode || checkingClaudeCode) ? (
+                            {(checkingOpenCode || checkingCodex || checkingClaudeCode) ? (
                                 <div className="flex items-center justify-center py-8">
                                     <Spinner size="md" label="Checking available providers..." />
                                 </div>
@@ -495,7 +638,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <span className="font-semibold">OpenCode</span>
                                                     {openCodeAvailable && (
                                                         <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
-                                                            Installed
+                                                            {t('labels.installed')}
                                                         </span>
                                                     )}
                                                     <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
@@ -504,6 +647,42 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
                                                     Open-source AI coding assistant. Auto-installs on first use.
+                                                </p>
+                                            </div>
+                                            <ArrowRight size={20} className="text-muted-foreground mt-3" />
+                                        </div>
+                                    </button>
+
+                                    {/* Codex CLI Option */}
+                                    <button
+                                        onClick={() => handleSelectProvider('codex')}
+                                        className={cn(
+                                            "w-full p-4 rounded-lg border text-left transition-all",
+                                            "hover:border-primary/50 hover:bg-muted/50",
+                                            codexAvailable
+                                                ? "border-green-500/30 bg-green-500/5"
+                                                : "border-border"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <div className={cn(
+                                                "w-12 h-12 rounded-lg flex items-center justify-center",
+                                                codexAvailable ? "bg-green-500/20 text-green-500" : "bg-muted text-muted-foreground"
+                                            )}>
+                                                <Cpu size={24} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold">Codex CLI</span>
+                                                    {codexAvailable && (
+                                                        <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
+                                                            Detected
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-1">
+                                                    OpenAI's coding agent.
+                                                    {!codexAvailable && " Requires manual installation."}
                                                 </p>
                                             </div>
                                             <ArrowRight size={20} className="text-muted-foreground mt-3" />
@@ -557,7 +736,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-semibold">Anthropic API</span>
+                                                    <span className="font-semibold">{t('views.chat.anthropicApi')}</span>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
                                                     Direct API access. Requires an API key from Anthropic.
@@ -577,16 +756,40 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                             <h2 className="text-lg font-semibold text-center mb-4">
                                 {selectedProvider === 'opencode'
                                     ? 'Install OpenCode'
-                                    : selectedProvider === 'claude-code'
-                                        ? 'Install Claude Code CLI'
-                                        : 'Enter your API Key'
+                                    : selectedProvider === 'codex'
+                                        ? 'Install Codex CLI'
+                                        : selectedProvider === 'claude-code'
+                                            ? 'Install Claude Code CLI'
+                                            : 'Enter your API Key'
                                 }
                             </h2>
 
                             {/* OpenCode Installation */}
-                            {selectedProvider === 'opencode' && !openCodeAvailable && (
+                            {selectedProvider === 'opencode' && (
                                 <div className="space-y-4">
-                                    {!installingOpenCode ? (
+                                    {openCodeAvailable ? (
+                                        <>
+                                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                                                <div className="w-16 h-16 rounded-full bg-green-500/20 text-green-500 mx-auto mb-4 flex items-center justify-center">
+                                                    <CheckCircle size={32} />
+                                                </div>
+                                                <p className="font-medium text-green-500">OpenCode is already installed!</p>
+                                                <p className="text-sm text-muted-foreground mt-2">
+                                                    You can continue to the next step.
+                                                </p>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" onClick={handleBack}>
+                                                    Back
+                                                </Button>
+                                                <Button onClick={() => setStep('test')} className="flex-1">
+                                                    Continue
+                                                    <ArrowRight size={16} className="ml-2" />
+                                                </Button>
+                                            </div>
+                                        </>
+                                    ) : !installingOpenCode ? (
                                         <>
                                             <div className="p-4 bg-muted/50 rounded-lg text-center">
                                                 <div className="w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto mb-4 flex items-center justify-center">
@@ -649,55 +852,195 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 </div>
                             )}
 
-                            {selectedProvider === 'claude-code' && !claudeCodeAvailable && (
+                            {selectedProvider === 'codex' && (
                                 <div className="space-y-4">
-                                    <AlertBanner
-                                        variant="warning"
-                                        title="Claude Code CLI not found"
-                                        description="Install the CLI to use Claude Code with Dexteria."
-                                    />
+                                    {codexAvailable ? (
+                                        <>
+                                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                                                <div className="w-16 h-16 rounded-full bg-green-500/20 text-green-500 mx-auto mb-4 flex items-center justify-center">
+                                                    <CheckCircle size={32} />
+                                                </div>
+                                                <p className="font-medium text-green-500">Codex CLI is already installed!</p>
+                                                <p className="text-sm text-muted-foreground mt-2">
+                                                    You can continue to the next step.
+                                                </p>
+                                            </div>
 
-                                    <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                                        <p className="text-sm font-medium">Installation steps:</p>
-                                        <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                                            <li>Open a terminal</li>
-                                            <li>Run: <code className="bg-background px-1.5 py-0.5 rounded text-foreground">npm install -g @anthropic-ai/claude-code</code></li>
-                                            <li>Verify: <code className="bg-background px-1.5 py-0.5 rounded text-foreground">claude --version</code></li>
-                                            <li>Click "Check Again" below</li>
-                                        </ol>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <Button variant="ghost" onClick={handleBack}>
-                                            Back
-                                        </Button>
-                                        <Button
-                                            onClick={checkClaudeCodeAvailability}
-                                            disabled={checkingClaudeCode}
-                                            className="flex-1"
-                                        >
-                                            {checkingClaudeCode ? (
-                                                <Spinner size="xs" />
-                                            ) : (
-                                                <RefreshCw size={16} />
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" onClick={handleBack}>
+                                                    Back
+                                                </Button>
+                                                <Button onClick={() => setStep('test')} className="flex-1">
+                                                    Continue
+                                                    <ArrowRight size={16} className="ml-2" />
+                                                </Button>
+                                            </div>
+                                        </>
+                                    ) : !installingCodex ? (
+                                        <>
+                                            {codexError && (
+                                                <AlertBanner
+                                                    variant="destructive"
+                                                    title="Installation Error"
+                                                    description={codexError}
+                                                />
                                             )}
-                                            <span className="ml-2">Check Again</span>
-                                        </Button>
-                                    </div>
 
-                                    {claudeCodeAvailable && (
-                                        <AlertBanner
-                                            variant="success"
-                                            icon={<CheckCircle size={16} />}
-                                            description="Claude Code CLI detected! Click Continue to proceed."
-                                        />
+                                            {!npmAvailable ? (
+                                                <>
+                                                    <AlertBanner
+                                                        variant="warning"
+                                                        title="npm not found"
+                                                        description="Node.js and npm are required to install Codex CLI."
+                                                    />
+
+                                                    <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                                                        <p className="text-sm font-medium">To install Node.js:</p>
+                                                        <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                                                            <li>Visit <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">nodejs.org</a></li>
+                                                            <li>Download and install the LTS version</li>
+                                                            <li>Restart your terminal/computer</li>
+                                                            <li>Click "Check Again" below</li>
+                                                        </ol>
+                                                    </div>
+
+                                                    <div className="flex gap-2">
+                                                        <Button variant="ghost" onClick={handleBack}>
+                                                            Back
+                                                        </Button>
+                                                        <Button
+                                                            onClick={checkCodexAvailability}
+                                                            disabled={checkingCodex}
+                                                            className="flex-1"
+                                                        >
+                                                            {checkingCodex ? (
+                                                                <Spinner size="xs" />
+                                                            ) : (
+                                                                <RefreshCw size={16} />
+                                                            )}
+                                                            <span className="ml-2">{t('actions.checkAgain')}</span>
+                                                        </Button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="p-6 bg-muted/50 rounded-lg text-center space-y-4">
+                                                        <div className="w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto flex items-center justify-center">
+                                                            <Download size={32} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium">Install Codex CLI</p>
+                                                            <p className="text-sm text-muted-foreground mt-2">
+                                                                Codex CLI will be installed via npm. This only needs to happen once.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex gap-2">
+                                                        <Button variant="ghost" onClick={handleBack}>
+                                                            Back
+                                                        </Button>
+                                                        <Button
+                                                            onClick={handleInstallCodex}
+                                                            className="flex-1 gap-2"
+                                                        >
+                                                            <Zap size={16} className="mr-2" />
+                                                            Install Codex CLI
+                                                        </Button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="p-6 bg-muted/50 rounded-lg text-center space-y-4">
+                                                <div className="w-16 h-16 rounded-full bg-primary/20 text-primary mx-auto flex items-center justify-center">
+                                                    <Spinner size="lg" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium">
+                                                        {codexInstallProgress?.message || 'Installing Codex CLI...'}
+                                                    </p>
+                                                    {codexInstallProgress && (
+                                                        <div className="mt-4">
+                                                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-primary transition-all duration-300"
+                                                                    style={{ width: `${codexInstallProgress.percent}%` }}
+                                                                />
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mt-2">
+                                                                {Math.round(codexInstallProgress.percent)}%
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </>
                                     )}
+                                </div>
+                            )}
 
-                                    {claudeCodeAvailable && (
-                                        <Button onClick={() => setStep('test')} className="w-full">
-                                            Continue
-                                            <ArrowRight size={16} className="ml-2" />
-                                        </Button>
+                            {selectedProvider === 'claude-code' && (
+                                <div className="space-y-4">
+                                    {claudeCodeAvailable ? (
+                                        <>
+                                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                                                <div className="w-16 h-16 rounded-full bg-green-500/20 text-green-500 mx-auto mb-4 flex items-center justify-center">
+                                                    <CheckCircle size={32} />
+                                                </div>
+                                                <p className="font-medium text-green-500">Claude Code CLI is already installed!</p>
+                                                <p className="text-sm text-muted-foreground mt-2">
+                                                    You can continue to the next step.
+                                                </p>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" onClick={handleBack}>
+                                                    Back
+                                                </Button>
+                                                <Button onClick={() => setStep('test')} className="flex-1">
+                                                    Continue
+                                                    <ArrowRight size={16} className="ml-2" />
+                                                </Button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <AlertBanner
+                                                variant="warning"
+                                                title="Claude Code CLI not found"
+                                                description="Install the CLI to use Claude Code with Dexteria."
+                                            />
+
+                                            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                                                <p className="text-sm font-medium">Installation steps:</p>
+                                                <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                                                    <li>Open a terminal</li>
+                                                    <li>Run: <code className="bg-background px-1.5 py-0.5 rounded text-foreground">npm install -g @anthropic-ai/claude-code</code></li>
+                                                    <li>Verify: <code className="bg-background px-1.5 py-0.5 rounded text-foreground">claude --version</code></li>
+                                                    <li>Click "Check Again" below</li>
+                                                </ol>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" onClick={handleBack}>
+                                                    Back
+                                                </Button>
+                                                <Button
+                                                    onClick={checkClaudeCodeAvailability}
+                                                    disabled={checkingClaudeCode}
+                                                    className="flex-1"
+                                                >
+                                                    {checkingClaudeCode ? (
+                                                        <Spinner size="xs" />
+                                                    ) : (
+                                                        <RefreshCw size={16} />
+                                                    )}
+                                                    <span className="ml-2">{t('actions.checkAgain')}</span>
+                                                </Button>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             )}
@@ -795,6 +1138,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     <p className="font-medium">
                                         {selectedProvider === 'opencode'
                                             ? 'OpenCode'
+                                            : selectedProvider === 'codex'
+                                                ? 'Codex CLI'
                                             : selectedProvider === 'claude-code'
                                                 ? 'Claude Code CLI'
                                                 : 'Anthropic API'}
@@ -874,7 +1219,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     {presetThemes.map((theme) => (
                                         <button
                                             key={theme.id}
-                                            onClick={() => setSelectedTheme(theme.id)}
+                                            onClick={async () => {
+                                                setSelectedTheme(theme.id);
+                                                // Get full theme data and import it to user themes
+                                                const fullTheme = await window.dexteria?.settings?.getPresetTheme?.(theme.id);
+                                                if (fullTheme) {
+                                                    // Import the theme (this will copy it to user themes directory)
+                                                    const imported = await window.dexteria?.theme?.import?.(JSON.stringify(fullTheme));
+                                                    if (imported?.id) {
+                                                        await setActiveTheme(imported.id);
+                                                    }
+                                                }
+                                            }}
                                             className={cn(
                                                 "p-3 rounded-lg border text-left transition-all relative overflow-hidden",
                                                 selectedTheme === theme.id
@@ -1008,7 +1364,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 <Download size={18} className="text-amber-500 mt-0.5" />
                                                 <div className="flex-1">
                                                     <p className="text-sm font-medium text-amber-500">
-                                                        VSCode not detected
+                                                        {t('views.settings.integrations.vscodeNotDetected')}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground mt-1">
                                                         You can still enable this feature and install VSCode later.
@@ -1018,7 +1374,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-2"
                                                     >
                                                         <ExternalLink size={12} />
-                                                        Download VSCode
+                                                        {t('views.settings.integrations.downloadVscode')}
                                                     </button>
                                                 </div>
                                             </div>

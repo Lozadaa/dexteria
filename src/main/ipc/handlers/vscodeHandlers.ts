@@ -55,15 +55,21 @@ export function registerVSCodeHandlers(): void {
   }> => {
     const service = getVSCodeService();
     if (!service) {
+      console.error('[VSCode] Service not initialized');
       return { success: false, error: 'VSCode service not initialized' };
     }
 
     const projectRoot = getProjectRoot();
+    console.log('[VSCode] Opening project:', projectRoot);
+
     if (!projectRoot) {
+      console.error('[VSCode] No project open');
       return { success: false, error: 'No project open' };
     }
 
-    return service.openFolder(projectRoot);
+    const result = await service.openFolder(projectRoot);
+    console.log('[VSCode] Open result:', result);
+    return result;
   });
 
   // Open a specific folder in VSCode

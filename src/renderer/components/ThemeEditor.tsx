@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { CustomTheme } from '../../shared/types';
 
+import { useTranslation } from '../i18n/useTranslation';
 /**
  * Syntax highlight JSON string
  * Returns HTML with colored spans
@@ -136,6 +137,7 @@ interface ThemeEditorProps {
 }
 
 export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) => {
+  const { t } = useTranslation();
   const { saveTheme, setActiveTheme, activeThemeId } = useThemeContext();
   const [theme, setTheme] = useState<CustomTheme | null>(null);
   const [jsonContent, setJsonContent] = useState('');
@@ -316,7 +318,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Spinner size="md" label="Loading theme..." />
+        <Spinner size="md" label={t('views.themeEditor.loading')} />
       </div>
     );
   }
@@ -336,12 +338,12 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
         <div className="flex items-center gap-2">
           {hasChanges && (
             <span className="text-xs text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded">
-              Unsaved
+              {t('labels.unsaved')}
             </span>
           )}
           {activeThemeId === themeId && (
             <span className="text-xs text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">
-              Active
+              {t('labels.active')}
             </span>
           )}
         </div>

@@ -1,0 +1,1294 @@
+{
+  "extractedAt": "2026-01-20T15:23:41.770Z",
+  "count": 184,
+  "strings": [
+    {
+      "file": "src/renderer/App.tsx",
+      "line": 37,
+      "original": "Planner Mode Active",
+      "context": "jsx",
+      "suggestedKey": "views.app.plannermodeactive"
+    },
+    {
+      "file": "src/renderer/App.tsx",
+      "line": 48,
+      "original": "Planner Mode",
+      "context": "jsx",
+      "suggestedKey": "views.app.plannermode"
+    },
+    {
+      "file": "src/renderer/App.tsx",
+      "line": 52,
+      "original": "Agent Mode",
+      "context": "jsx",
+      "suggestedKey": "views.app.agentmode"
+    },
+    {
+      "file": "src/renderer/App.tsx",
+      "line": 290,
+      "original": "Opening project...",
+      "context": "jsx",
+      "suggestedKey": "actions.openingproject"
+    },
+    {
+      "file": "src/renderer/App.tsx",
+      "line": 313,
+      "original": "Dexteria",
+      "context": "jsx",
+      "suggestedKey": "views.app.dexteria"
+    },
+    {
+      "file": "src/renderer/components/BottomPanel.tsx",
+      "line": 67,
+      "original": "Run Output",
+      "context": "prop",
+      "suggestedKey": "tooltips.runoutput"
+    },
+    {
+      "file": "src/renderer/components/BottomPanel.tsx",
+      "line": 68,
+      "original": "Build Output",
+      "context": "prop",
+      "suggestedKey": "tooltips.buildoutput"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 356,
+      "original": "Chat History",
+      "context": "prop",
+      "suggestedKey": "tooltips.chathistory"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 405,
+      "original": "Delete conversation",
+      "context": "prop",
+      "suggestedKey": "tooltips.deleteconversation"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 439,
+      "original": "New Chat",
+      "context": "prop",
+      "suggestedKey": "tooltips.newchat"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 455,
+      "original": "Start a conversation with Dexter",
+      "context": "jsx",
+      "suggestedKey": "views.chat.startaconversation"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 456,
+      "original": "Ask anything about your project",
+      "context": "jsx",
+      "suggestedKey": "views.chat.askanythingabout"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 572,
+      "original": "AI Provider",
+      "context": "jsx",
+      "suggestedKey": "views.chat.aiprovider"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 586,
+      "original": "Claude Code",
+      "context": "jsx",
+      "suggestedKey": "views.chat.claudecode"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 587,
+      "original": "Uses CLI (recommended)",
+      "context": "jsx",
+      "suggestedKey": "views.chat.usesclirecommended"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 592,
+      "original": "Anthropic API",
+      "context": "jsx",
+      "suggestedKey": "views.chat.anthropicapi"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 593,
+      "original": "Direct API (requires key)",
+      "context": "jsx",
+      "suggestedKey": "views.chat.directapirequires"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 598,
+      "original": "Mock",
+      "context": "jsx",
+      "suggestedKey": "views.chat.mock"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 599,
+      "original": "For testing",
+      "context": "jsx",
+      "suggestedKey": "views.chat.fortesting"
+    },
+    {
+      "file": "src/renderer/components/ChatPanel.tsx",
+      "line": 626,
+      "original": "Cancel",
+      "context": "prop",
+      "suggestedKey": "tooltips.cancel"
+    },
+    {
+      "file": "src/renderer/components/ErrorBoundary.tsx",
+      "line": 44,
+      "original": "Something went wrong",
+      "context": "jsx",
+      "suggestedKey": "views.errorboundary.somethingwentwrong"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 323,
+      "original": "Clear all sync history?",
+      "context": "call",
+      "suggestedKey": "errors.clearallsync"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 343,
+      "original": "Loading Jira settings...",
+      "context": "prop",
+      "suggestedKey": "placeholders.loadingjirasettings"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 375,
+      "original": "Jira",
+      "context": "prop",
+      "suggestedKey": "tooltips.jira"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 378,
+      "original": "Jira Integration",
+      "context": "jsx",
+      "suggestedKey": "views.jira.jiraintegration"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 438,
+      "original": "Connected to Jira",
+      "context": "jsx",
+      "suggestedKey": "views.jira.connectedtojira"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 485,
+      "original": "Client ID",
+      "context": "jsx",
+      "suggestedKey": "views.jira.clientid"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 489,
+      "original": "Enter your OAuth Client ID",
+      "context": "prop",
+      "suggestedKey": "tooltips.enteryouroauth"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 493,
+      "original": "Client Secret",
+      "context": "jsx",
+      "suggestedKey": "views.jira.clientsecret"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 502,
+      "original": "Redirect URI",
+      "context": "jsx",
+      "suggestedKey": "views.jira.redirecturi"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 549,
+      "original": "Select Project",
+      "context": "jsx",
+      "suggestedKey": "views.jira.selectproject"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 560,
+      "original": "Loading projects...",
+      "context": "prop",
+      "suggestedKey": "placeholders.loadingprojects"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 562,
+      "original": "No projects found",
+      "context": "jsx",
+      "suggestedKey": "views.jira.noprojectsfound"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 592,
+      "original": "JQL Filter (Optional)",
+      "context": "jsx",
+      "suggestedKey": "views.jira.jqlfilteroptional"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 596,
+      "original": "e.g., status !=",
+      "context": "prop",
+      "suggestedKey": "tooltips.egstatus"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 604,
+      "original": "Sync Options",
+      "context": "jsx",
+      "suggestedKey": "views.jira.syncoptions"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 607,
+      "original": "Enable Sync",
+      "context": "jsx",
+      "suggestedKey": "views.jira.enablesync"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 619,
+      "original": "Auto-Sync from Jira",
+      "context": "jsx",
+      "suggestedKey": "views.jira.autosyncfromjira"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 683,
+      "original": "Total Issues",
+      "context": "jsx",
+      "suggestedKey": "views.jira.totalissues"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 687,
+      "original": "New",
+      "context": "jsx",
+      "suggestedKey": "views.jira.new"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 691,
+      "original": "Already Imported",
+      "context": "jsx",
+      "suggestedKey": "views.jira.alreadyimported"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 757,
+      "original": "Status Mapping",
+      "context": "jsx",
+      "suggestedKey": "views.jira.statusmapping"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 783,
+      "original": "Backlog",
+      "context": "jsx",
+      "suggestedKey": "views.jira.backlog"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 784,
+      "original": "To Do",
+      "context": "jsx",
+      "suggestedKey": "views.jira.todo"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 785,
+      "original": "Doing",
+      "context": "jsx",
+      "suggestedKey": "views.jira.doing"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 786,
+      "original": "Review",
+      "context": "jsx",
+      "suggestedKey": "views.jira.review"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 787,
+      "original": "Done",
+      "context": "jsx",
+      "suggestedKey": "views.jira.done"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 811,
+      "original": "Sync History",
+      "context": "jsx",
+      "suggestedKey": "views.jira.synchistory"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 833,
+      "original": "Loading history...",
+      "context": "prop",
+      "suggestedKey": "placeholders.loadinghistory"
+    },
+    {
+      "file": "src/renderer/components/JiraPanel.tsx",
+      "line": 835,
+      "original": "No sync history yet.",
+      "context": "jsx",
+      "suggestedKey": "views.jira.nosynchistory"
+    },
+    {
+      "file": "src/renderer/components/KanbanBoard.tsx",
+      "line": 87,
+      "original": "Crear nueva tarea",
+      "context": "prop",
+      "suggestedKey": "tooltips.crearnuevatarea"
+    },
+    {
+      "file": "src/renderer/components/KanbanBoard.tsx",
+      "line": 111,
+      "original": "Nombre de la tarea...",
+      "context": "prop",
+      "suggestedKey": "placeholders.nombredela"
+    },
+    {
+      "file": "src/renderer/components/KanbanBoard.tsx",
+      "line": 311,
+      "original": "No board data available",
+      "context": "jsx",
+      "suggestedKey": "views.kanbanboard.noboarddata"
+    },
+    {
+      "file": "src/renderer/components/LogViewer.tsx",
+      "line": 52,
+      "original": "Output",
+      "context": "jsx",
+      "suggestedKey": "views.loger.output"
+    },
+    {
+      "file": "src/renderer/components/LogViewer.tsx",
+      "line": 59,
+      "original": "No output...",
+      "context": "jsx",
+      "suggestedKey": "views.loger.nooutput"
+    },
+    {
+      "file": "src/renderer/components/MarkdownRenderer.tsx",
+      "line": 569,
+      "original": "Reasoning",
+      "context": "jsx",
+      "suggestedKey": "views.markdownrenderer.reasoning"
+    },
+    {
+      "file": "src/renderer/components/MarkdownRenderer.tsx",
+      "line": 610,
+      "original": "') || match[0].includes('",
+      "context": "jsx",
+      "suggestedKey": "views.markdownrenderer.match0includes"
+    },
+    {
+      "file": "src/renderer/components/MarkdownRenderer.tsx",
+      "line": 926,
+      "original": "0 && iterations",
+      "context": "jsx",
+      "suggestedKey": "views.markdownrenderer.0iterations"
+    },
+    {
+      "file": "src/renderer/components/MarkdownRenderer.tsx",
+      "line": 1059,
+      "original": "Thinking",
+      "context": "jsx",
+      "suggestedKey": "views.markdownrenderer.thinking"
+    },
+    {
+      "file": "src/renderer/components/PluginsPanel.tsx",
+      "line": 58,
+      "original": "Loading plugins...",
+      "context": "prop",
+      "suggestedKey": "placeholders.loadingplugins"
+    },
+    {
+      "file": "src/renderer/components/PluginsPanel.tsx",
+      "line": 69,
+      "original": "Plugins",
+      "context": "jsx",
+      "suggestedKey": "views.plugins.plugins"
+    },
+    {
+      "file": "src/renderer/components/PluginsPanel.tsx",
+      "line": 88,
+      "original": "No plugins loaded",
+      "context": "jsx",
+      "suggestedKey": "views.plugins.nopluginsloaded"
+    },
+    {
+      "file": "src/renderer/components/ProcessOutput.tsx",
+      "line": 139,
+      "original": "No output yet",
+      "context": "jsx",
+      "suggestedKey": "views.processoutput.nooutputyet"
+    },
+    {
+      "file": "src/renderer/components/Runner/TaskRunner.tsx",
+      "line": 78,
+      "original": "No pending tasks",
+      "context": "jsx",
+      "suggestedKey": "views.taskrunner.nopendingtasks"
+    },
+    {
+      "file": "src/renderer/components/Runner/TaskRunner.tsx",
+      "line": 79,
+      "original": "Create tasks from the board or chat",
+      "context": "jsx",
+      "suggestedKey": "actions.createtasksfrom"
+    },
+    {
+      "file": "src/renderer/components/Runner/TaskRunner.tsx",
+      "line": 114,
+      "original": "Run task",
+      "context": "prop",
+      "suggestedKey": "tooltips.runtask"
+    },
+    {
+      "file": "src/renderer/components/Runner/TaskRunner.tsx",
+      "line": 224,
+      "original": "Pause execution",
+      "context": "prop",
+      "suggestedKey": "tooltips.pauseexecution"
+    },
+    {
+      "file": "src/renderer/components/Runner/TaskRunner.tsx",
+      "line": 234,
+      "original": "Stop execution",
+      "context": "prop",
+      "suggestedKey": "tooltips.stopexecution"
+    },
+    {
+      "file": "src/renderer/components/Runner/TaskRunner.tsx",
+      "line": 246,
+      "original": "Progress",
+      "context": "jsx",
+      "suggestedKey": "views.taskrunner.progress"
+    },
+    {
+      "file": "src/renderer/components/Runner/TaskRunner.tsx",
+      "line": 259,
+      "original": "Execution Error",
+      "context": "prop",
+      "suggestedKey": "tooltips.executionerror"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 227,
+      "original": "Project Settings",
+      "context": "jsx",
+      "suggestedKey": "views.settings.projectsettings"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 235,
+      "original": "Loading settings...",
+      "context": "prop",
+      "suggestedKey": "placeholders.loadingsettings"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 254,
+      "original": "Sound on Task Complete",
+      "context": "jsx",
+      "suggestedKey": "views.settings.soundontask"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 255,
+      "original": "Play a sound when Ralph completes a task",
+      "context": "jsx",
+      "suggestedKey": "views.settings.playasound"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 269,
+      "original": "Notification Sound",
+      "context": "jsx",
+      "suggestedKey": "views.settings.notificationsound"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 299,
+      "original": "Test sound",
+      "context": "prop",
+      "suggestedKey": "tooltips.testsound"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 319,
+      "original": "Badge on Task Complete",
+      "context": "jsx",
+      "suggestedKey": "views.settings.badgeontask"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 320,
+      "original": "Show app badge when Ralph completes a task",
+      "context": "jsx",
+      "suggestedKey": "views.settings.showappbadge"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 361,
+      "original": "Run (Dev Server)",
+      "context": "jsx",
+      "suggestedKey": "views.settings.rundevserver"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 385,
+      "original": "Test",
+      "context": "jsx",
+      "suggestedKey": "views.settings.test"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 394,
+      "original": "Build",
+      "context": "jsx",
+      "suggestedKey": "views.settings.build"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 435,
+      "original": "Install",
+      "context": "jsx",
+      "suggestedKey": "views.settings.install"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 461,
+      "original": "Allow Unsafe Commands",
+      "context": "jsx",
+      "suggestedKey": "views.settings.allowunsafecommands"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 462,
+      "original": "Enable commands that might be destructive",
+      "context": "jsx",
+      "suggestedKey": "views.settings.enablecommandsthat"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 486,
+      "original": "Default Timeout",
+      "context": "jsx",
+      "suggestedKey": "views.settings.defaulttimeout"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 487,
+      "original": "Maximum time for command execution",
+      "context": "jsx",
+      "suggestedKey": "views.settings.maximumtimefor"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 501,
+      "original": "seconds",
+      "context": "jsx",
+      "suggestedKey": "views.settings.seconds"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 559,
+      "original": "Edit theme JSON",
+      "context": "prop",
+      "suggestedKey": "tooltips.editthemejson"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 562,
+      "original": "Edit",
+      "context": "jsx",
+      "suggestedKey": "actions.edit"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 581,
+      "original": "Export theme as JSON file",
+      "context": "prop",
+      "suggestedKey": "tooltips.exportthemeas"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 584,
+      "original": "Export",
+      "context": "jsx",
+      "suggestedKey": "views.settings.export"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 592,
+      "original": "Delete theme",
+      "context": "call",
+      "suggestedKey": "errors.deletetheme"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 612,
+      "original": "New Theme",
+      "context": "jsx",
+      "suggestedKey": "views.settings.newtheme"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 617,
+      "original": "Theme name...",
+      "context": "prop",
+      "suggestedKey": "placeholders.themename"
+    },
+    {
+      "file": "src/renderer/components/SettingsModal.tsx",
+      "line": 732,
+      "original": "No plugins installed",
+      "context": "jsx",
+      "suggestedKey": "views.settings.nopluginsinstalled"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 383,
+      "original": "Settings",
+      "context": "jsx",
+      "suggestedKey": "views.settings.settings"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 429,
+      "original": "Notifications",
+      "context": "jsx",
+      "suggestedKey": "views.settings.notifications"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 528,
+      "original": "Project Commands",
+      "context": "jsx",
+      "suggestedKey": "views.settings.projectcommands"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 674,
+      "original": "Runner Settings",
+      "context": "jsx",
+      "suggestedKey": "views.settings.runnersettings"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 709,
+      "original": "Integrations",
+      "context": "jsx",
+      "suggestedKey": "views.settings.integrations"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 863,
+      "original": "Themes",
+      "context": "jsx",
+      "suggestedKey": "views.settings.themes"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 873,
+      "original": "No themes loaded. Create one to get started.",
+      "context": "jsx",
+      "suggestedKey": "views.settings.nothemesloaded"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 1158,
+      "original": "Copy error",
+      "context": "prop",
+      "suggestedKey": "tooltips.copyerror"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 1166,
+      "original": "Dismiss",
+      "context": "prop",
+      "suggestedKey": "tooltips.dismiss"
+    },
+    {
+      "file": "src/renderer/components/SettingsPanel.tsx",
+      "line": 1225,
+      "original": "Plugin tab not found",
+      "context": "jsx",
+      "suggestedKey": "views.settings.plugintabnot"
+    },
+    {
+      "file": "src/renderer/components/SetupDialog.tsx",
+      "line": 106,
+      "original": "Welcome to Dexteria",
+      "context": "jsx",
+      "suggestedKey": "views.setup.welcometodexteria"
+    },
+    {
+      "file": "src/renderer/components/SetupDialog.tsx",
+      "line": 116,
+      "original": "OpenCode Setup",
+      "context": "jsx",
+      "suggestedKey": "actions.opencodesetup"
+    },
+    {
+      "file": "src/renderer/components/SetupDialog.tsx",
+      "line": 179,
+      "original": "🎉",
+      "context": "jsx",
+      "suggestedKey": "views.setup."
+    },
+    {
+      "file": "src/renderer/components/SetupDialog.tsx",
+      "line": 181,
+      "original": "All Set!",
+      "context": "jsx",
+      "suggestedKey": "views.setup.allset"
+    },
+    {
+      "file": "src/renderer/components/SetupDialog.tsx",
+      "line": 182,
+      "original": "OpenCode is ready to use",
+      "context": "jsx",
+      "suggestedKey": "actions.opencodeisready"
+    },
+    {
+      "file": "src/renderer/components/SetupDialog.tsx",
+      "line": 191,
+      "original": "Installation Failed",
+      "context": "jsx",
+      "suggestedKey": "common.installationfailed"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 455,
+      "original": "num ?",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.num"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 471,
+      "original": "Checking available providers...",
+      "context": "prop",
+      "suggestedKey": "placeholders.checkingavailableproviders"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 495,
+      "original": "OpenCode",
+      "context": "jsx",
+      "suggestedKey": "actions.opencode"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 533,
+      "original": "Claude Code CLI",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.claudecodecli"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 656,
+      "original": "Claude Code CLI not found",
+      "context": "prop",
+      "suggestedKey": "tooltips.claudecodecli"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 661,
+      "original": "Installation steps:",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.installationsteps"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 663,
+      "original": "Open a terminal",
+      "context": "jsx",
+      "suggestedKey": "actions.openaterminal"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 664,
+      "original": "npm install -g @anthropic-ai/claude-code",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.npminstallg"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 665,
+      "original": "claude --version",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.claudeversion"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 666,
+      "original": "Click \"Check Again\" below",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.clickcheckagain"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 684,
+      "original": "Check Again",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.checkagain"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 730,
+      "original": "sk-ant-...",
+      "context": "prop",
+      "suggestedKey": "placeholders.skant"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 865,
+      "original": "Loading themes...",
+      "context": "prop",
+      "suggestedKey": "placeholders.loadingthemes"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 869,
+      "original": "No preset themes found.",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.nopresetthemes"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 870,
+      "original": "Add theme files to assets/themes/",
+      "context": "jsx",
+      "suggestedKey": "actions.addthemefiles"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 959,
+      "original": "Checking for VSCode...",
+      "context": "prop",
+      "suggestedKey": "placeholders.checkingforvscode"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 985,
+      "original": "Yes, enable VSCode integration",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.yesenablevscode"
+    },
+    {
+      "file": "src/renderer/components/SetupWizard.tsx",
+      "line": 1049,
+      "original": "No, skip this feature",
+      "context": "jsx",
+      "suggestedKey": "views.setupwizard.noskipthis"
+    },
+    {
+      "file": "src/renderer/components/TaskCard.tsx",
+      "line": 187,
+      "original": "This task can only be completed by a human",
+      "context": "prop",
+      "suggestedKey": "tooltips.thistaskcan"
+    },
+    {
+      "file": "src/renderer/components/TaskCard.tsx",
+      "line": 199,
+      "original": "AI will auto-review when moved to Review",
+      "context": "prop",
+      "suggestedKey": "tooltips.aiwillautoreview"
+    },
+    {
+      "file": "src/renderer/components/TaskCard.tsx",
+      "line": 211,
+      "original": "AI is reviewing this task",
+      "context": "prop",
+      "suggestedKey": "tooltips.aiisreviewing"
+    },
+    {
+      "file": "src/renderer/components/TaskCard.tsx",
+      "line": 279,
+      "original": "Delete task",
+      "context": "prop",
+      "suggestedKey": "tooltips.deletetask"
+    },
+    {
+      "file": "src/renderer/components/TaskComments.tsx",
+      "line": 20,
+      "original": "Promise",
+      "context": "jsx",
+      "suggestedKey": "views.taskcomments.promise"
+    },
+    {
+      "file": "src/renderer/components/TaskComments.tsx",
+      "line": 119,
+      "original": "Task Failed",
+      "context": "jsx",
+      "suggestedKey": "common.taskfailed"
+    },
+    {
+      "file": "src/renderer/components/TaskComments.tsx",
+      "line": 154,
+      "original": "Clarification Needed",
+      "context": "jsx",
+      "suggestedKey": "views.taskcomments.clarificationneeded"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 84,
+      "original": "Loading task details...",
+      "context": "jsx",
+      "suggestedKey": "common.loadingtaskdetails"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 88,
+      "original": "Task not found",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.tasknotfound"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 436,
+      "original": "Click to edit",
+      "context": "prop",
+      "suggestedKey": "tooltips.clicktoedit"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 473,
+      "original": "Epic name...",
+      "context": "prop",
+      "suggestedKey": "placeholders.epicname"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 536,
+      "original": "Sprint (e.g., Sprint 1)",
+      "context": "prop",
+      "suggestedKey": "tooltips.sprintegsprint"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 771,
+      "original": "Acceptance Criteria Check:",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.acceptancecriteriacheck"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 804,
+      "original": "Description",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.description"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 810,
+      "original": "Edit description",
+      "context": "prop",
+      "suggestedKey": "tooltips.editdescription"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 920,
+      "original": "Remove dependency",
+      "context": "prop",
+      "suggestedKey": "tooltips.removedependency"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 933,
+      "original": "Acceptance Criteria",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.acceptancecriteria"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 960,
+      "original": "Save",
+      "context": "prop",
+      "suggestedKey": "tooltips.save"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 990,
+      "original": "Remove",
+      "context": "prop",
+      "suggestedKey": "tooltips.remove"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1009,
+      "original": "Add acceptance criterion...",
+      "context": "prop",
+      "suggestedKey": "placeholders.addacceptancecriterion"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1028,
+      "original": "AI Review Criteria",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.aireviewcriteria"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1040,
+      "original": "Describe what the AI should check when reviewing this task...&#10;Example: Verify code compiles, all tests pass, and documentation is updated.",
+      "context": "prop",
+      "suggestedKey": "placeholders.describewhatthe"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1052,
+      "original": "Agent Plan",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.agentplan"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1058,
+      "original": "Edit agent plan",
+      "context": "prop",
+      "suggestedKey": "tooltips.editagentplan"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1067,
+      "original": "Goal",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.goal"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1071,
+      "original": "What should the agent accomplish?",
+      "context": "prop",
+      "suggestedKey": "tooltips.whatshouldthe"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1075,
+      "original": "Scope (one per line)",
+      "context": "jsx",
+      "suggestedKey": "views.taskdetail.scopeoneper"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1080,
+      "original": "Files or areas the agent should focus on...",
+      "context": "prop",
+      "suggestedKey": "placeholders.filesorareas"
+    },
+    {
+      "file": "src/renderer/components/TaskDetail.tsx",
+      "line": 1112,
+      "original": "Click to add agent plan",
+      "context": "prop",
+      "suggestedKey": "tooltips.clicktoadd"
+    },
+    {
+      "file": "src/renderer/components/ThemeEditor.tsx",
+      "line": 319,
+      "original": "Loading theme...",
+      "context": "prop",
+      "suggestedKey": "placeholders.loadingtheme"
+    },
+    {
+      "file": "src/renderer/components/ThemeEditor.tsx",
+      "line": 361,
+      "original": "Copy JSON",
+      "context": "prop",
+      "suggestedKey": "tooltips.copyjson"
+    },
+    {
+      "file": "src/renderer/components/ThemeEditor.tsx",
+      "line": 369,
+      "original": "Export theme",
+      "context": "prop",
+      "suggestedKey": "tooltips.exporttheme"
+    },
+    {
+      "file": "src/renderer/components/ThemeEditor.tsx",
+      "line": 378,
+      "original": "Reset changes",
+      "context": "prop",
+      "suggestedKey": "tooltips.resetchanges"
+    },
+    {
+      "file": "src/renderer/components/ThemeEditor.tsx",
+      "line": 421,
+      "original": "Theme JSON...",
+      "context": "prop",
+      "suggestedKey": "placeholders.themejson"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 486,
+      "original": "Stop dev server",
+      "context": "prop",
+      "suggestedKey": "tooltips.stopdevserver"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 489,
+      "original": "Running",
+      "context": "jsx",
+      "suggestedKey": "views.topbar.running"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 496,
+      "original": "Start dev server",
+      "context": "prop",
+      "suggestedKey": "tooltips.startdevserver"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 509,
+      "original": "Stop build",
+      "context": "prop",
+      "suggestedKey": "tooltips.stopbuild"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 512,
+      "original": "Building",
+      "context": "jsx",
+      "suggestedKey": "views.topbar.building"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 519,
+      "original": "Build project",
+      "context": "prop",
+      "suggestedKey": "tooltips.buildproject"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 570,
+      "original": "Run all pending tasks (Ralph Mode)",
+      "context": "prop",
+      "suggestedKey": "tooltips.runallpending"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 642,
+      "original": "Minimize",
+      "context": "prop",
+      "suggestedKey": "tooltips.minimize"
+    },
+    {
+      "file": "src/renderer/components/TopBar.tsx",
+      "line": 658,
+      "original": "Close",
+      "context": "prop",
+      "suggestedKey": "tooltips.close"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 30,
+      "original": "Designed for humans. Powered by AI.",
+      "context": "jsx",
+      "suggestedKey": "views.welcomescreen.designedforhumans"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 44,
+      "original": "Open Project",
+      "context": "jsx",
+      "suggestedKey": "actions.openproject"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 45,
+      "original": "Open an existing project folder",
+      "context": "jsx",
+      "suggestedKey": "actions.openanexisting"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 58,
+      "original": "New Project",
+      "context": "jsx",
+      "suggestedKey": "views.welcomescreen.newproject"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 59,
+      "original": "Create a new Dexteria project",
+      "context": "jsx",
+      "suggestedKey": "actions.createanew"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 97,
+      "original": "Press",
+      "context": "jsx",
+      "suggestedKey": "views.welcomescreen.press"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 97,
+      "original": "Ctrl+O",
+      "context": "jsx",
+      "suggestedKey": "views.welcomescreen.ctrlo"
+    },
+    {
+      "file": "src/renderer/components/WelcomeScreen.tsx",
+      "line": 97,
+      "original": "to open a project",
+      "context": "jsx",
+      "suggestedKey": "views.welcomescreen.toopena"
+    },
+    {
+      "file": "src/renderer/docking/dropZones.ts",
+      "line": 89,
+      "original": "= rect.left && x",
+      "context": "jsx",
+      "suggestedKey": "views.dropzones.rectleftx"
+    },
+    {
+      "file": "src/renderer/docking/dropZones.ts",
+      "line": 89,
+      "original": "= rect.top && y",
+      "context": "jsx",
+      "suggestedKey": "views.dropzones.recttopy"
+    },
+    {
+      "file": "src/renderer/docking/views/index.tsx",
+      "line": 77,
+      "original": "No task selected",
+      "context": "jsx",
+      "suggestedKey": "views.index.notaskselected"
+    },
+    {
+      "file": "src/renderer/docking/views/index.tsx",
+      "line": 126,
+      "original": "Open a panel from the menu to get started",
+      "context": "jsx",
+      "suggestedKey": "actions.openapanel"
+    }
+  ]
+}

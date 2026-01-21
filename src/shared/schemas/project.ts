@@ -116,6 +116,69 @@ export const RunnerSettingsSchema = z.object({
   defaultTimeoutSec: z.number().positive(),
 });
 
+// ============================================
+// Git Configuration Schemas
+// ============================================
+
+/**
+ * Git operation modes.
+ */
+export const GitModeSchema = z.enum(['none', 'basic', 'advanced']);
+
+/**
+ * Code visibility modes for AI conflict resolution.
+ */
+export const CodeVisibilityModeSchema = z.enum(['enabled', 'disabled']);
+
+/**
+ * Conflict resolution strategies.
+ */
+export const ConflictResolutionModeSchema = z.enum(['manual', 'assisted', 'autonomous']);
+
+/**
+ * Schema for Git configuration.
+ */
+export const GitConfigSchema = z.object({
+  /** Whether Git features are enabled */
+  gitEnabled: z.boolean().default(false),
+  /** Git operation mode */
+  gitMode: GitModeSchema.default('none'),
+  /** Main/default branch name (e.g., 'main', 'master') */
+  mainBranch: z.string().default('main'),
+  /** Optional review branch for staging (e.g., 'develop', 'review') */
+  reviewBranch: z.string().optional(),
+  /** Branch naming convention with placeholders: {taskId}, {slug} */
+  branchConvention: z.string().default('task/{taskId}-{slug}'),
+  /** Code visibility mode for conflict resolution */
+  codeVisibilityMode: CodeVisibilityModeSchema.default('enabled'),
+  /** Conflict resolution strategy */
+  conflictResolutionMode: ConflictResolutionModeSchema.default('manual'),
+  /** Branches that cannot be deleted or force-pushed */
+  protectedBranches: z.array(z.string()).default(['main', 'master']),
+  /** Maximum file size (KB) for AI conflict resolution */
+  maxConflictFileSize: z.number().positive().default(500),
+  /** Patterns for lockfiles to handle specially in merges */
+  lockfilePatterns: z.array(z.string()).default([
+    'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'poetry.lock'
+  ]),
+  /** Auto-commit message template */
+  commitMessageTemplate: z.string().optional(),
+  /** Whether to auto-push after commits */
+  autoPush: z.boolean().optional(),
+}).refine(
+  // Validation: autonomous conflict resolution requires code visibility disabled
+  (data) => {
+    if (data.conflictResolutionMode === 'autonomous' && data.codeVisibilityMode === 'enabled') {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Autonomous conflict resolution requires code visibility to be disabled',
+    path: ['conflictResolutionMode'],
+  }
+);
+
 /**
  * Complete schema for project settings.
  */
@@ -124,6 +187,8 @@ export const ProjectSettingsSchema = z.object({
   notifications: NotificationSettingsSchema,
   projectCommands: ProjectCommandsSettingsSchema,
   runner: RunnerSettingsSchema,
+  /** Git configuration (optional, defaults if not provided) */
+  git: GitConfigSchema.optional(),
 });
 
 // ============================================
@@ -133,3 +198,4 @@ export const ProjectSettingsSchema = z.object({
 export type ProjectContextSchemaType = z.infer<typeof ProjectContextSchema>;
 export type PolicySchemaType = z.infer<typeof PolicySchema>;
 export type ProjectSettingsSchemaType = z.infer<typeof ProjectSettingsSchema>;
+export type GitConfigSchemaType = z.infer<typeof GitConfigSchema>;

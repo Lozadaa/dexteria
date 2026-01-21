@@ -19,7 +19,13 @@
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "i18n:extract": "tsx scripts/i18n-extract.ts",
+    "i18n:codemod": "tsx scripts/i18n-codemod.ts",
+    "i18n:codemod:dry": "tsx scripts/i18n-codemod.ts --dry-run",
+    "i18n:check": "tsx scripts/i18n-check.ts",
+    "release": "npm run package:win && npm run release:github",
+    "release:github": "gh release delete v%npm_package_version% --yes 2>nul & gh release create v%npm_package_version% --title \"Dexteria v%npm_package_version%\" --generate-notes release/Dexteria-Setup.exe release/Dexteria-Portable.exe"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -42,10 +48,12 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "diff": "^8.0.2",
+    "i18next": "^25.7.4",
     "lucide-react": "^0.562.0",
     "minimatch": "^10.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-i18next": "^16.5.3",
     "react-resizable-panels": "^2.0.23",
     "tailwind-merge": "^3.4.0",
     "uuid": "^9.0.1",
@@ -66,6 +74,7 @@
     "electron-packager": "^17.1.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.10",
     "vitest": "^4.0.17",
@@ -108,7 +117,7 @@
         }
       ],
       "icon": "assets/logoicon.ico",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "artifactName": "${productName}-Setup.${ext}",
       "signAndEditExecutable": false
     },
     "nsis": {
@@ -122,7 +131,7 @@
       "shortcutName": "Dexteria"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-Portable.${ext}"
+      "artifactName": "${productName}-Portable.${ext}"
     },
     "mac": {
       "target": [
@@ -131,7 +140,7 @@
       ],
       "icon": "assets/logoicon.png",
       "category": "public.app-category.developer-tools",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-macOS.${ext}"
     },
     "linux": {
       "target": [
@@ -140,7 +149,7 @@
       ],
       "icon": "assets/logoicon.png",
       "category": "Development",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-Linux.${ext}"
     }
   }
 }

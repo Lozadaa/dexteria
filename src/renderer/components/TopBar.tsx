@@ -3,13 +3,14 @@ import { useAgentState } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
 import Ralph from '../../../assets/ralph.png'
-import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, Terminal, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, LayoutGrid, MessageSquare, Wrench, Code2 } from 'lucide-react';
+import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, LayoutGrid, MessageSquare, Wrench, Code2 } from 'lucide-react';
 import LogoIcon from '../../../assets/logoicon.png';
 import { Button, IconButton, ToggleGroup } from 'adnia-ui';
 import type { ProjectProcessStatus } from '../../shared/types';
 import { Slot } from './extension/Slot';
 import { useLayoutStore } from '../docking';
 
+import { useTranslation } from '../i18n/useTranslation';
   interface RalphProgress {
       total: number;
       completed: number;
@@ -26,6 +27,7 @@ import { useLayoutStore } from '../docking';
   }
 
   export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings }) => {
+      const { t } = useTranslation();
       const { state, refresh } = useAgentState();
       const { mode, setMode, triggerPlannerBlock } = useMode();
       const [isMaximized, setIsMaximized] = useState(false);
@@ -249,11 +251,6 @@ import { useLayoutStore } from '../docking';
           window.dexteria?.window?.close?.();
       };
 
-      const handleOpenDevTools = () => {
-          window.dexteria?.window?.openDevTools?.();
-          setShowSettings(false);
-      };
-
       const handleOpenProject = async () => {
           setShowFileMenu(false);
           try {
@@ -315,7 +312,7 @@ import { useLayoutStore } from '../docking';
                           size="xs"
                           onClick={() => setShowFileMenu(!showFileMenu)}
                       >
-                          File
+                          {t('views.topbar.file')}
                           <ChevronDown size={12} className={cn("transition-transform", showFileMenu && "rotate-180")} />
                       </Button>
 
@@ -328,7 +325,7 @@ import { useLayoutStore } from '../docking';
                                   className="w-full justify-start rounded-none"
                               >
                                   <FolderOpen size={14} />
-                                  Open Project...
+                                  {t('views.topbar.openProject')}
                               </Button>
                               <Button
                                   variant="ghost"
@@ -348,21 +345,7 @@ import { useLayoutStore } from '../docking';
                                   <FolderX size={14} />
                                   Close Project
                               </Button>
-                              {vscodeEnabled && vscodeInstalled && (
-                                  <>
-                                      <div className="h-px bg-border my-1" />
-                                      <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={handleOpenInVSCode}
-                                          className="w-full justify-start rounded-none"
-                                      >
-                                          <Code2 size={14} />
-                                          Open in VSCode
-                                      </Button>
-                                  </>
-                              )}
-                              <div className="h-px bg-border my-1" />
+                                                            <div className="h-px bg-border my-1" />
                               <Button
                                   variant="ghost"
                                   size="sm"
@@ -387,7 +370,7 @@ import { useLayoutStore } from '../docking';
                           size="xs"
                           onClick={() => setShowWindowMenu(!showWindowMenu)}
                       >
-                          Window
+                          {t('views.topbar.window')}
                           <ChevronDown size={12} className={cn("transition-transform", showWindowMenu && "rotate-180")} />
                       </Button>
 
@@ -409,7 +392,7 @@ import { useLayoutStore } from '../docking';
                                   className="w-full justify-start rounded-none"
                               >
                                   <MessageSquare size={14} />
-                                  Chat
+                                  {t('labels.chat')}
                               </Button>
                               <Button
                                   variant="ghost"
@@ -419,16 +402,6 @@ import { useLayoutStore } from '../docking';
                               >
                                   <Wrench size={14} />
                                   Tools
-                              </Button>
-                              <div className="h-px bg-border my-1" />
-                              <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => { openView('settings'); setShowWindowMenu(false); }}
-                                  className="w-full justify-start rounded-none"
-                              >
-                                  <Settings size={14} />
-                                  Settings
                               </Button>
                           </div>
                       )}
@@ -486,7 +459,7 @@ import { useLayoutStore } from '../docking';
                               title="Stop dev server"
                           >
                               <CircleStop size={12} />
-                              <span className="max-w-[60px] truncate">Running</span>
+                              <span className="max-w-[60px] truncate">{t('views.topbar.running')}</span>
                           </Button>
                       ) : (
                           <Button
@@ -496,7 +469,7 @@ import { useLayoutStore } from '../docking';
                               title="Start dev server"
                           >
                               <Play size={12} />
-                              Run
+                              {t('actions.run')}
                           </Button>
                       )}
 
@@ -509,7 +482,7 @@ import { useLayoutStore } from '../docking';
                               title="Stop build"
                           >
                               <Loader2 size={12} className="animate-spin" />
-                              <span>Building</span>
+                              <span>{t('views.topbar.building')}</span>
                           </Button>
                       ) : (
                           <Button
@@ -519,7 +492,20 @@ import { useLayoutStore } from '../docking';
                               title="Build project"
                           >
                               <Hammer size={12} />
-                              Build
+                              {t('views.settings.commands.build')}
+                          </Button>
+                      )}
+
+                      {/* Open in VSCode */}
+                      {vscodeEnabled && vscodeInstalled && (
+                          <Button
+                              variant="muted"
+                              size="xs"
+                              onClick={handleOpenInVSCode}
+                              title={t('views.topbar.openInVscode')}
+                          >
+                              <Code2 size={12} />
+                              {t('views.topbar.openInVscode')}
                           </Button>
                       )}
                   </div>
@@ -618,16 +604,6 @@ import { useLayoutStore } from '../docking';
                                   <Settings size={14} />
                                   Project Settings
                               </Button>
-                              <div className="h-px bg-border" />
-                              <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleOpenDevTools}
-                                  className="w-full justify-start rounded-none"
-                              >
-                                  <Terminal size={14} />
-                                  Open DevTools
-                              </Button>
                           </div>
                       )}
                   </div>
@@ -639,7 +615,7 @@ import { useLayoutStore } from '../docking';
                       onClick={handleMinimize}
                       className="w-11 h-full flex items-center justify-center hover:bg-muted text-muted-foreground
   hover:text-foreground transition-colors"
-                      title="Minimize"
+                      title={t('views.topbar.minimize')}
                   >
                       <Minus size={14} />
                   </button>
@@ -655,7 +631,7 @@ import { useLayoutStore } from '../docking';
                       onClick={handleClose}
                       className="w-11 h-full flex items-center justify-center hover:bg-red-500 hover:text-white
   text-muted-foreground transition-colors"
-                      title="Close"
+                      title={t('actions.close')}
                   >
                       <X size={14} />
                   </button>

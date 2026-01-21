@@ -17,6 +17,20 @@ import type {
   UIContributions,
   ProjectSettings,
   ProjectProcessStatus,
+  GitStatus,
+  BranchInfo,
+  CommitInfo,
+  GitCommandResult,
+  GitSafetyCheck,
+  MergeResult,
+  ConflictInfo,
+  TaskBranchMapping,
+  GitOperationLog,
+  GitConfig,
+  CreateTaskBranchOptions,
+  CommitOptions,
+  MergeOptions,
+  ResolveConflictOptions,
 } from '../shared/types';
 
 /** Clarification request from a task */
@@ -88,11 +102,12 @@ export interface RalphResult {
 export interface ProviderInfo {
   name: string;
   ready: boolean;
-  type: 'mock' | 'anthropic' | 'claude-code' | 'opencode';
+  providerReady: boolean;
+  type: 'mock' | 'anthropic' | 'claude-code' | 'opencode' | 'codex';
 }
 
 /** Provider type */
-export type ProviderType = 'mock' | 'anthropic' | 'claude-code' | 'opencode';
+export type ProviderType = 'mock' | 'anthropic' | 'claude-code' | 'opencode' | 'codex';
 
 /** Available providers response */
 export interface AvailableProvidersResponse {
@@ -165,6 +180,13 @@ export interface OpenCodeInstallProgress {
   message: string;
 }
 
+/** Codex CLI install progress */
+export interface CodexInstallProgress {
+  phase: 'checking' | 'installing' | 'verifying' | 'complete' | 'error';
+  percent: number;
+  message: string;
+}
+
 /** VSCode status */
 export interface VSCodeStatus {
   installed: boolean;
@@ -194,7 +216,6 @@ export interface DexteriaAPI {
     close: () => Promise<void>;
     isMaximized: () => Promise<boolean>;
     onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void;
-    openDevTools: () => Promise<void>;
   };
   board: {
     get: () => Promise<Board>;
@@ -271,6 +292,7 @@ export interface DexteriaAPI {
     // Setup wizard completion tracking
     completeSetup: () => Promise<{ success: boolean }>;
     resetSetup: () => Promise<{ success: boolean }>;
+    clearAllData: () => Promise<{ success: boolean }>;
     // Project settings
     getProject: () => Promise<ProjectSettings>;
     saveProject: (settings: ProjectSettings) => Promise<{ success: boolean; error?: string }>;
@@ -385,6 +407,15 @@ export interface DexteriaAPI {
     onInstallProgress: (callback: (progress: OpenCodeInstallProgress) => void) => () => void;
     onSetupStatus: (callback: (status: { installed: boolean; version: string | null }) => void) => () => void;
   };
+  codex: {
+    isInstalled: () => Promise<boolean>;
+    getVersion: () => Promise<string | null>;
+    isNpmAvailable: () => Promise<boolean>;
+    install: () => Promise<{ success: boolean; version?: string; error?: string }>;
+    update: () => Promise<{ success: boolean; version?: string; error?: string }>;
+    uninstall: () => Promise<{ success: boolean; error?: string }>;
+    onInstallProgress: (callback: (progress: CodexInstallProgress) => void) => () => void;
+  };
   vscode: {
     isInstalled: () => Promise<boolean>;
     getStatus: () => Promise<VSCodeStatus>;
@@ -394,6 +425,65 @@ export interface DexteriaAPI {
     openFile: (filePath: string, line?: number) => Promise<{ success: boolean; error?: string }>;
     getDownloadUrl: () => Promise<string>;
     openDownloadPage: () => Promise<void>;
+  };
+  git: {
+    // Environment
+    isInstalled: () => Promise<boolean>;
+    getVersion: () => Promise<string | null>;
+    getInstallInstructions: () => Promise<string>;
+    // Repository
+    isRepository: () => Promise<boolean>;
+    initRepository: (defaultBranch?: string) => Promise<GitCommandResult>;
+    getStatus: () => Promise<GitStatus>;
+    getDefaultBranch: () => Promise<string>;
+    // Branches
+    listBranches: (includeRemote?: boolean) => Promise<BranchInfo[]>;
+    createBranch: (name: string, base?: string) => Promise<GitCommandResult>;
+    checkoutBranch: (name: string, create?: boolean) => Promise<GitCommandResult>;
+    deleteBranch: (name: string, force?: boolean) => Promise<GitCommandResult>;
+    branchExists: (name: string) => Promise<boolean>;
+    // Task-Branch Mapping
+    getTaskBranch: (taskId: string) => Promise<TaskBranchMapping | null>;
+    getAllTaskBranches: () => Promise<TaskBranchMapping[]>;
+    createTaskBranch: (options: CreateTaskBranchOptions) => Promise<{ success: boolean; branchName?: string; error?: string }>;
+    checkoutTaskBranch: (taskId: string) => Promise<{ success: boolean; branchName?: string; error?: string }>;
+    detachTaskBranch: (taskId: string) => Promise<{ success: boolean; error?: string }>;
+    deleteTaskBranch: (taskId: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
+    // Commits
+    stageFiles: (files: string[] | 'all') => Promise<GitCommandResult>;
+    commit: (options: CommitOptions) => Promise<GitCommandResult>;
+    getCommitHistory: (count?: number, branch?: string) => Promise<CommitInfo[]>;
+    getHeadCommit: () => Promise<string | null>;
+    // Merge
+    mergeBranch: (options: MergeOptions) => Promise<MergeResult>;
+    mergeTaskToReview: (taskId: string) => Promise<{ success: boolean; mergeResult?: MergeResult; error?: string }>;
+    mergeTaskToMain: (taskId: string) => Promise<{ success: boolean; mergeResult?: MergeResult; error?: string }>;
+    mergeReviewToMain: () => Promise<{ success: boolean; mergeResult?: MergeResult; error?: string }>;
+    abortMerge: () => Promise<GitCommandResult>;
+    // Conflicts
+    getConflicts: () => Promise<ConflictInfo[]>;
+    resolveConflict: (options: ResolveConflictOptions) => Promise<GitCommandResult>;
+    // Remote
+    push: (branch?: string, setUpstream?: boolean) => Promise<GitCommandResult>;
+    pull: (branch?: string) => Promise<GitCommandResult>;
+    fetch: (prune?: boolean) => Promise<GitCommandResult>;
+    // Stash
+    stash: (message?: string) => Promise<GitCommandResult>;
+    stashPop: () => Promise<GitCommandResult>;
+    stashList: () => Promise<string[]>;
+    // Diff
+    getStagedDiff: () => Promise<string>;
+    getUnstagedDiff: () => Promise<string>;
+    getDiff: (from: string, to: string) => Promise<string>;
+    // Safety
+    runSafetyCheck: (operation: string) => Promise<GitSafetyCheck>;
+    // Logs
+    getOperationLogs: (limit?: number, taskId?: string) => Promise<GitOperationLog[]>;
+    // Sync & Utility
+    syncWithBranches: () => Promise<void>;
+    generateBranchName: (taskId: string, taskTitle: string) => Promise<string>;
+    // Config
+    getConfig: () => Promise<GitConfig>;
   };
 }
 
@@ -418,7 +508,6 @@ const api: DexteriaAPI = {
       // Return cleanup function
       return () => ipcRenderer.removeListener('window:maximized-changed', handler);
     },
-    openDevTools: () => ipcRenderer.invoke('window:openDevTools'),
   },
   board: {
     get: () => ipcRenderer.invoke('board:get'),
@@ -498,6 +587,7 @@ const api: DexteriaAPI = {
     // Setup wizard completion tracking
     completeSetup: () => ipcRenderer.invoke('settings:completeSetup'),
     resetSetup: () => ipcRenderer.invoke('settings:resetSetup'),
+    clearAllData: () => ipcRenderer.invoke('settings:clearAllData'),
     // Project settings
     getProject: () => ipcRenderer.invoke('settings:getProject'),
     saveProject: (settings) => ipcRenderer.invoke('settings:saveProject', settings),
@@ -620,6 +710,27 @@ const api: DexteriaAPI = {
       return () => ipcRenderer.removeListener('opencode:setup-status', handler);
     },
   },
+  codex: {
+    isInstalled: () => ipcRenderer.invoke('codex:isInstalled'),
+    getVersion: () => ipcRenderer.invoke('codex:getVersion'),
+    isNpmAvailable: () => ipcRenderer.invoke('codex:isNpmAvailable'),
+    install: () => ipcRenderer.invoke('codex:install'),
+    update: () => ipcRenderer.invoke('codex:update'),
+    uninstall: () => ipcRenderer.invoke('codex:uninstall'),
+    onInstallProgress: (callback: (progress: {
+      phase: 'checking' | 'installing' | 'verifying' | 'complete' | 'error';
+      percent: number;
+      message: string;
+    }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: {
+        phase: 'checking' | 'installing' | 'verifying' | 'complete' | 'error';
+        percent: number;
+        message: string;
+      }) => callback(progress);
+      ipcRenderer.on('codex:install-progress', handler);
+      return () => ipcRenderer.removeListener('codex:install-progress', handler);
+    },
+  },
   vscode: {
     isInstalled: () => ipcRenderer.invoke('vscode:isInstalled'),
     getStatus: () => ipcRenderer.invoke('vscode:getStatus'),
@@ -629,6 +740,65 @@ const api: DexteriaAPI = {
     openFile: (filePath, line) => ipcRenderer.invoke('vscode:openFile', filePath, line),
     getDownloadUrl: () => ipcRenderer.invoke('vscode:getDownloadUrl'),
     openDownloadPage: () => ipcRenderer.invoke('vscode:openDownloadPage'),
+  },
+  git: {
+    // Environment
+    isInstalled: () => ipcRenderer.invoke('git:isInstalled'),
+    getVersion: () => ipcRenderer.invoke('git:getVersion'),
+    getInstallInstructions: () => ipcRenderer.invoke('git:getInstallInstructions'),
+    // Repository
+    isRepository: () => ipcRenderer.invoke('git:isRepository'),
+    initRepository: (defaultBranch) => ipcRenderer.invoke('git:initRepository', defaultBranch),
+    getStatus: () => ipcRenderer.invoke('git:getStatus'),
+    getDefaultBranch: () => ipcRenderer.invoke('git:getDefaultBranch'),
+    // Branches
+    listBranches: (includeRemote) => ipcRenderer.invoke('git:listBranches', includeRemote),
+    createBranch: (name, base) => ipcRenderer.invoke('git:createBranch', name, base),
+    checkoutBranch: (name, create) => ipcRenderer.invoke('git:checkoutBranch', name, create),
+    deleteBranch: (name, force) => ipcRenderer.invoke('git:deleteBranch', name, force),
+    branchExists: (name) => ipcRenderer.invoke('git:branchExists', name),
+    // Task-Branch Mapping
+    getTaskBranch: (taskId) => ipcRenderer.invoke('git:getTaskBranch', taskId),
+    getAllTaskBranches: () => ipcRenderer.invoke('git:getAllTaskBranches'),
+    createTaskBranch: (options) => ipcRenderer.invoke('git:createTaskBranch', options),
+    checkoutTaskBranch: (taskId) => ipcRenderer.invoke('git:checkoutTaskBranch', taskId),
+    detachTaskBranch: (taskId) => ipcRenderer.invoke('git:detachTaskBranch', taskId),
+    deleteTaskBranch: (taskId, force) => ipcRenderer.invoke('git:deleteTaskBranch', taskId, force),
+    // Commits
+    stageFiles: (files) => ipcRenderer.invoke('git:stageFiles', files),
+    commit: (options) => ipcRenderer.invoke('git:commit', options),
+    getCommitHistory: (count, branch) => ipcRenderer.invoke('git:getCommitHistory', count, branch),
+    getHeadCommit: () => ipcRenderer.invoke('git:getHeadCommit'),
+    // Merge
+    mergeBranch: (options) => ipcRenderer.invoke('git:mergeBranch', options),
+    mergeTaskToReview: (taskId) => ipcRenderer.invoke('git:mergeTaskToReview', taskId),
+    mergeTaskToMain: (taskId) => ipcRenderer.invoke('git:mergeTaskToMain', taskId),
+    mergeReviewToMain: () => ipcRenderer.invoke('git:mergeReviewToMain'),
+    abortMerge: () => ipcRenderer.invoke('git:abortMerge'),
+    // Conflicts
+    getConflicts: () => ipcRenderer.invoke('git:getConflicts'),
+    resolveConflict: (options) => ipcRenderer.invoke('git:resolveConflict', options),
+    // Remote
+    push: (branch, setUpstream) => ipcRenderer.invoke('git:push', branch, setUpstream),
+    pull: (branch) => ipcRenderer.invoke('git:pull', branch),
+    fetch: (prune) => ipcRenderer.invoke('git:fetch', prune),
+    // Stash
+    stash: (message) => ipcRenderer.invoke('git:stash', message),
+    stashPop: () => ipcRenderer.invoke('git:stashPop'),
+    stashList: () => ipcRenderer.invoke('git:stashList'),
+    // Diff
+    getStagedDiff: () => ipcRenderer.invoke('git:getStagedDiff'),
+    getUnstagedDiff: () => ipcRenderer.invoke('git:getUnstagedDiff'),
+    getDiff: (from, to) => ipcRenderer.invoke('git:getDiff', from, to),
+    // Safety
+    runSafetyCheck: (operation) => ipcRenderer.invoke('git:runSafetyCheck', operation),
+    // Logs
+    getOperationLogs: (limit, taskId) => ipcRenderer.invoke('git:getOperationLogs', limit, taskId),
+    // Sync & Utility
+    syncWithBranches: () => ipcRenderer.invoke('git:syncWithBranches'),
+    generateBranchName: (taskId, taskTitle) => ipcRenderer.invoke('git:generateBranchName', taskId, taskTitle),
+    // Config
+    getConfig: () => ipcRenderer.invoke('git:getConfig'),
   },
 };
 

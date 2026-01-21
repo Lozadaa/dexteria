@@ -175,6 +175,12 @@ export interface Task {
   aiReview?: AIReviewResult | null;
   /** Whether AI is currently processing this task */
   aiProcessing?: boolean;
+  /** Associated Git branch name */
+  gitBranch?: string;
+  /** Whether the Git branch is currently checked out */
+  gitBranchCheckedOut?: boolean;
+  /** Last Git commit hash for this task */
+  gitLastCommit?: string;
 }
 
 /**
@@ -210,6 +216,9 @@ export interface TaskPatch {
   reviewCriteria?: string;
   aiReview?: AIReviewResult | null;
   aiProcessing?: boolean;
+  gitBranch?: string;
+  gitBranchCheckedOut?: boolean;
+  gitLastCommit?: string;
 }
 
 // ============================================

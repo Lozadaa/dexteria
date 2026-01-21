@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Terminal, Maximize2, Minimize2 } from 'lucide-react';
 import { useAgentState } from '../hooks/useData';
 
+import { t } from '../i18n/t';
 export const LogViewer: React.FC = () => {
     const [log, setLog] = useState<string>('');
     const { state } = useAgentState();
@@ -49,14 +50,14 @@ export const LogViewer: React.FC = () => {
             <div className="p-2 border-b border-white/5 flex items-center justify-between text-muted-foreground bg-black/20">
                 <div className="flex items-center gap-2">
                     <Terminal size={12} />
-                    <span>Output</span>
+                    <span>{t('views.logViewer.output')}</span>
                 </div>
             </div>
             <div className="flex-1 overflow-auto p-2 space-y-1 text-green-400 bg-black/40">
                 {log ? (
                     <pre className="whitespace-pre-wrap break-all">{log}</pre>
                 ) : (
-                    <div className="text-muted-foreground opacity-50 italic">No output...</div>
+                    <div className="text-muted-foreground opacity-50 italic">{t('views.logViewer.noOutput')}</div>
                 )}
                 <div ref={bottomRef} />
             </div>

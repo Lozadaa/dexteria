@@ -14,6 +14,10 @@ try {
   // electron-squirrel-startup not installed, skip
 }
 
+// Set AppUserModelId for Windows taskbar grouping and icon display
+// Must match build.appId in package.json for consistent behavior
+app.setAppUserModelId('com.dexteria.app');
+
 // Use app.isPackaged as the source of truth for production detection
 const isDev = !app.isPackaged;
 
@@ -26,9 +30,12 @@ function createWindow(): void {
   const isMac = process.platform === 'darwin';
 
   // Get icon path - in dev it's in assets folder, in prod it's in resources
+  // Use ICO for Windows (required for taskbar), PNG for other platforms
+  const isWindows = process.platform === 'win32';
+  const iconFileName = isWindows ? 'logoicon.ico' : 'logoicon.png';
   const iconPath = isDev
-    ? path.join(process.cwd(), 'assets', 'logoicon.png')
-    : path.join(process.resourcesPath, 'assets', 'logoicon.ico');
+    ? path.join(process.cwd(), 'assets', iconFileName)
+    : path.join(process.resourcesPath, 'assets', iconFileName);
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -38,8 +45,8 @@ function createWindow(): void {
     title: 'Dexteria',
     icon: iconPath,
     resizable: true,
-    // Frameless window - custom titlebar (disabled temporarily for debugging)
-    frame: true,
+    // Frameless window - custom titlebar
+    frame: false,
     // Only use transparency on macOS
     transparent: isMac,
     // Background color - dark for dark mode, matches app
@@ -80,7 +87,6 @@ function createWindow(): void {
   if (isDev) {
     // In development, load from Vite dev server
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
   } else {
     // In production, load the built files from asar
     const indexPath = path.join(__dirname, '../renderer/index.html');
@@ -127,18 +133,6 @@ app.whenReady().then(async () => {
       });
     });
   }
-
-  // Register F12 to toggle DevTools
-  const f12Registered = globalShortcut.register('F12', () => {
-    console.log('F12 pressed - toggling DevTools');
-    mainWindow?.webContents.toggleDevTools();
-  });
-  console.log('F12 shortcut registered:', f12Registered);
-
-  // Also Ctrl+Shift+I
-  globalShortcut.register('CommandOrControl+Shift+I', () => {
-    mainWindow?.webContents.toggleDevTools();
-  });
 
   // Ctrl+O to open project
   globalShortcut.register('CommandOrControl+O', () => {
@@ -195,8 +189,4 @@ ipcMain.handle('window:close', () => {
 
 ipcMain.handle('window:isMaximized', () => {
   return mainWindow?.isMaximized() ?? false;
-});
-
-ipcMain.handle('window:openDevTools', () => {
-  mainWindow?.webContents.openDevTools();
 });

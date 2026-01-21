@@ -47,6 +47,7 @@ import {
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo } from '../../shared/types';
 
+import { useTranslation } from '../i18n/useTranslation';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -54,6 +55,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenThemeEditor }) => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [detectedCommands, setDetectedCommands] = useState<DetectedCommands>({});
   const [soundPresets, setSoundPresets] = useState<Array<{ id: string; name: string; description: string }>>([]);
@@ -232,14 +234,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Spinner size="md" label="Loading settings..." />
+              <Spinner size="md" label={t('common.loadingSettings')} />
             </div>
           ) : settings ? (
             <>
               {/* Notifications Section */}
               <section>
                 <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                  Notifications
+                  {t('labels.notifications')}
                 </h3>
                 <div className="space-y-3">
                   {/* Sound notification toggle */}
@@ -251,8 +253,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         <VolumeX size={18} className="text-muted-foreground" />
                       )}
                       <div>
-                        <div className="font-medium text-sm">Sound on Task Complete</div>
-                        <div className="text-xs text-muted-foreground">Play a sound when Ralph completes a task</div>
+                        <div className="font-medium text-sm">{t('views.settings.notifications.soundOnTaskComplete')}</div>
+                        <div className="text-xs text-muted-foreground">{t('views.settings.notifications.soundOnTaskCompleteDesc')}</div>
                       </div>
                     </div>
                     <Switch
@@ -266,7 +268,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     <div className="p-3 bg-muted/30 rounded-lg ml-6 space-y-2">
                       <div className="flex items-center gap-2">
                         <Music size={14} className="text-muted-foreground" />
-                        <span className="font-medium text-sm">Notification Sound</span>
+                        <span className="font-medium text-sm">{t('views.settings.notifications.notificationSound')}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         {soundPresets.map((preset) => (
@@ -316,8 +318,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         <BellOff size={18} className="text-muted-foreground" />
                       )}
                       <div>
-                        <div className="font-medium text-sm">Badge on Task Complete</div>
-                        <div className="text-xs text-muted-foreground">Show app badge when Ralph completes a task</div>
+                        <div className="font-medium text-sm">{t('views.settings.notifications.badgeOnTaskComplete')}</div>
+                        <div className="text-xs text-muted-foreground">{t('views.settings.notifications.badgeOnTaskCompleteDesc')}</div>
                       </div>
                     </div>
                     <Switch
@@ -332,7 +334,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               <section>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    Project Commands
+                    {t('views.settings.commands.title')}
                   </h3>
                   <Button
                     variant="ghost"
@@ -341,7 +343,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     className="text-primary"
                   >
                     <RefreshCw size={12} className="mr-1" />
-                    Auto-Detect
+                    {t('actions.autoDetect')}
                   </Button>
                 </div>
 
@@ -358,7 +360,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   <div className="p-3 bg-muted/50 rounded-lg space-y-2">
                     <div className="flex items-center gap-2">
                       <Play size={14} className="text-green-400" />
-                      <span className="font-medium text-sm">Run (Dev Server)</span>
+                      <span className="font-medium text-sm">{t('views.settings.commands.runDevServer')}</span>
                     </div>
                     <Input
                       value={settings.projectCommands.run.cmd}
@@ -373,7 +375,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                           checked={settings.projectCommands.run.autoDetect ?? true}
                           onCheckedChange={(checked) => updateCommand('run', 'autoDetect', checked)}
                         />
-                        Auto-detect if empty
+                        {t('views.settings.commands.autoDetectIfEmpty')}
                       </label>
                       <Button
                         variant="success-soft"
@@ -382,7 +384,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         disabled={testing === 'run'}
                       >
                         {testing === 'run' ? <Spinner size="xs" /> : <Play size={12} />}
-                        <span className="ml-1">Test</span>
+                        <span className="ml-1">{t('actions.test')}</span>
                       </Button>
                     </div>
                   </div>
@@ -391,7 +393,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   <div className="p-3 bg-muted/50 rounded-lg space-y-2">
                     <div className="flex items-center gap-2">
                       <Hammer size={14} className="text-yellow-400" />
-                      <span className="font-medium text-sm">Build</span>
+                      <span className="font-medium text-sm">{t('views.settings.commands.build')}</span>
                     </div>
                     <Input
                       value={settings.projectCommands.build.cmd}
@@ -406,7 +408,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                           checked={settings.projectCommands.build.autoDetect ?? true}
                           onCheckedChange={(checked) => updateCommand('build', 'autoDetect', checked)}
                         />
-                        Auto-detect if empty
+                        {t('views.settings.commands.autoDetectIfEmpty')}
                       </label>
                       <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                         <Switch
@@ -414,7 +416,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                           checked={settings.projectCommands.build.includesInstall ?? true}
                           onCheckedChange={(checked) => updateCommand('build', 'includesInstall', checked)}
                         />
-                        Includes install
+                        {t('views.settings.commands.includesInstall')}
                       </label>
                       <Button
                         variant="warning-soft"
@@ -423,7 +425,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         disabled={testing === 'build'}
                       >
                         {testing === 'build' ? <Spinner size="xs" /> : <Hammer size={12} />}
-                        <span className="ml-1">Test</span>
+                        <span className="ml-1">{t('actions.test')}</span>
                       </Button>
                     </div>
                   </div>
@@ -432,7 +434,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   <div className="p-3 bg-muted/50 rounded-lg space-y-2">
                     <div className="flex items-center gap-2">
                       <Download size={14} className="text-blue-400" />
-                      <span className="font-medium text-sm">Install</span>
+                      <span className="font-medium text-sm">{t('views.settings.commands.install')}</span>
                     </div>
                     <Input
                       value={settings.projectCommands.install.cmd}
@@ -458,8 +460,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   <div className="flex items-center gap-3">
                     <AlertTriangle size={18} className="text-yellow-400" />
                     <div>
-                      <div className="font-medium text-sm">Allow Unsafe Commands</div>
-                      <div className="text-xs text-muted-foreground">Enable commands that might be destructive</div>
+                      <div className="font-medium text-sm">{t('views.settings.commands.allowUnsafeCommands')}</div>
+                      <div className="text-xs text-muted-foreground">{t('views.settings.commands.allowUnsafeCommandsDesc')}</div>
                     </div>
                   </div>
                   <Switch
@@ -483,8 +485,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-sm">Default Timeout</div>
-                      <div className="text-xs text-muted-foreground">Maximum time for command execution</div>
+                      <div className="font-medium text-sm">{t('views.settings.runner.defaultTimeout')}</div>
+                      <div className="text-xs text-muted-foreground">{t('views.settings.runner.defaultTimeoutDesc')}</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
@@ -498,7 +500,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         max={7200}
                         className="w-20 h-9 text-right"
                       />
-                      <span className="text-xs text-muted-foreground">seconds</span>
+                      <span className="text-xs text-muted-foreground">{t('views.settings.runner.seconds')}</span>
                     </div>
                   </div>
                 </div>
@@ -507,14 +509,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               {/* Themes Section */}
               <section>
                 <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                  Themes
+                  {t('labels.themes')}
                 </h3>
                 <div className="space-y-3">
                   {/* Theme List */}
                   <div className="space-y-2">
                     {themes.length === 0 && (
                       <div className="text-center py-4 text-muted-foreground text-sm">
-                        No themes loaded. Create one to get started.
+                        {t('views.settings.themes.noThemes')}
                       </div>
                     )}
                     {themes.map((theme) => (
@@ -535,12 +537,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                               {theme.name}
                               {theme.isBuiltIn && (
                                 <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                  Built-in
+                                  {t('labels.builtIn')}
                                 </span>
                               )}
                               {activeThemeId === theme.id && (
                                 <span className="text-[10px] text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">
-                                  Active
+                                  {t('labels.active')}
                                 </span>
                               )}
                             </div>
@@ -559,7 +561,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                               title="Edit theme JSON"
                             >
                               <Edit2 size={12} />
-                              <span className="ml-1">Edit</span>
+                              <span className="ml-1">{t('actions.edit')}</span>
                             </Button>
                           )}
                           <Button
@@ -581,7 +583,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                             title="Export theme as JSON file"
                           >
                             <Download size={12} />
-                            <span className="ml-1">Export</span>
+                            <span className="ml-1">{t('actions.export')}</span>
                           </Button>
                           {!theme.isBuiltIn && (
                             <Button
@@ -609,7 +611,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     <div className="p-3 bg-muted/30 rounded-lg space-y-2 border border-primary/30">
                       <div className="flex items-center gap-2">
                         <Plus size={14} className="text-primary" />
-                        <span className="font-medium text-sm">New Theme</span>
+                        <span className="font-medium text-sm">{t('actions.newTheme')}</span>
                       </div>
                       <Input
                         value={newThemeName}
@@ -651,7 +653,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                           }}
                           disabled={!newThemeName.trim()}
                         >
-                          Create
+                          {t('actions.create')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -661,7 +663,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                             setCreatingTheme(false);
                           }}
                         >
-                          Cancel
+                          {t('actions.cancel')}
                         </Button>
                       </div>
                     </div>
@@ -674,7 +676,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         className="flex-1"
                       >
                         <Plus size={12} className="mr-1" />
-                        New Theme
+                        {t('actions.newTheme')}
                       </Button>
                       <Button
                         variant="secondary"
@@ -697,7 +699,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         }}
                       >
                         <Upload size={12} className="mr-1" />
-                        Import
+                        {t('actions.import')}
                       </Button>
                     </div>
                   )}
@@ -708,7 +710,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               <section>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    Plugins
+                    {t('labels.plugins')}
                   </h3>
                   <Button
                     variant="ghost"
@@ -718,13 +720,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     className="text-primary"
                   >
                     <RefreshCw size={12} className={cn("mr-1", loadingPlugins && "animate-spin")} />
-                    Refresh
+                    {t('actions.refresh')}
                   </Button>
                 </div>
                 <div className="space-y-2">
                   {loadingPlugins ? (
                     <div className="flex items-center justify-center py-4">
-                      <Spinner size="sm" label="Loading plugins..." />
+                      <Spinner size="sm" label={t('common.loadingPlugins')} />
                     </div>
                   ) : plugins.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
@@ -773,12 +775,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                   </span>
                                   {isActive && (
                                     <span className="text-[10px] text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded shrink-0">
-                                      Active
+                                      {t('labels.active')}
                                     </span>
                                   )}
                                   {isError && (
                                     <span className="text-[10px] text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded shrink-0">
-                                      Error
+                                      {t('labels.error')}
                                     </span>
                                   )}
                                 </div>
@@ -812,12 +814,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 ) : isActive || isEnabled ? (
                                   <>
                                     <Power size={12} className="mr-1" />
-                                    On
+                                    {t('labels.on')}
                                   </>
                                 ) : (
                                   <>
                                     <PowerOff size={12} className="mr-1" />
-                                    Off
+                                    {t('labels.off')}
                                   </>
                                 )}
                               </Button>
@@ -835,7 +837,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              No project open. Open a project to configure settings.
+              {t('common.noProjectOpen')}
             </div>
           )}
         </div>
@@ -843,7 +845,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         {/* Footer */}
         <DialogFooter className="p-4 border-t border-border">
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t('actions.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={saving || !settings}>
             {saving && <Spinner size="xs" className="mr-2" />}

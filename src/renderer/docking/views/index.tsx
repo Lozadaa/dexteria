@@ -66,6 +66,7 @@ const BoardView: React.FC<ViewComponentProps> = ({ params }) => {
 };
 
 const TaskDetailView: React.FC<ViewComponentProps> = ({ viewId, params }) => {
+  const { t } = useTranslation();
   const { closeView } = useLayoutStoreActions();
   const taskId = params.taskId as string;
 
@@ -74,7 +75,7 @@ const TaskDetailView: React.FC<ViewComponentProps> = ({ viewId, params }) => {
   }, [closeView, viewId]);
 
   if (!taskId) {
-    return <div className="p-4 text-muted-foreground">No task selected</div>;
+    return <div className="p-4 text-muted-foreground">{t('views.docking.noTaskSelected')}</div>;
   }
 
   return (
@@ -118,15 +119,18 @@ const TaskRunnerView: React.FC<ViewComponentProps> = () => (
   </React.Suspense>
 );
 
-const WelcomeView: React.FC<ViewComponentProps> = () => (
-  <div className="flex items-center justify-center h-full text-muted-foreground">
-    <div className="text-center">
-      <Home size={48} className="mx-auto mb-4 opacity-50" />
-      <h2 className="text-lg font-medium mb-2">Welcome to Dexteria</h2>
-      <p className="text-sm">Open a panel from the menu to get started</p>
+const WelcomeView: React.FC<ViewComponentProps> = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-center h-full text-muted-foreground">
+      <div className="text-center">
+        <Home size={48} className="mx-auto mb-4 opacity-50" />
+        <h2 className="text-lg font-medium mb-2">{t('views.welcome.title')}</h2>
+        <p className="text-sm">{t('views.docking.openPanelHint')}</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ============================================================================
 // Loading Component
@@ -144,6 +148,7 @@ const ViewLoading: React.FC = () => (
 
 import { useLayoutActions } from '../store';
 
+import { useTranslation } from '../../i18n/useTranslation';
 function useLayoutStoreActions() {
   const { openView, closeView } = useLayoutActions();
   return { openView, closeView };

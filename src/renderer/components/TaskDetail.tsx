@@ -10,12 +10,14 @@ import { Slot } from './extension/Slot';
 import { EPIC_COLORS, TaskAIReview, TaskAnalysis, type AnalysisResult } from './TaskDetail/index';
 import type { RunTaskOptions, AcceptanceCriterionResult, TaskEpic } from '../../shared/types';
 
+import { useTranslation } from '../i18n/useTranslation';
 interface TaskDetailProps {
     taskId: string;
     onClose: () => void;
 }
 
 export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
+    const { t } = useTranslation();
     // useActiveTask polls specifically for this task which is good for run updates
     const { task, loading } = useActiveTask(taskId);
     const { tasks, refresh, deleteTask } = useBoard();
@@ -81,11 +83,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
     }, [isResizing]);
 
     if (loading) {
-        return <div className="p-4 text-center text-muted-foreground">Loading task details...</div>;
+        return <div className="p-4 text-center text-muted-foreground">{t('common.loadingTaskDetails')}</div>;
     }
 
     if (!task) {
-        return <div className="p-4 text-center text-muted-foreground">Task not found</div>;
+        return <div className="p-4 text-center text-muted-foreground">{t('views.taskDetail.notFound')}</div>;
     }
 
     // Get tasks that can be added as dependencies (exclude self and already added)
@@ -801,7 +803,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                 {/* Description */}
                 <div>
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</h3>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('views.taskDetail.description')}</h3>
                         {!isEditingDescription && (
                             <IconButton
                                 variant="ghost"
@@ -823,10 +825,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                             />
                             <div className="flex gap-2 justify-end">
                                 <Button variant="ghost" size="sm" onClick={() => setIsEditingDescription(false)}>
-                                    Cancel
+                                    {t('actions.cancel')}
                                 </Button>
                                 <Button size="sm" onClick={handleSaveDescription}>
-                                    Save
+                                    {t('actions.save')}
                                 </Button>
                             </div>
                         </div>
@@ -845,7 +847,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Dependencies
+                            {t('views.taskDetail.dependencies')}
                         </h3>
                         <div className="relative">
                             <Button
@@ -881,7 +883,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
 
                     {currentDeps.length === 0 ? (
                         <div className="text-sm text-muted-foreground bg-muted/10 p-3 rounded-lg border border-border">
-                            No dependencies
+                            {t('views.taskDetail.noDependencies')}
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -930,7 +932,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
 
                 {/* Acceptance Criteria */}
                 <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Acceptance Criteria</h3>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('views.taskDetail.acceptanceCriteria')}</h3>
                     <div className="space-y-2">
                         {(task.acceptanceCriteria || []).length === 0 ? (
                             <div className="text-sm text-muted-foreground bg-muted/10 p-3 rounded-lg border border-border">
@@ -957,7 +959,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                                 size="xs"
                                                 onClick={handleSaveEditCriterion}
                                                 className="text-green-500 hover:bg-green-500/20"
-                                                title="Save"
+                                                title={t('actions.save')}
                                             >
                                                 <Check size={14} />
                                             </IconButton>
@@ -965,7 +967,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                                 variant="ghost"
                                                 size="xs"
                                                 onClick={handleCancelEditCriterion}
-                                                title="Cancel"
+                                                title={t('actions.cancel')}
                                             >
                                                 <X size={14} />
                                             </IconButton>
@@ -978,7 +980,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                                     variant="ghost"
                                                     size="xs"
                                                     onClick={() => handleStartEditCriterion(i)}
-                                                    title="Edit"
+                                                    title={t('actions.edit')}
                                                 >
                                                     <Edit2 size={12} />
                                                 </IconButton>
@@ -1006,7 +1008,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleAddCriterion();
                                 }}
-                                placeholder="Add acceptance criterion..."
+                                placeholder={t('placeholders.addAcceptanceCriterion')}
                                 className="flex-1"
                             />
                             <Button
@@ -1025,7 +1027,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <Sparkles size={14} className="text-purple-400" />
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400">AI Review Criteria</h3>
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400">{t('views.taskDetail.aiReviewCriteria')}</h3>
                         </div>
                         <Textarea
                             value={task.reviewCriteria || ''}
@@ -1049,7 +1051,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                 {/* Agent Config */}
                 <div>
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agent Plan</h3>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('views.taskDetail.agentPlan')}</h3>
                         {!isEditingAgentPlan && (
                             <IconButton
                                 variant="ghost"
@@ -1064,28 +1066,28 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onClose }) => {
                     {isEditingAgentPlan ? (
                         <div className="space-y-3 bg-muted/10 p-3 rounded border border-border">
                             <div>
-                                <label className="text-xs font-medium text-muted-foreground block mb-1">Goal</label>
+                                <label className="text-xs font-medium text-muted-foreground block mb-1">{t('views.taskDetail.goal')}</label>
                                 <Input
                                     value={agentGoalText}
                                     onChange={(e) => setAgentGoalText(e.target.value)}
-                                    placeholder="What should the agent accomplish?"
+                                    placeholder={t('placeholders.agentGoal')}
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-medium text-muted-foreground block mb-1">Scope (one per line)</label>
+                                <label className="text-xs font-medium text-muted-foreground block mb-1">{t('views.taskDetail.scope')}</label>
                                 <Textarea
                                     value={agentScopeText}
                                     onChange={(e) => setAgentScopeText(e.target.value)}
                                     className="min-h-[80px] resize-y"
-                                    placeholder="Files or areas the agent should focus on..."
+                                    placeholder={t('placeholders.agentScope')}
                                 />
                             </div>
                             <div className="flex gap-2 justify-end">
                                 <Button variant="ghost" size="sm" onClick={() => setIsEditingAgentPlan(false)}>
-                                    Cancel
+                                    {t('actions.cancel')}
                                 </Button>
                                 <Button size="sm" onClick={handleSaveAgentPlan}>
-                                    Save
+                                    {t('actions.save')}
                                 </Button>
                             </div>
                         </div>

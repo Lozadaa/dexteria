@@ -14,6 +14,7 @@ import { AgentProvider, MockAgentProvider } from '../../agent/AgentProvider';
 import { AnthropicProvider } from '../../agent/providers/AnthropicProvider';
 import { ClaudeCodeProvider } from '../../agent/providers/ClaudeCodeProvider';
 import { OpenCodeProvider } from '../../agent/providers/OpenCodeProvider';
+import { CodexProvider } from '../../agent/providers/CodexProvider';
 import { OpenCodeInstaller } from '../../services/OpenCodeInstaller';
 import { initRalphEngine } from '../../agent/RalphEngine';
 import type { RecentProject, HandlerState } from './types';
@@ -137,18 +138,29 @@ export function getOrCreateProvider(): AgentProvider {
     }
   }
 
-  // 2. Fallback to Claude Code provider
+  // 2. Try Codex CLI
+  const codexProvider = new CodexProvider({
+    workingDirectory: state.projectRoot || process.cwd(),
+  });
+
+  if (codexProvider.isReady()) {
+    state.agentProvider = codexProvider;
+    console.log('Using Codex provider');
+    return state.agentProvider;
+  }
+
+  // 3. Fallback to Claude Code provider
   const claudeCodeProvider = new ClaudeCodeProvider({
     workingDirectory: state.projectRoot || process.cwd(),
   });
 
   if (claudeCodeProvider.isReady()) {
     state.agentProvider = claudeCodeProvider;
-    console.log('Using Claude Code provider (OpenCode not available)');
+    console.log('Using Claude Code provider (OpenCode and Codex not available)');
     return state.agentProvider;
   }
 
-  // 3. Fallback to Anthropic if API key is set
+  // 4. Fallback to Anthropic if API key is set
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey) {
     state.agentProvider = new AnthropicProvider({ apiKey: anthropicKey });
@@ -156,7 +168,7 @@ export function getOrCreateProvider(): AgentProvider {
     return state.agentProvider;
   }
 
-  // 4. Last resort: Mock provider
+  // 5. Last resort: Mock provider
   state.agentProvider = new MockAgentProvider();
   console.log('Using Mock provider (no AI providers available)');
   return state.agentProvider;
@@ -242,4 +254,4 @@ export function clearProjectState(): void {
 }
 
 // Re-export provider classes for type checking
-export { OpenCodeProvider, ClaudeCodeProvider, AnthropicProvider, MockAgentProvider };
+export { OpenCodeProvider, CodexProvider, ClaudeCodeProvider, AnthropicProvider, MockAgentProvider };

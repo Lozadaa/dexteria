@@ -16,6 +16,7 @@ import {
   hasProject,
   OpenCodeProvider,
   ClaudeCodeProvider,
+  CodexProvider,
   AnthropicProvider,
   MockAgentProvider,
 } from './shared';
@@ -106,6 +107,7 @@ export function registerSettingsHandlers(): void {
   ipcMain.handle('settings:getProvider', async (): Promise<{
     name: string;
     ready: boolean;
+    providerReady: boolean;
     type: ProviderType;
     hasCompletedSetup: boolean;
   }> => {
@@ -114,20 +116,23 @@ export function registerSettingsHandlers(): void {
     let type: ProviderType = 'mock';
     if (provider instanceof OpenCodeProvider) {
       type = 'opencode';
+    } else if (provider instanceof CodexProvider) {
+      type = 'codex';
     } else if (provider instanceof ClaudeCodeProvider) {
       type = 'claude-code';
     } else if (provider instanceof AnthropicProvider) {
       type = 'anthropic';
     }
 
-    // Provider is only considered "ready" if:
-    // 1. The provider itself is ready (has valid config)
-    // 2. User has completed the setup wizard at least once
-    const isReady = provider.isReady() && globalConfig.hasCompletedSetup;
+    // providerReady: just the provider itself (for setup wizard)
+    const providerReady = provider.isReady();
+    // ready: provider is ready AND setup has been completed (for normal app usage)
+    const isReady = providerReady && globalConfig.hasCompletedSetup;
 
     return {
       name: provider.getName(),
       ready: isReady,
+      providerReady,
       type,
       hasCompletedSetup: globalConfig.hasCompletedSetup,
     };
@@ -149,6 +154,20 @@ export function registerSettingsHandlers(): void {
     config.setupCompletedAt = undefined;
     writeGlobalConfig(config);
     return { success: true };
+  });
+
+  // Clear all settings and data - shows setup wizard on next launch
+  ipcMain.handle('settings:clearAllData', async (): Promise<{ success: boolean }> => {
+    try {
+      // Reset global config
+      writeGlobalConfig({ hasCompletedSetup: false });
+
+      // Clear localStorage will be done by renderer before reload
+      return { success: true };
+    } catch (err) {
+      console.error('Failed to clear settings:', err);
+      return { success: false };
+    }
   });
 
   // Get VSCode preference (for code viewing integration)
@@ -183,6 +202,8 @@ export function registerSettingsHandlers(): void {
     let currentType: ProviderType = 'mock';
     if (provider instanceof OpenCodeProvider) {
       currentType = 'opencode';
+    } else if (provider instanceof CodexProvider) {
+      currentType = 'codex';
     } else if (provider instanceof ClaudeCodeProvider) {
       currentType = 'claude-code';
     } else if (provider instanceof AnthropicProvider) {
@@ -191,6 +212,8 @@ export function registerSettingsHandlers(): void {
 
     // Check if OpenCode is installed
     const openCodeAvailable = OpenCodeInstaller.isInstalled();
+    // Check if Codex CLI is available
+    const codexAvailable = new CodexProvider().isReady();
     // Check if Claude Code CLI is available
     const claudeCodeAvailable = new ClaudeCodeProvider().isReady();
 
@@ -201,6 +224,12 @@ export function registerSettingsHandlers(): void {
           name: 'OpenCode',
           description: 'Open-source AI assistant (recommended)',
           available: openCodeAvailable,
+        },
+        {
+          type: 'codex',
+          name: 'Codex CLI',
+          description: 'OpenAI coding agent (requires CLI)',
+          available: codexAvailable,
         },
         {
           type: 'claude-code',
@@ -244,6 +273,11 @@ export function registerSettingsHandlers(): void {
           }
           newProvider = new OpenCodeProvider({
             binaryPath: OpenCodeInstaller.getBinaryPath(),
+          });
+          break;
+        case 'codex':
+          newProvider = new CodexProvider({
+            workingDirectory: getProjectRoot() || process.cwd(),
           });
           break;
         case 'claude-code':

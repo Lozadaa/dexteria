@@ -3,6 +3,7 @@ import { Terminal, Play, Square, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button, IconButton } from 'adnia-ui';
 
+import { t } from '../i18n/t';
 interface ProcessOutputProps {
     type: 'run' | 'build';
     title: string;
@@ -113,7 +114,7 @@ export const ProcessOutput: React.FC<ProcessOutputProps> = ({ type, title }) => 
                 {isRunning && (
                     <span className="flex items-center gap-1 text-xs text-green-400">
                         <Loader2 size={12} className="animate-spin" />
-                        Running
+                        {t('views.topbar.running')}
                     </span>
                 )}
             </div>
@@ -136,7 +137,7 @@ export const ProcessOutput: React.FC<ProcessOutputProps> = ({ type, title }) => 
                     <div className="h-full flex items-center justify-center text-muted-foreground opacity-50">
                         <div className="text-center space-y-2">
                             <Terminal size={32} className="mx-auto opacity-30" />
-                            <p className="text-sm">No output yet</p>
+                            <p className="text-sm">{t('views.taskRunner.noOutput')}</p>
                             <p className="text-xs">Click Play to start the {type} process</p>
                         </div>
                     </div>

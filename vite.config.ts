@@ -2,6 +2,12 @@ import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+// Generate build version: version + DDHHMM timestamp
+const pkg = require('./package.json');
+const now = new Date();
+const buildTimestamp = `${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+const buildVersion = `${pkg.version}-${buildTimestamp}`;
+
 // Plugin to remove crossorigin attributes from HTML for Electron compatibility
 function removeCrossorigin(): Plugin {
   return {
@@ -17,6 +23,9 @@ export default defineConfig({
   base: './',
   root: '.',
   publicDir: 'public',
+  define: {
+    __BUILD_VERSION__: JSON.stringify(buildVersion),
+  },
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true,

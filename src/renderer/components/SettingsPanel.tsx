@@ -38,21 +38,24 @@ import {
   Terminal,
   Clock,
   Settings2,
-  Link2,
   Copy,
   X,
   Code2,
   ExternalLink,
+  Globe,
+  GitBranch,
 } from 'lucide-react';
-import { JiraPanel } from './JiraPanel';
+import { GitSettingsPanel } from './Git/GitSettingsPanel';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useSettingsTabs, type SettingsTabContribution } from '../contexts/ExtensionPointsContext';
 import { PluginComponentLoader } from '../plugins/PluginComponentLoader';
 import * as LucideIcons from 'lucide-react';
 import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo } from '../../shared/types';
+import { useTranslation } from '../i18n/useTranslation';
+import type { Locale } from '../i18n';
 
 // Built-in tabs
-type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'integrations' | 'themes' | 'plugins' | 'jira';
+type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'integrations' | 'git' | 'language' | 'themes' | 'plugins' | 'other';
 // All tabs including plugin tabs (plugin tabs use format: plugin:pluginId:tabId)
 type SettingsTab = BuiltInSettingsTab | `plugin:${string}`;
 
@@ -70,6 +73,7 @@ interface SettingsPanelProps {
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor }) => {
+  const { t, locale, setLocale } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>('notifications');
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [detectedCommands, setDetectedCommands] = useState<DetectedCommands>({});
@@ -331,13 +335,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
 
   // Build tabs array with built-in tabs and plugin tabs
   const builtInTabs: { id: SettingsTab; label: string; icon: React.ReactNode; isPlugin?: false }[] = [
-    { id: 'notifications', label: 'Notifications', icon: <Bell size={16} /> },
-    { id: 'commands', label: 'Commands', icon: <Terminal size={16} /> },
-    { id: 'runner', label: 'Runner', icon: <Clock size={16} /> },
-    { id: 'integrations', label: 'Integrations', icon: <Code2 size={16} /> },
-    { id: 'themes', label: 'Themes', icon: <Palette size={16} /> },
-    { id: 'plugins', label: 'Plugins', icon: <Puzzle size={16} /> },
-    { id: 'jira', label: 'Jira', icon: <Link2 size={16} /> },
+    { id: 'notifications', label: t('labels.notifications'), icon: <Bell size={16} /> },
+    { id: 'commands', label: t('labels.commands'), icon: <Terminal size={16} /> },
+    { id: 'runner', label: t('labels.runner'), icon: <Clock size={16} /> },
+    { id: 'integrations', label: t('labels.integrations'), icon: <Code2 size={16} /> },
+    { id: 'git', label: 'Git', icon: <GitBranch size={16} /> },
+    { id: 'language', label: t('labels.language'), icon: <Globe size={16} /> },
+    { id: 'themes', label: t('labels.themes'), icon: <Palette size={16} /> },
+    { id: 'plugins', label: t('labels.plugins'), icon: <Puzzle size={16} /> },
+    { id: 'other', label: t('labels.other'), icon: <Settings2 size={16} /> },
   ];
 
   // Convert plugin tabs to tab format
@@ -356,7 +362,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Spinner size="md" label="Loading settings..." />
+        <Spinner size="md" label={t('common.loadingSettings')} />
       </div>
     );
   }
@@ -364,7 +370,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   if (!settings) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
-        No project open. Open a project to configure settings.
+        {t('common.noProjectOpen')}
       </div>
     );
   }
@@ -375,10 +381,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2">
           <Settings2 size={18} className="text-primary" />
-          <h2 className="font-semibold">Settings</h2>
+          <h2 className="font-semibold">{t('labels.settings')}</h2>
           {hasChanges && (
             <span className="text-xs text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded">
-              Unsaved
+              {t('labels.unsaved')}
             </span>
           )}
         </div>
@@ -421,9 +427,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
           {activeTab === 'notifications' && (
             <div className="space-y-6 max-w-2xl">
               <div>
-                <h3 className="text-lg font-semibold mb-1">Notifications</h3>
+                <h3 className="text-lg font-semibold mb-1">{t('labels.notifications')}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Configure how Dexteria notifies you about task completions.
+                  {t('views.settings.notifications.description')}
                 </p>
               </div>
 
@@ -437,8 +443,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                       <VolumeX size={20} className="text-muted-foreground" />
                     )}
                     <div>
-                      <div className="font-medium">Sound on Task Complete</div>
-                      <div className="text-sm text-muted-foreground">Play a sound when Ralph completes a task</div>
+                      <div className="font-medium">{t('views.settings.notifications.soundOnTaskComplete')}</div>
+                      <div className="text-sm text-muted-foreground">{t('views.settings.notifications.soundOnTaskCompleteDesc')}</div>
                     </div>
                   </div>
                   <Switch
@@ -449,10 +455,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
 
                 {/* Sound Preset Selection */}
                 {settings.notifications.soundOnTaskComplete && (
-                  <div className="p-4 bg-muted/30 rounded-lg ml-6 space-y-3 border border-border/50">
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-3 border border-border/50">
                     <div className="flex items-center gap-2">
                       <Music size={14} className="text-muted-foreground" />
-                      <span className="font-medium text-sm">Notification Sound</span>
+                      <span className="font-medium text-sm">{t('views.settings.notifications.notificationSound')}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {soundPresets.map((preset) => (
@@ -502,8 +508,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                       <BellOff size={20} className="text-muted-foreground" />
                     )}
                     <div>
-                      <div className="font-medium">Badge on Task Complete</div>
-                      <div className="text-sm text-muted-foreground">Show app badge when Ralph completes a task</div>
+                      <div className="font-medium">{t('views.settings.notifications.badgeOnTaskComplete')}</div>
+                      <div className="text-sm text-muted-foreground">{t('views.settings.notifications.badgeOnTaskCompleteDesc')}</div>
                     </div>
                   </div>
                   <Switch
@@ -520,9 +526,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
             <div className="space-y-6 max-w-2xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold mb-1">Project Commands</h3>
+                  <h3 className="text-lg font-semibold mb-1">{t('views.settings.commands.title')}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Configure commands for running and building your project.
+                    {t('views.settings.commands.description')}
                   </p>
                 </div>
                 <Button
@@ -532,7 +538,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   className="text-primary"
                 >
                   <RefreshCw size={14} className="mr-1" />
-                  Auto-Detect
+                  {t('actions.autoDetect')}
                 </Button>
               </div>
 
@@ -548,7 +554,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <div className="p-4 bg-muted/50 rounded-lg space-y-3 border border-border">
                   <div className="flex items-center gap-2">
                     <Play size={16} className="text-green-400" />
-                    <span className="font-medium">Run (Dev Server)</span>
+                    <span className="font-medium">{t('views.settings.commands.runDevServer')}</span>
                   </div>
                   <Input
                     value={settings.projectCommands.run.cmd}
@@ -562,7 +568,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         checked={settings.projectCommands.run.autoDetect ?? true}
                         onCheckedChange={(checked) => updateCommand('run', 'autoDetect', checked)}
                       />
-                      Auto-detect if empty
+                      {t('views.settings.commands.autoDetectIfEmpty')}
                     </label>
                     <Button
                       variant="success-soft"
@@ -571,7 +577,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                       disabled={testing === 'run'}
                     >
                       {testing === 'run' ? <Spinner size="xs" /> : <Play size={12} />}
-                      <span className="ml-1">Test</span>
+                      <span className="ml-1">{t('actions.test')}</span>
                     </Button>
                   </div>
                 </div>
@@ -580,7 +586,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <div className="p-4 bg-muted/50 rounded-lg space-y-3 border border-border">
                   <div className="flex items-center gap-2">
                     <Hammer size={16} className="text-yellow-400" />
-                    <span className="font-medium">Build</span>
+                    <span className="font-medium">{t('views.settings.commands.build')}</span>
                   </div>
                   <Input
                     value={settings.projectCommands.build.cmd}
@@ -594,7 +600,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         checked={settings.projectCommands.build.autoDetect ?? true}
                         onCheckedChange={(checked) => updateCommand('build', 'autoDetect', checked)}
                       />
-                      Auto-detect if empty
+                      {t('views.settings.commands.autoDetectIfEmpty')}
                     </label>
                     <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
                       <Switch
@@ -602,7 +608,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         checked={settings.projectCommands.build.includesInstall ?? true}
                         onCheckedChange={(checked) => updateCommand('build', 'includesInstall', checked)}
                       />
-                      Includes install
+                      {t('views.settings.commands.includesInstall')}
                     </label>
                     <Button
                       variant="warning-soft"
@@ -611,7 +617,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                       disabled={testing === 'build'}
                     >
                       {testing === 'build' ? <Spinner size="xs" /> : <Hammer size={12} />}
-                      <span className="ml-1">Test</span>
+                      <span className="ml-1">{t('actions.test')}</span>
                     </Button>
                   </div>
                 </div>
@@ -620,7 +626,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <div className="p-4 bg-muted/50 rounded-lg space-y-3 border border-border">
                   <div className="flex items-center gap-2">
                     <Download size={16} className="text-blue-400" />
-                    <span className="font-medium">Install</span>
+                    <span className="font-medium">{t('views.settings.commands.install')}</span>
                   </div>
                   <Input
                     value={settings.projectCommands.install.cmd}
@@ -644,8 +650,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <div className="flex items-center gap-3">
                   <AlertTriangle size={20} className="text-yellow-400" />
                   <div>
-                    <div className="font-medium">Allow Unsafe Commands</div>
-                    <div className="text-sm text-muted-foreground">Enable commands that might be destructive</div>
+                    <div className="font-medium">{t('views.settings.commands.allowUnsafeCommands')}</div>
+                    <div className="text-sm text-muted-foreground">{t('views.settings.commands.allowUnsafeCommandsDesc')}</div>
                   </div>
                 </div>
                 <Switch
@@ -666,17 +672,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
           {activeTab === 'runner' && (
             <div className="space-y-6 max-w-2xl">
               <div>
-                <h3 className="text-lg font-semibold mb-1">Runner Settings</h3>
+                <h3 className="text-lg font-semibold mb-1">{t('views.settings.runner.title')}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Configure execution limits and timeouts.
+                  {t('views.settings.runner.description')}
                 </p>
               </div>
 
               <div className="p-4 bg-muted/50 rounded-lg border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">Default Timeout</div>
-                    <div className="text-sm text-muted-foreground">Maximum time for command execution</div>
+                    <div className="font-medium">{t('views.settings.runner.defaultTimeout')}</div>
+                    <div className="text-sm text-muted-foreground">{t('views.settings.runner.defaultTimeoutDesc')}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Input
@@ -690,7 +696,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                       max={7200}
                       className="w-24 text-right"
                     />
-                    <span className="text-sm text-muted-foreground">seconds</span>
+                    <span className="text-sm text-muted-foreground">{t('views.settings.runner.seconds')}</span>
                   </div>
                 </div>
               </div>
@@ -701,9 +707,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
           {activeTab === 'integrations' && (
             <div className="space-y-6 max-w-2xl">
               <div>
-                <h3 className="text-lg font-semibold mb-1">Integrations</h3>
+                <h3 className="text-lg font-semibold mb-1">{t('labels.integrations')}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Configure external tool integrations.
+                  {t('views.settings.integrations.description')}
                 </p>
               </div>
 
@@ -724,12 +730,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         VSCode Integration
                         {vscodeInstalled && (
                           <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
-                            Installed
+                            {t('labels.installed')}
                           </span>
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Open project files directly in Visual Studio Code
+                        {t('views.settings.integrations.vscodeDesc')}
                       </div>
                     </div>
                   </div>
@@ -746,7 +752,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                     {checkingVscode ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Spinner size="xs" />
-                        Checking VSCode installation...
+                        {t('views.settings.integrations.checkingVscode')}
                       </div>
                     ) : vscodeInstalled ? (
                       <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
@@ -770,7 +776,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                           </Button>
                         </div>
                         <p className="text-xs text-green-500/70 mt-1">
-                          "Open in VSCode" is available in the File menu
+                          {t('views.settings.integrations.vscodeAvailable')}
                         </p>
                       </div>
                     ) : (
@@ -779,10 +785,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                           <AlertTriangle size={16} className="text-amber-500 mt-0.5" />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-amber-500">
-                              VSCode not detected
+                              {t('views.settings.integrations.vscodeNotDetected')}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Install VSCode to use this integration. The "Open in VSCode" button will appear once installed.
+                              {t('views.settings.integrations.vscodeNotDetectedDesc')}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
                               <Button
@@ -791,7 +797,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                 onClick={handleOpenDownloadPage}
                               >
                                 <Download size={12} className="mr-1" />
-                                Download VSCode
+                                {t('views.settings.integrations.downloadVscode')}
                                 <ExternalLink size={10} className="ml-1" />
                               </Button>
                               <Button
@@ -801,7 +807,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                 disabled={checkingVscode}
                               >
                                 <RefreshCw size={12} className={cn("mr-1", checkingVscode && "animate-spin")} />
-                                Check Again
+                                {t('actions.checkAgain')}
                               </Button>
                             </div>
                           </div>
@@ -813,8 +819,47 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
               </div>
 
               <p className="text-xs text-muted-foreground">
-                More integrations coming soon...
+                {t('views.settings.integrations.moreIntegrations')}
               </p>
+            </div>
+          )}
+
+          {/* Git Tab */}
+          {activeTab === 'git' && (
+            <GitSettingsPanel />
+          )}
+
+          {/* Language Tab */}
+          {activeTab === 'language' && (
+            <div className="space-y-6 max-w-2xl">
+              <div>
+                <h3 className="text-lg font-semibold mb-1">{t('views.settings.language.title')}</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('views.settings.language.description')}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'en' as Locale, name: 'English', flag: '\uD83C\uDDFA\uD83C\uDDF8' },
+                  { id: 'es' as Locale, name: 'Espa\u00f1ol', flag: '\uD83C\uDDEA\uD83C\uDDF8' },
+                ].map((lang) => (
+                  <button
+                    key={lang.id}
+                    onClick={() => setLocale(lang.id)}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-lg border transition-colors",
+                      locale === lang.id
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <span className="text-2xl">{lang.flag}</span>
+                    <span className="font-medium">{lang.name}</span>
+                    {locale === lang.id && <Check size={16} className="ml-auto text-primary" />}
+                  </button>
+                ))}
+              </div>
+
             </div>
           )}
 
@@ -822,9 +867,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
           {activeTab === 'themes' && (
             <div className="space-y-6 max-w-2xl">
               <div>
-                <h3 className="text-lg font-semibold mb-1">Themes</h3>
+                <h3 className="text-lg font-semibold mb-1">{t('labels.themes')}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Customize the appearance of Dexteria.
+                  {t('views.settings.themes.description')}
                 </p>
               </div>
 
@@ -832,7 +877,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 {themes.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Palette size={32} className="mx-auto mb-2 opacity-50" />
-                    <p>No themes loaded. Create one to get started.</p>
+                    <p>{t('views.settings.themes.noThemes')}</p>
                   </div>
                 )}
                 {themes.map((theme) => (
@@ -853,12 +898,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                           {theme.name}
                           {theme.isBuiltIn && (
                             <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                              Built-in
+                              {t('labels.builtIn')}
                             </span>
                           )}
                           {activeThemeId === theme.id && (
                             <span className="text-[10px] text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">
-                              Active
+                              {t('labels.active')}
                             </span>
                           )}
                         </div>
@@ -876,7 +921,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                           title="Edit theme JSON"
                         >
                           <Edit2 size={14} />
-                          <span className="ml-1">Edit</span>
+                          <span className="ml-1">{t('actions.edit')}</span>
                         </Button>
                       )}
                       <Button
@@ -898,7 +943,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         title="Export theme as JSON file"
                       >
                         <Download size={14} />
-                        <span className="ml-1">Export</span>
+                        <span className="ml-1">{t('actions.export')}</span>
                       </Button>
                       {!theme.isBuiltIn && (
                         <Button
@@ -926,7 +971,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <div className="p-4 bg-muted/30 rounded-lg space-y-3 border border-primary/30">
                   <div className="flex items-center gap-2">
                     <Plus size={16} className="text-primary" />
-                    <span className="font-medium">New Theme</span>
+                    <span className="font-medium">{t('actions.newTheme')}</span>
                   </div>
                   <Input
                     value={newThemeName}
@@ -964,7 +1009,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                       }}
                       disabled={!newThemeName.trim()}
                     >
-                      Create
+                      {t('actions.create')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -974,7 +1019,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         setCreatingTheme(false);
                       }}
                     >
-                      Cancel
+                      {t('actions.cancel')}
                     </Button>
                   </div>
                 </div>
@@ -986,7 +1031,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                     className="flex-1"
                   >
                     <Plus size={14} className="mr-1" />
-                    New Theme
+                    {t('actions.newTheme')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -1008,7 +1053,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                     }}
                   >
                     <Upload size={14} className="mr-1" />
-                    Import
+                    {t('actions.import')}
                   </Button>
                 </div>
               )}
@@ -1020,7 +1065,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
             <div className="space-y-6 max-w-2xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold mb-1">Plugins</h3>
+                  <h3 className="text-lg font-semibold mb-1">{t('labels.plugins')}</h3>
                   <p className="text-sm text-muted-foreground">
                     Extend Dexteria&apos;s functionality with plugins.
                   </p>
@@ -1032,19 +1077,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   disabled={loadingPlugins}
                 >
                   <RefreshCw size={14} className={cn("mr-1", loadingPlugins && "animate-spin")} />
-                  Refresh
+                  {t('actions.refresh')}
                 </Button>
               </div>
 
               <div className="space-y-3">
                 {loadingPlugins ? (
                   <div className="flex items-center justify-center py-8">
-                    <Spinner size="sm" label="Loading plugins..." />
+                    <Spinner size="sm" label={t('common.loadingPlugins')} />
                   </div>
                 ) : plugins.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Puzzle size={32} className="mx-auto mb-2 opacity-50" />
-                    <p>No plugins loaded</p>
+                    <p>{t('views.settings.plugins.noPlugins')}</p>
                     <p className="text-sm mt-1">
                       Plugins extend Dexteria&apos;s functionality. Try refreshing or restart the app.
                     </p>
@@ -1088,12 +1133,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                 </span>
                                 {isActive && (
                                   <span className="text-[10px] text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded shrink-0">
-                                    Active
+                                    {t('labels.active')}
                                   </span>
                                 )}
                                 {isError && (
                                   <span className="text-[10px] text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded shrink-0">
-                                    Error
+                                    {t('labels.error')}
                                   </span>
                                 )}
                               </div>
@@ -1133,7 +1178,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                     </div>
                                   </div>
                                   <p className="text-xs text-red-400/70 mt-1">
-                                    Check DevTools console (F12) for more details
+                                    {t('views.settings.plugins.checkDevTools')}
                                   </p>
                                 </div>
                               ) : null}
@@ -1152,12 +1197,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                               ) : isActive || isEnabled ? (
                                 <>
                                   <Power size={14} className="mr-1" />
-                                  On
+                                  {t('labels.on')}
                                 </>
                               ) : (
                                 <>
                                   <PowerOff size={14} className="mr-1" />
-                                  Off
+                                  {t('labels.off')}
                                 </>
                               )}
                             </Button>
@@ -1171,9 +1216,40 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
             </div>
           )}
 
-          {/* Jira Tab */}
-          {activeTab === 'jira' && (
-            <JiraPanel />
+          {/* Other Tab */}
+          {activeTab === 'other' && (
+            <div className="space-y-6 max-w-2xl">
+              <div>
+                <h3 className="text-lg font-semibold mb-1">{t('views.settings.other.title')}</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('views.settings.other.description')}
+                </p>
+              </div>
+
+              {/* Danger Zone */}
+              <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-lg space-y-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-red-500" />
+                  <h4 className="font-semibold text-red-500">{t('views.settings.other.dangerZone')}</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t('views.settings.other.dangerZoneDesc')}
+                </p>
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    if (confirm(t('views.settings.other.clearSettingsConfirm'))) {
+                      await window.dexteria.settings.clearAllData();
+                      localStorage.clear();
+                      window.location.reload();
+                    }
+                  }}
+                >
+                  <Trash2 size={14} className="mr-2" />
+                  {t('views.settings.other.clearSettings')}
+                </Button>
+              </div>
+            </div>
           )}
 
           {/* Plugin Settings Tabs */}
@@ -1184,7 +1260,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
               return (
                 <div className="text-center py-8 text-muted-foreground">
                   <AlertCircle size={32} className="mx-auto mb-2 opacity-50" />
-                  <p>Plugin tab not found</p>
+                  <p>{t('views.settings.plugins.pluginTabNotFound')}</p>
                 </div>
               );
             }

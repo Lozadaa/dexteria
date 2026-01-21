@@ -12,3 +12,6 @@ export type { ClaudeCodeProviderConfig } from './ClaudeCodeProvider';
 
 export { OpenCodeProvider, createOpenCodeProvider } from './OpenCodeProvider';
 export type { OpenCodeProviderConfig } from './OpenCodeProvider';
+
+export { CodexProvider, createCodexProvider } from './CodexProvider';
+export type { CodexProviderConfig } from './CodexProvider';

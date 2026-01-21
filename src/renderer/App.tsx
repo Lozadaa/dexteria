@@ -22,6 +22,7 @@ import {
 } from './docking';
 import { viewDefinitions } from './docking/views';
 
+import { useTranslation } from './i18n/useTranslation';
 // Planner Block Modal - shown at App level so it appears regardless of active tab
 const PlannerBlockModal: React.FC = () => {
   const { showPlannerBlockModal, closePlannerBlock, switchToAgentAndClose } = useMode();
@@ -56,7 +57,7 @@ const PlannerBlockModal: React.FC = () => {
               onClick={closePlannerBlock}
               className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded transition-colors"
             >
-              Cancel
+              {t('actions.cancel')}
             </button>
             <button
               onClick={switchToAgentAndClose}

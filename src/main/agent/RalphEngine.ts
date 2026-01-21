@@ -32,6 +32,7 @@ import { LocalKanbanStore } from '../services/LocalKanbanStore';
 import { ClaudeCodeProvider } from './providers/ClaudeCodeProvider';
 import { OpenCodeProvider } from './providers/OpenCodeProvider';
 import { notifyRalphTaskComplete } from '../services/NotificationService';
+import { PromptBuilder } from './prompts';
 import type { Task, RalphModeOptions } from '../../shared/types';
 
 // Type for providers that support Ralph mode (have setWorkingDirectory and setProjectContext)
@@ -376,28 +377,39 @@ export class RalphEngine {
       }
     };
 
-    // Build task prompt with context
+    // Build task prompt with context using centralized PromptBuilder
     const failureContext = this.getFailureContext(task);
     const instructionContext = this.getInstructionContext(task);
 
-    const taskPrompt = `## Task to Execute
+    // Use PromptBuilder for consistent task prompt with all improvements
+    const baseTaskPrompt = PromptBuilder.buildTaskPrompt(
+      {
+        id: task.id,
+        title: task.title,
+        description: task.description || 'No description provided.',
+        status: task.status,
+        priority: task.priority,
+        acceptanceCriteria: task.acceptanceCriteria,
+        epic: task.epic,
+        sprint: task.sprint,
+        humanOnly: task.humanOnly,
+        aiReviewable: task.aiReviewable,
+        reviewCriteria: task.reviewCriteria,
+        comments: task.comments || [],
+        agent: task.agent,
+      },
+      {
+        failureContext: failureContext || undefined,
+        instructionContext: instructionContext || undefined,
+        attemptNumber: attempt,
+      }
+    );
 
-**Title:** ${task.title}
-**ID:** ${task.id}
-**Run ID:** ${runId}
+    // Add Ralph-specific run context
+    const taskPrompt = `**Run ID:** ${runId}
 **Attempt:** ${attempt}
 
-**Description:**
-${task.description || 'No description provided.'}
-
-**Acceptance Criteria:**
-${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
-${instructionContext}${failureContext}
-
-## Instructions
-
-Please complete this task. Ensure ALL acceptance criteria are met.
-When done, summarize what you accomplished and verify each criterion.
+${baseTaskPrompt}
 
 ## Progress Checkpoints
 
@@ -405,8 +417,7 @@ Periodically save your progress during long tasks using save_progress tool:
 \`\`\`json
 {"tool": "save_progress", "arguments": {"completed": "What you've done so far", "nextStep": "What you'll do next"}}
 \`\`\`
-This helps if the task is interrupted - you can resume from where you left off.
-`;
+This helps if the task is interrupted - you can resume from where you left off.`;
 
     let accumulated = '';
 

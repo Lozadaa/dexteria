@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { PluginInfo } from '../../shared/types';
 
+import { t } from '../i18n/t';
 export const PluginsPanel: React.FC = () => {
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +56,7 @@ export const PluginsPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Spinner size="md" label="Loading plugins..." />
+        <Spinner size="md" label={t('common.loadingPlugins')} />
       </div>
     );
   }
@@ -66,7 +67,7 @@ export const PluginsPanel: React.FC = () => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2">
           <Puzzle size={18} className="text-primary" />
-          <h2 className="font-semibold">Plugins</h2>
+          <h2 className="font-semibold">{t('labels.plugins')}</h2>
         </div>
         <Button
           variant="secondary"
@@ -75,7 +76,7 @@ export const PluginsPanel: React.FC = () => {
           disabled={loading}
         >
           <RefreshCw size={14} className={cn("mr-1", loading && "animate-spin")} />
-          Refresh
+          {t('actions.refresh')}
         </Button>
       </div>
 
@@ -85,7 +86,7 @@ export const PluginsPanel: React.FC = () => {
           {plugins.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Puzzle size={32} className="mx-auto mb-2 opacity-50" />
-              <p>No plugins loaded</p>
+              <p>{t('views.settings.plugins.noPlugins')}</p>
               <p className="text-sm mt-1">
                 Plugins extend Dexteria&apos;s functionality.
               </p>
@@ -129,12 +130,12 @@ export const PluginsPanel: React.FC = () => {
                           </span>
                           {isActive && (
                             <span className="text-[10px] text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded shrink-0">
-                              Active
+                              {t('labels.active')}
                             </span>
                           )}
                           {isError && (
                             <span className="text-[10px] text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded shrink-0">
-                              Error
+                              {t('labels.error')}
                             </span>
                           )}
                         </div>
@@ -168,12 +169,12 @@ export const PluginsPanel: React.FC = () => {
                         ) : isActive || isEnabled ? (
                           <>
                             <Power size={14} className="mr-1" />
-                            On
+                            {t('labels.on')}
                           </>
                         ) : (
                           <>
                             <PowerOff size={14} className="mr-1" />
-                            Off
+                            {t('labels.off')}
                           </>
                         )}
                       </Button>

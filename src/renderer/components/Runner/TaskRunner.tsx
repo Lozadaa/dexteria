@@ -7,6 +7,7 @@ import { cn, formatRelativeTime } from '../../lib/utils';
 import { Button, IconButton, ProgressBar, AlertBanner } from 'adnia-ui';
 import type { Task } from '../../../shared/types';
 
+import { t } from '../../i18n/t';
 export const TaskRunner: React.FC = () => {
     const {
         currentTask,
@@ -75,8 +76,8 @@ export const TaskRunner: React.FC = () => {
                         <div className="h-full flex items-center justify-center text-muted-foreground">
                             <div className="text-center space-y-2">
                                 <ListTodo size={40} className="mx-auto opacity-30" />
-                                <p className="text-sm">No pending tasks</p>
-                                <p className="text-xs opacity-70">Create tasks from the board or chat</p>
+                                <p className="text-sm">{t('views.taskRunner.noPendingTasks')}</p>
+                                <p className="text-xs opacity-70">{t('views.taskRunner.createTasksHint')}</p>
                             </div>
                         </div>
                     ) : (
@@ -243,7 +244,7 @@ export const TaskRunner: React.FC = () => {
                 {isRunning && (
                     <div className="px-3 py-2 bg-background/30">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                            <span>Progress</span>
+                            <span>{t('views.taskRunner.progress')}</span>
                             <span className="ml-auto">{Math.round(progress)}%</span>
                         </div>
                         <ProgressBar value={progress} size="sm" />
@@ -297,7 +298,7 @@ export const TaskRunner: React.FC = () => {
                             </div>
                         ) : (
                             <div className="text-muted-foreground italic opacity-50">
-                                No output yet
+                                {t('views.taskRunner.noOutput')}
                             </div>
                         )}
                     </div>

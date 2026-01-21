@@ -8,6 +8,7 @@ import { ipcMain, BrowserWindow } from 'electron';
 import { hasProject, getStore, getOrCreateProvider } from './shared';
 import { getCommentService } from '../../services/CommentService';
 import { getPluginManager } from '../../services/PluginManager';
+import { getGitStateManagerInstance } from './gitHandlers';
 import type {
   Task,
   TaskComment,
@@ -15,7 +16,9 @@ import type {
   TaskPatch,
   TaskCreateInput,
   AIReviewResult,
+  GitConfig,
 } from '../../../shared/types';
+import { DEFAULT_GIT_CONFIG } from '../../../shared/types';
 
 /**
  * Trigger AI review for a task.
@@ -264,6 +267,52 @@ export function registerTaskHandlers(): void {
     }
 
     store.moveTask(taskId, targetColumn, newOrder);
+
+    // Handle Git lifecycle for task status changes
+    const gitManager = getGitStateManagerInstance();
+    if (gitManager && fromColumn !== targetColumn) {
+      // Get Git config from settings
+      const settings = store.getSettings();
+      const gitConfig: GitConfig = (settings as { git?: GitConfig }).git || DEFAULT_GIT_CONFIG;
+
+      if (gitConfig.gitEnabled && gitConfig.gitMode !== 'none') {
+        const movedTask = store.getTask(taskId);
+        if (movedTask) {
+          try {
+            const result = await gitManager.handleTaskStatusChange(
+              movedTask,
+              fromColumn,
+              targetColumn,
+              gitConfig,
+              'system'
+            );
+
+            // Update task with Git branch info if applicable
+            if (result.branchName) {
+              store.updateTask(taskId, {
+                gitBranch: result.branchName,
+                gitBranchCheckedOut: true,
+              });
+            }
+
+            // Add system comment if there was an error or warning
+            if (!result.success && result.error) {
+              store.addTypedComment(taskId, 'system', 'Git', `Git operation failed: ${result.error}`);
+            } else if (result.warnings && result.warnings.length > 0) {
+              store.addTypedComment(taskId, 'system', 'Git', `Git: ${result.warnings.join(', ')}`);
+            }
+          } catch (gitError) {
+            console.error('Git lifecycle error:', gitError);
+            store.addTypedComment(
+              taskId,
+              'system',
+              'Git',
+              `Git error: ${gitError instanceof Error ? gitError.message : String(gitError)}`
+            );
+          }
+        }
+      }
+    }
 
     // Execute afterMove hooks
     if (pluginManager) {

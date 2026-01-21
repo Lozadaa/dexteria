@@ -9,7 +9,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec, spawn } from 'child_process';
+import * as os from 'os';
+import { exec, execSync } from 'child_process';
 import { shell } from 'electron';
 
 /** VSCode status information */
@@ -56,11 +57,60 @@ export class VSCodeService {
   private readonly CACHE_TTL = 30000; // 30 seconds
 
   /**
-   * Check if VSCode is installed
+   * Check if VSCode is installed using platform-specific methods
+   * - macOS: Check .app bundle exists
+   * - Windows: Query registry (doesn't execute anything)
+   * - Linux: Use 'which code'
+   */
+  isInstalledSync(): boolean {
+    const platform = os.platform();
+
+    try {
+      if (platform === 'darwin') {
+        // macOS: Check if VSCode app bundle exists
+        return fs.existsSync('/Applications/Visual Studio Code.app') ||
+               fs.existsSync(path.join(os.homedir(), 'Applications', 'Visual Studio Code.app'));
+      }
+
+      if (platform === 'win32') {
+        // Windows: Query registry for VSCode installation (safe, doesn't open VSCode)
+        try {
+          execSync(
+            'reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall" /s /f "Visual Studio Code"',
+            { stdio: 'ignore' }
+          );
+          return true;
+        } catch {
+          // Try HKLM as well for system-wide installation
+          try {
+            execSync(
+              'reg query "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall" /s /f "Visual Studio Code"',
+              { stdio: 'ignore' }
+            );
+            return true;
+          } catch {
+            return false;
+          }
+        }
+      }
+
+      if (platform === 'linux') {
+        // Linux: Use 'which code' - just locates the path
+        execSync('which code', { stdio: 'ignore' });
+        return true;
+      }
+    } catch {
+      return false;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if VSCode is installed (async wrapper)
    */
   async isInstalled(): Promise<boolean> {
-    const status = await this.getStatus();
-    return status.installed;
+    return this.isInstalledSync();
   }
 
   /**
@@ -74,17 +124,13 @@ export class VSCodeService {
       return this.cachedStatus;
     }
 
-    const vscodePath = await this.findVSCodePath();
-    let version: string | null = null;
-
-    if (vscodePath) {
-      version = await this.getVersion(vscodePath);
-    }
+    const installed = this.isInstalledSync();
+    const vscodePath = installed ? await this.findVSCodePath() : null;
 
     this.cachedStatus = {
-      installed: !!vscodePath,
+      installed,
       path: vscodePath,
-      version,
+      version: null, // Skip version check to avoid opening VSCode
     };
     this.lastCheck = now;
 
@@ -101,37 +147,50 @@ export class VSCodeService {
   }
 
   /**
-   * Find VSCode executable path
+   * Find VSCode executable path (for opening files/folders)
    */
   async findVSCodePath(): Promise<string | null> {
-    const platform = process.platform;
+    const platform = os.platform();
     const paths = VSCODE_PATHS[platform] || [];
 
-    // First, check common paths
+    // Check known paths first
     for (const p of paths) {
       if (fs.existsSync(p)) {
         return p;
       }
     }
 
-    // Try to find via command line
-    const command = platform === 'win32' ? 'where code' : 'which code';
-
-    return new Promise((resolve) => {
-      exec(command, { timeout: 5000 }, (error, stdout) => {
-        if (error || !stdout) {
-          resolve(null);
-          return;
-        }
-
-        const foundPath = stdout.trim().split('\n')[0];
+    // Fallback: try to find 'code' command
+    if (platform === 'win32') {
+      // On Windows, try 'where code' to find the CLI
+      try {
+        const result = execSync('where code', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+        const foundPath = result.trim().split('\n')[0];
         if (foundPath && fs.existsSync(foundPath)) {
-          resolve(foundPath);
-        } else {
-          resolve(null);
+          return foundPath;
         }
-      });
-    });
+      } catch {
+        // Not found via where
+      }
+    } else {
+      // On Unix, try 'which code'
+      try {
+        const result = execSync('which code', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+        const foundPath = result.trim();
+        if (foundPath && fs.existsSync(foundPath)) {
+          return foundPath;
+        }
+      } catch {
+        // Not found via which
+      }
+    }
+
+    // If installed but path not found, return 'code' to use shell command
+    if (this.isInstalledSync()) {
+      return 'code';
+    }
+
+    return null;
   }
 
   /**
@@ -161,7 +220,7 @@ export class VSCodeService {
   async openFolder(folderPath: string): Promise<{ success: boolean; error?: string }> {
     const status = await this.getStatus();
 
-    if (!status.installed || !status.path) {
+    if (!status.installed) {
       return { success: false, error: 'VSCode is not installed' };
     }
 
@@ -169,24 +228,54 @@ export class VSCodeService {
       return { success: false, error: 'Folder does not exist' };
     }
 
+    // Try using VSCode's URL scheme first (most reliable method)
+    // Format: vscode://file/path/to/folder
+    const normalizedPath = folderPath.replace(/\\/g, '/');
+    const vscodeUrl = `vscode://file/${normalizedPath}`;
+
+    console.log('[VSCode] Trying URL scheme:', vscodeUrl);
+
+    try {
+      await shell.openExternal(vscodeUrl);
+      console.log('[VSCode] URL scheme succeeded');
+      return { success: true };
+    } catch (urlError) {
+      console.log('[VSCode] URL scheme failed, trying command:', urlError);
+    }
+
+    // Fallback to command line
     return new Promise((resolve) => {
-      // Use spawn for better cross-platform support
-      const args = [folderPath];
-      const child = spawn(status.path!, args, {
-        detached: true,
-        stdio: 'ignore',
-        shell: process.platform === 'win32',
-      });
+      const command = `code "${folderPath}"`;
+      console.log('[VSCode] Executing command:', command);
 
-      child.unref();
+      exec(command, { windowsHide: true }, (error, _stdout, stderr) => {
+        if (error) {
+          console.log('[VSCode] Primary command failed:', error.message);
+          console.log('[VSCode] stderr:', stderr);
 
-      // Give it a moment to start
-      setTimeout(() => {
-        resolve({ success: true });
-      }, 500);
+          // If 'code' command fails, try opening the folder with the detected path
+          const codePath = status.path;
+          if (codePath && codePath !== 'code') {
+            const fallbackCmd = `"${codePath}" "${folderPath}"`;
+            console.log('[VSCode] Trying fallback command:', fallbackCmd);
 
-      child.on('error', (err) => {
-        resolve({ success: false, error: err.message });
+            exec(fallbackCmd, { windowsHide: true }, (err2, _stdout2, stderr2) => {
+              if (err2) {
+                console.log('[VSCode] Fallback command failed:', err2.message);
+                console.log('[VSCode] stderr:', stderr2);
+                resolve({ success: false, error: err2.message });
+              } else {
+                console.log('[VSCode] Fallback command succeeded');
+                resolve({ success: true });
+              }
+            });
+          } else {
+            resolve({ success: false, error: error.message });
+          }
+        } else {
+          console.log('[VSCode] Command succeeded');
+          resolve({ success: true });
+        }
       });
     });
   }
@@ -197,7 +286,7 @@ export class VSCodeService {
   async openFile(filePath: string, line?: number): Promise<{ success: boolean; error?: string }> {
     const status = await this.getStatus();
 
-    if (!status.installed || !status.path) {
+    if (!status.installed) {
       return { success: false, error: 'VSCode is not installed' };
     }
 
@@ -207,23 +296,32 @@ export class VSCodeService {
 
     return new Promise((resolve) => {
       // VSCode supports file:line format with -g flag
-      const target = line ? `${filePath}:${line}` : filePath;
-      const args = line ? ['-g', target] : [target];
+      const command = line
+        ? `code -g "${filePath}:${line}"`
+        : `code "${filePath}"`;
 
-      const child = spawn(status.path!, args, {
-        detached: true,
-        stdio: 'ignore',
-        shell: process.platform === 'win32',
-      });
+      exec(command, { windowsHide: true }, (error) => {
+        if (error) {
+          // If 'code' command fails, try with detected path
+          const codePath = status.path;
+          if (codePath && codePath !== 'code') {
+            const fallbackCommand = line
+              ? `"${codePath}" -g "${filePath}:${line}"`
+              : `"${codePath}" "${filePath}"`;
 
-      child.unref();
-
-      setTimeout(() => {
-        resolve({ success: true });
-      }, 500);
-
-      child.on('error', (err) => {
-        resolve({ success: false, error: err.message });
+            exec(fallbackCommand, { windowsHide: true }, (err2) => {
+              if (err2) {
+                resolve({ success: false, error: err2.message });
+              } else {
+                resolve({ success: true });
+              }
+            });
+          } else {
+            resolve({ success: false, error: error.message });
+          }
+        } else {
+          resolve({ success: true });
+        }
       });
     });
   }

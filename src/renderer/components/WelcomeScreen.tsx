@@ -4,6 +4,9 @@ import SplashImage from '../../../assets/splash.png';
 import { formatRelativeTime } from '../lib/utils';
 import { Button, Kbd } from 'adnia-ui';
 
+import { t } from '../i18n/t';
+
+declare const __BUILD_VERSION__: string;
 interface WelcomeScreenProps {
     onOpenProject: () => void;
     onNewProject: () => void;
@@ -27,7 +30,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             className="h-20 w-auto mx-auto"
                         />
                     </div>
-                    <p className="text-muted-foreground animate-fade-in animate-fill-both animate-stagger-2">Designed for humans. Powered by AI.</p>
+                    <p className="text-muted-foreground animate-fade-in animate-fill-both animate-stagger-2">{t('views.welcome.tagline')}</p>
                 </div>
 
                 {/* Actions */}
@@ -41,8 +44,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             <FolderOpen size={20} />
                         </div>
                         <div>
-                            <div className="font-medium text-foreground">Open Project</div>
-                            <div className="text-sm text-muted-foreground font-normal">Open an existing project folder</div>
+                            <div className="font-medium text-foreground">{t('views.welcome.openProject')}</div>
+                            <div className="text-sm text-muted-foreground font-normal">{t('views.welcome.openProjectDesc')}</div>
                         </div>
                     </Button>
 
@@ -55,8 +58,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             <FilePlus size={20} />
                         </div>
                         <div>
-                            <div className="font-medium text-foreground">New Project</div>
-                            <div className="text-sm text-muted-foreground font-normal">Create a new Dexteria project</div>
+                            <div className="font-medium text-foreground">{t('actions.newProject')}</div>
+                            <div className="text-sm text-muted-foreground font-normal">{t('views.welcome.newProjectDesc')}</div>
                         </div>
                     </Button>
                 </div>
@@ -94,7 +97,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
                 {/* Footer */}
                 <div className="mt-12 text-center text-xs text-muted-foreground animate-fade-in animate-fill-both animate-stagger-5">
-                    <p>Press <Kbd>Ctrl+O</Kbd> to open a project</p>
+                    <p>{t('views.welcome.pressToOpen')} <Kbd>Ctrl+O</Kbd> {t('views.welcome.toOpenProject')}</p>
+                    <p className="mt-2 text-[10px] opacity-50">v{__BUILD_VERSION__}</p>
                 </div>
             </div>
         </div>

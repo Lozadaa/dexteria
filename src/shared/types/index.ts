@@ -147,3 +147,33 @@ export type {
 } from './common';
 
 export { IPC_CHANNELS } from './common';
+
+// Git types
+export type {
+  GitMode,
+  CodeVisibilityMode,
+  ConflictResolutionMode,
+  GitConfig,
+  GitStatus,
+  BranchInfo,
+  CommitInfo,
+  TaskBranchMapping,
+  ReviewBranchInfo,
+  ConflictType,
+  ConflictStatus,
+  ConflictInfo,
+  MergeResult,
+  GitCommandResult,
+  GitSafetyCheck,
+  GitOperationInitiator,
+  GitOperationLog,
+  GitStateFile,
+  CreateTaskBranchOptions,
+  CommitOptions,
+  MergeOptions,
+  ConflictResolutionChoice,
+  ResolveConflictOptions,
+  TaskGitFields,
+} from './git';
+
+export { DEFAULT_GIT_CONFIG, DEFAULT_GIT_STATE } from './git';

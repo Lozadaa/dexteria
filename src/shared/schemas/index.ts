@@ -55,6 +55,10 @@ export {
   NotificationSettingsSchema,
   ProjectCommandsSettingsSchema,
   RunnerSettingsSchema,
+  GitModeSchema,
+  CodeVisibilityModeSchema,
+  ConflictResolutionModeSchema,
+  GitConfigSchema,
   ProjectSettingsSchema,
 } from './project';
 
