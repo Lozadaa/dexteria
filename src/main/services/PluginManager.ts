@@ -7,7 +7,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { app } from 'electron';
+import { app, dialog } from 'electron';
+import AdmZip from 'adm-zip';
 import { getStore } from '../ipc/handlers/shared';
 import { getBundledPlugins } from '../plugins/bundled';
 import type {
@@ -609,7 +610,21 @@ export class PluginManager {
       console.error(`[PluginManager] Failed to activate ${pluginId}:`, err);
       console.error(`[PluginManager] Error stack:`, (err as Error).stack);
       plugin.state = 'error';
-      plugin.error = err instanceof Error ? err.message : 'Unknown error';
+
+      // Include full error with stack trace for debugging
+      let errorMsg = '';
+      if (err instanceof Error) {
+        errorMsg = err.stack || `${err.name}: ${err.message}`;
+
+        // Add helpful hint for common errors
+        if (err.message.includes("Unexpected token 'export'") ||
+            err.message.includes("Cannot use import statement")) {
+          errorMsg += '\n\n💡 Hint: Plugins must use CommonJS format (module.exports), not ES modules (export/import).';
+        }
+      } else {
+        errorMsg = String(err);
+      }
+      plugin.error = errorMsg;
       return false;
     }
   }
@@ -1177,6 +1192,212 @@ export class PluginManager {
         console.error('[PluginManager] Hook agent:onStep error:', err);
       }
     }
+  }
+
+  // ============================================
+  // Plugin Import
+  // ============================================
+
+  /**
+   * Open a file dialog to select and import a plugin ZIP
+   */
+  async selectAndImportPlugin(): Promise<{ success: boolean; pluginId?: string; pluginName?: string; error?: string }> {
+    const result = await dialog.showOpenDialog({
+      title: 'Import Plugin',
+      filters: [
+        { name: 'ZIP Files', extensions: ['zip'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, error: 'No file selected' };
+    }
+
+    return this.importPlugin(result.filePaths[0]);
+  }
+
+  /**
+   * Import a plugin from a ZIP file
+   * @param zipPath Path to the ZIP file
+   * @returns Result with plugin info or error
+   */
+  async importPlugin(zipPath: string): Promise<{ success: boolean; pluginId?: string; pluginName?: string; error?: string }> {
+    console.log(`[PluginManager] Importing plugin from: ${zipPath}`);
+
+    if (!fs.existsSync(zipPath)) {
+      return { success: false, error: 'ZIP file not found' };
+    }
+
+    try {
+      const zip = new AdmZip(zipPath);
+      const zipEntries = zip.getEntries();
+
+      // Look for manifest.json in the ZIP
+      let manifestEntry = zipEntries.find(e => e.entryName === 'manifest.json');
+      let rootFolder = '';
+
+      // If not found at root, check if it's inside a folder
+      if (!manifestEntry) {
+        for (const entry of zipEntries) {
+          if (entry.entryName.endsWith('/manifest.json') && entry.entryName.split('/').length === 2) {
+            manifestEntry = entry;
+            rootFolder = entry.entryName.split('/')[0] + '/';
+            break;
+          }
+        }
+      }
+
+      if (!manifestEntry) {
+        return { success: false, error: 'No manifest.json found in ZIP' };
+      }
+
+      // Parse and validate manifest
+      let manifest: PluginManifest;
+      try {
+        const manifestData = manifestEntry.getData().toString('utf-8');
+        manifest = JSON.parse(manifestData);
+      } catch (e) {
+        return { success: false, error: 'Invalid manifest.json: ' + (e instanceof Error ? e.message : String(e)) };
+      }
+
+      // Validate required fields
+      if (!manifest.id || !manifest.name || !manifest.version) {
+        return { success: false, error: 'Invalid manifest: missing id, name, or version' };
+      }
+
+      // Check if plugin already exists
+      if (this.plugins.has(manifest.id)) {
+        const existing = this.plugins.get(manifest.id)!;
+        // Allow updating if it's not a bundled plugin
+        if (existing.path.includes('bundled')) {
+          return { success: false, error: `Plugin "${manifest.name}" is a bundled plugin and cannot be replaced` };
+        }
+
+        // Disable existing plugin first
+        if (existing.state === 'active') {
+          await this.disablePlugin(manifest.id);
+        }
+
+        // Remove existing plugin directory
+        if (fs.existsSync(existing.path)) {
+          fs.rmSync(existing.path, { recursive: true, force: true });
+        }
+      }
+
+      // Create plugin directory
+      const pluginDir = path.join(this.pluginsDir, manifest.id);
+      if (!fs.existsSync(pluginDir)) {
+        fs.mkdirSync(pluginDir, { recursive: true });
+      }
+
+      // Extract files
+      for (const entry of zipEntries) {
+        if (entry.isDirectory) continue;
+
+        // Remove root folder prefix if present
+        let targetPath = entry.entryName;
+        if (rootFolder && targetPath.startsWith(rootFolder)) {
+          targetPath = targetPath.substring(rootFolder.length);
+        }
+
+        if (!targetPath) continue;
+
+        const fullPath = path.join(pluginDir, targetPath);
+        const dirPath = path.dirname(fullPath);
+
+        // Ensure directory exists
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        // Write file
+        fs.writeFileSync(fullPath, entry.getData());
+      }
+
+      console.log(`[PluginManager] Extracted plugin to: ${pluginDir}`);
+
+      // Re-discover plugins to pick up the new one
+      this.plugins.delete(manifest.id);
+      await this.discoverUserPlugins();
+
+      // Enable the newly imported plugin
+      const plugin = this.plugins.get(manifest.id);
+      if (plugin) {
+        await this.enablePlugin(manifest.id);
+      }
+
+      console.log(`[PluginManager] Successfully imported plugin: ${manifest.name} (${manifest.id})`);
+
+      return {
+        success: true,
+        pluginId: manifest.id,
+        pluginName: manifest.name,
+      };
+    } catch (err) {
+      console.error('[PluginManager] Failed to import plugin:', err);
+      return {
+        success: false,
+        error: 'Failed to import plugin: ' + (err instanceof Error ? err.message : String(err)),
+      };
+    }
+  }
+
+  /**
+   * Delete a user-installed plugin
+   */
+  async deletePlugin(pluginId: string): Promise<{ success: boolean; error?: string }> {
+    const plugin = this.plugins.get(pluginId);
+
+    if (!plugin) {
+      return { success: false, error: 'Plugin not found' };
+    }
+
+    // Don't allow deleting bundled plugins
+    if (plugin.path.includes('bundled')) {
+      return { success: false, error: 'Cannot delete bundled plugins' };
+    }
+
+    try {
+      // Disable first if active
+      if (plugin.state === 'active') {
+        await this.disablePlugin(pluginId);
+      }
+
+      // Remove from index
+      if (this.index) {
+        this.index.enabled = this.index.enabled.filter(id => id !== pluginId);
+        this.index.disabled = this.index.disabled.filter(id => id !== pluginId);
+        delete this.index.settings[pluginId];
+        this.saveIndex();
+      }
+
+      // Remove plugin directory
+      if (fs.existsSync(plugin.path)) {
+        fs.rmSync(plugin.path, { recursive: true, force: true });
+      }
+
+      // Remove from plugins map
+      this.plugins.delete(pluginId);
+
+      console.log(`[PluginManager] Deleted plugin: ${plugin.manifest.name} (${pluginId})`);
+
+      return { success: true };
+    } catch (err) {
+      console.error('[PluginManager] Failed to delete plugin:', err);
+      return {
+        success: false,
+        error: 'Failed to delete plugin: ' + (err instanceof Error ? err.message : String(err)),
+      };
+    }
+  }
+
+  /**
+   * Get the plugins directory path
+   */
+  getPluginsDirectory(): string {
+    return this.pluginsDir;
   }
 }
 

@@ -42,6 +42,7 @@
     "@radix-ui/react-tabs": "^1.1.4",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-virtual": "^3.13.18",
+    "adm-zip": "^0.5.16",
     "adnia-ui": "file:./packages/adnia-ui",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -61,6 +62,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/diff": "^7.0.2",
     "@types/minimatch": "^5.1.2",
     "@types/react": "^18.2.45",

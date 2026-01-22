@@ -209,6 +209,7 @@ export interface DexteriaAPI {
     getVersion: () => Promise<string>;
     getName: () => Promise<string>;
     getProjectRoot: () => Promise<string>;
+    restart: () => Promise<void>;
   };
   window: {
     minimize: () => Promise<void>;
@@ -280,7 +281,7 @@ export interface DexteriaAPI {
     get: (chatId: string) => Promise<Chat | null>;
     create: (title: string) => Promise<Chat>;
     delete: (chatId: string) => Promise<boolean>;
-    sendMessage: (chatId: string, content: string, mode?: 'planner' | 'agent') => Promise<Chat>;
+    sendMessage: (chatId: string, content: string, mode?: 'planner' | 'agent', attachedFiles?: string[]) => Promise<Chat>;
     onStreamUpdate: (callback: (data: { chatId: string; content: string; done: boolean }) => void) => () => void;
   };
   settings: {
@@ -394,6 +395,11 @@ export interface DexteriaAPI {
     callApi: (pluginId: string, methodName: string, ...args: unknown[]) => Promise<unknown>;
     // UI Contributions
     getUIContributions: () => Promise<UIContributions>;
+    // Import/Delete
+    import: () => Promise<{ success: boolean; pluginId?: string; pluginName?: string; error?: string }>;
+    importFromPath: (zipPath: string) => Promise<{ success: boolean; pluginId?: string; pluginName?: string; error?: string }>;
+    delete: (pluginId: string) => Promise<{ success: boolean; error?: string }>;
+    getPluginsDirectory: () => Promise<string | null>;
   };
   opencode: {
     isInstalled: () => Promise<boolean>;
@@ -496,6 +502,7 @@ const api: DexteriaAPI = {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     getName: () => ipcRenderer.invoke('app:getName'),
     getProjectRoot: () => ipcRenderer.invoke('app:getProjectRoot'),
+    restart: () => ipcRenderer.invoke('app:restart'),
   },
   window: {
     minimize: () => ipcRenderer.invoke('window:minimize'),
@@ -571,7 +578,7 @@ const api: DexteriaAPI = {
     get: (chatId) => ipcRenderer.invoke('chat:get', chatId),
     create: (title) => ipcRenderer.invoke('chat:create', title),
     delete: (chatId) => ipcRenderer.invoke('chat:delete', chatId),
-    sendMessage: (chatId, content, mode) => ipcRenderer.invoke('chat:sendMessage', chatId, content, mode),
+    sendMessage: (chatId, content, mode, attachedFiles) => ipcRenderer.invoke('chat:sendMessage', chatId, content, mode, attachedFiles),
     onStreamUpdate: (callback: (data: { chatId: string; content: string; done: boolean }) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, data: { chatId: string; content: string; done: boolean }) => callback(data);
       ipcRenderer.on('chat:stream-update', handler);
@@ -675,6 +682,11 @@ const api: DexteriaAPI = {
     executeContextMenuItem: (itemId, context) => ipcRenderer.invoke('plugin:executeContextMenuItem', itemId, context),
     callApi: (pluginId, methodName, ...args) => ipcRenderer.invoke('plugin:callApi', pluginId, methodName, ...args),
     getUIContributions: () => ipcRenderer.invoke('plugin:getUIContributions'),
+    // Import/Delete
+    import: () => ipcRenderer.invoke('plugin:import'),
+    importFromPath: (zipPath) => ipcRenderer.invoke('plugin:importFromPath', zipPath),
+    delete: (pluginId) => ipcRenderer.invoke('plugin:delete', pluginId),
+    getPluginsDirectory: () => ipcRenderer.invoke('plugin:getPluginsDirectory'),
   },
   opencode: {
     isInstalled: () => ipcRenderer.invoke('opencode:isInstalled'),

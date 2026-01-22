@@ -17,7 +17,7 @@ import { OpenCodeProvider } from '../../agent/providers/OpenCodeProvider';
 import { CodexProvider } from '../../agent/providers/CodexProvider';
 import { OpenCodeInstaller } from '../../services/OpenCodeInstaller';
 import { initRalphEngine } from '../../agent/RalphEngine';
-import type { RecentProject, HandlerState } from './types';
+import type { RecentProject, HandlerState, ProviderType } from './types';
 
 // Shared state
 const state: HandlerState = {
@@ -30,6 +30,28 @@ const state: HandlerState = {
 
 // Recent projects file path
 const RECENT_PROJECTS_FILE = path.join(app.getPath('userData'), 'recent-projects.json');
+
+// Global config file path (same as in settingsHandlers.ts)
+const GLOBAL_CONFIG_FILE = path.join(app.getPath('userData'), 'dexteria-config.json');
+
+/**
+ * Read the saved provider from global config.
+ */
+function getSavedProvider(): ProviderType | null {
+  try {
+    if (fs.existsSync(GLOBAL_CONFIG_FILE)) {
+      const data = fs.readFileSync(GLOBAL_CONFIG_FILE, 'utf-8');
+      const config = JSON.parse(data);
+      const saved = config.selectedProvider || null;
+      console.log('[Provider] Saved provider from config:', saved);
+      return saved;
+    }
+    console.log('[Provider] Config file does not exist yet');
+  } catch (err) {
+    console.error('[Provider] Failed to read saved provider:', err);
+  }
+  return null;
+}
 
 /**
  * Check if a project is currently open.
@@ -117,11 +139,33 @@ export function setAgentProvider(provider: AgentProvider | null): void {
 
 /**
  * Initialize or get the agent provider based on configuration.
- * Priority: OpenCode (default) > Claude Code > Anthropic API > Mock
+ * Priority: Saved preference > OpenCode (default) > Claude Code > Anthropic API > Mock
  */
 export function getOrCreateProvider(): AgentProvider {
+  // Check saved provider preference first - even if we have a provider,
+  // we might need to switch if user preference changed
+  const savedProvider = getSavedProvider();
+
+  // If we have a provider, check if it matches the saved preference
   if (state.agentProvider && state.agentProvider.isReady()) {
-    return state.agentProvider;
+    const currentType = getProviderType(state.agentProvider);
+    if (!savedProvider || currentType === savedProvider) {
+      console.log(`[Provider] Using existing provider: ${currentType}`);
+      return state.agentProvider;
+    }
+    // Saved preference differs from current - try to switch
+    console.log(`[Provider] Saved preference (${savedProvider}) differs from current (${currentType}), switching...`);
+  }
+
+  // Try saved provider preference first
+  if (savedProvider) {
+    const provider = createProviderByType(savedProvider);
+    if (provider && provider.isReady()) {
+      state.agentProvider = provider;
+      console.log(`[Provider] Using saved provider preference: ${savedProvider}`);
+      return state.agentProvider;
+    }
+    console.log(`[Provider] Saved provider ${savedProvider} not available, falling back to auto-detection`);
   }
 
   // 1. Try OpenCode first (default provider)
@@ -172,6 +216,54 @@ export function getOrCreateProvider(): AgentProvider {
   state.agentProvider = new MockAgentProvider();
   console.log('Using Mock provider (no AI providers available)');
   return state.agentProvider;
+}
+
+/**
+ * Get the type of a provider instance.
+ */
+function getProviderType(provider: AgentProvider): ProviderType {
+  if (provider instanceof OpenCodeProvider) return 'opencode';
+  if (provider instanceof CodexProvider) return 'codex';
+  if (provider instanceof ClaudeCodeProvider) return 'claude-code';
+  if (provider instanceof AnthropicProvider) return 'anthropic';
+  return 'mock';
+}
+
+/**
+ * Create a provider instance by type.
+ */
+function createProviderByType(type: ProviderType): AgentProvider | null {
+  const workingDirectory = state.projectRoot || process.cwd();
+
+  switch (type) {
+    case 'opencode':
+      if (OpenCodeInstaller.isInstalled()) {
+        return new OpenCodeProvider({
+          binaryPath: OpenCodeInstaller.getBinaryPath(),
+          workingDirectory,
+        });
+      }
+      return null;
+
+    case 'codex':
+      return new CodexProvider({ workingDirectory });
+
+    case 'claude-code':
+      return new ClaudeCodeProvider({ workingDirectory });
+
+    case 'anthropic':
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (apiKey) {
+        return new AnthropicProvider({ apiKey });
+      }
+      return null;
+
+    case 'mock':
+      return new MockAgentProvider();
+
+    default:
+      return null;
+  }
 }
 
 /**

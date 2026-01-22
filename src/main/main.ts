@@ -170,6 +170,11 @@ ipcMain.handle('app:getProjectRoot', () => {
   return projectRoot;
 });
 
+ipcMain.handle('app:restart', () => {
+  app.relaunch();
+  app.exit(0);
+});
+
 // Window control handlers
 ipcMain.handle('window:minimize', () => {
   mainWindow?.minimize();

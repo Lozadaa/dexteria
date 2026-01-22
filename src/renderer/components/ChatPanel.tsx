@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useChats } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
-import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2, Cpu, ChevronDown } from 'lucide-react';
-import { MarkdownRenderer, ThinkingIndicator } from './MarkdownRenderer';
+import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2, Cpu, ChevronDown, Paperclip, File } from 'lucide-react';
+import { MarkdownRenderer, ThinkingIndicator, ThinkingBlock, extractThinking } from './MarkdownRenderer';
 import {
     Button,
     IconButton,
@@ -76,6 +76,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         available: boolean;
     }>>([]);
     const [changingProvider, setChangingProvider] = useState(false);
+    const [attachedFiles, setAttachedFiles] = useState<string[]>([]); // Array of file paths
+    const [isDraggingFile, setIsDraggingFile] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const {
         mode,
         showFirstMessageWarning,
@@ -128,6 +131,52 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
             setChangingProvider(false);
         }
     };
+
+    // File attachment handlers
+    const handleFileSelect = useCallback(() => {
+        fileInputRef.current?.click();
+    }, []);
+
+    const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const paths = Array.from(files).map(f => (f as any).path || f.name);
+            setAttachedFiles(prev => [...new Set([...prev, ...paths])]);
+        }
+        // Reset input so same file can be selected again
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }, []);
+
+    const handleRemoveFile = useCallback((filePath: string) => {
+        setAttachedFiles(prev => prev.filter(f => f !== filePath));
+    }, []);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(false);
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(false);
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const paths = Array.from(files).map(f => (f as any).path || f.name);
+            setAttachedFiles(prev => [...new Set([...prev, ...paths])]);
+        }
+    }, []);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const historyRef = useRef<HTMLDivElement>(null);
@@ -270,16 +319,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         setStreamingContent('');
         setStreamingMessages([]);
         setPendingMessage(null);
+        const filesToSend = [...attachedFiles]; // Copy before clearing
+        setAttachedFiles([]); // Clear attached files
 
         // Create abort controller for this request
         abortControllerRef.current = new AbortController();
 
-        // Add only user message immediately
+        // Add only user message immediately (include attached files for display)
         const tempUserMsg: ChatMessage = {
             id: `temp-user-${Date.now()}`,
             role: 'user',
             content: userMessage,
             timestamp: Date.now(),
+            attachedFiles: filesToSend.length > 0 ? filesToSend : undefined,
         };
         setMessages(prev => [...prev, tempUserMsg]);
 
@@ -290,7 +342,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
             });
 
             const response = await Promise.race([
-                window.dexteria.chat.sendMessage(activeChatId, userMessage, mode),
+                window.dexteria.chat.sendMessage(activeChatId, userMessage, mode, filesToSend),
                 timeoutPromise
             ]) as ChatMessage;
 
@@ -503,92 +555,204 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     </div>
                 ) : (
                     <>
-                        {messages.map((msg, idx) => (
-                            <div
-                                key={msg.id || idx}
-                                className={cn(
-                                    "flex gap-3 max-w-[85%] group",
-                                    msg.role === 'user'
-                                        ? "ml-auto flex-row-reverse animate-slide-in-right"
-                                        : "mr-auto animate-slide-in-left"
-                                )}
-                                style={{ animationDelay: `${Math.min(idx * 50, 200)}ms`, animationFillMode: 'both' }}
-                            >
-                                {/* Avatar - rounded square */}
-                                <div className={cn(
-                                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 hover:scale-110 hover:shadow-lg",
-                                    msg.role === 'user'
-                                        ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md hover:shadow-primary/30"
-                                        : "bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm hover:shadow-primary/20"
-                                )}>
-                                    {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-                                </div>
-                                {/* Message bubble */}
-                                <div className={cn(
-                                    "p-3 rounded-2xl text-sm leading-relaxed break-words overflow-hidden transition-all duration-200",
-                                    msg.role === 'user'
-                                        ? "bg-gradient-to-br from-primary to-primary/90 text-white rounded-tr-md whitespace-pre-wrap shadow-md hover:shadow-lg hover:shadow-primary/20"
-                                        : "bg-card border border-border/50 rounded-tl-md shadow-sm hover:shadow-md hover:border-border"
-                                )}>
-                                    {msg.role === 'user' ? (
-                                        msg.content
-                                    ) : (
-                                        <MarkdownRenderer content={msg.content} />
+                        {messages.map((msg, idx) => {
+                            // Extract thinking for assistant messages
+                            const { thinking, content: cleanContent, isThinkingComplete } =
+                                msg.role === 'assistant' ? extractThinking(msg.content) : { thinking: null, content: msg.content, isThinkingComplete: true };
+
+                            return (
+                                <div
+                                    key={msg.id || idx}
+                                    className={cn(
+                                        "flex gap-3 max-w-[85%] group",
+                                        msg.role === 'user'
+                                            ? "ml-auto flex-row-reverse animate-slide-in-right"
+                                            : "mr-auto animate-slide-in-left"
                                     )}
+                                    style={{ animationDelay: `${Math.min(idx * 50, 200)}ms`, animationFillMode: 'both' }}
+                                >
+                                    {/* Avatar - rounded square */}
+                                    <div className={cn(
+                                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 hover:scale-110 hover:shadow-lg",
+                                        msg.role === 'user'
+                                            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md hover:shadow-primary/30"
+                                            : "bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm hover:shadow-primary/20"
+                                    )}>
+                                        {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                                    </div>
+                                    {/* Message content with optional thinking above */}
+                                    <div className="flex flex-col">
+                                        {/* Thinking block above the bubble */}
+                                        {thinking && (
+                                            <ThinkingBlock content={thinking} isComplete={isThinkingComplete} />
+                                        )}
+                                        {/* Message bubble */}
+                                        <div className={cn(
+                                            "p-3 rounded-2xl text-sm leading-relaxed break-words overflow-hidden transition-all duration-200",
+                                            msg.role === 'user'
+                                                ? "bg-gradient-to-br from-primary to-primary/90 text-white rounded-tr-md whitespace-pre-wrap shadow-md hover:shadow-lg hover:shadow-primary/20"
+                                                : "bg-card border border-border/50 rounded-tl-md shadow-sm hover:shadow-md hover:border-border"
+                                        )}>
+                                            {msg.role === 'user' ? (
+                                                <>
+                                                    {cleanContent}
+                                                    {/* Show attached files */}
+                                                    {msg.attachedFiles && msg.attachedFiles.length > 0 && (
+                                                        <div className="mt-2 pt-2 border-t border-white/20 flex flex-wrap gap-1.5">
+                                                            {msg.attachedFiles.map((filePath, fileIdx) => {
+                                                                const fileName = filePath.split(/[/\\]/).pop() || filePath;
+                                                                return (
+                                                                    <span
+                                                                        key={fileIdx}
+                                                                        className="inline-flex items-center gap-1 text-xs text-sky-200 hover:text-sky-100"
+                                                                        title={filePath}
+                                                                    >
+                                                                        <Paperclip size={10} />
+                                                                        <span className="underline underline-offset-2">{fileName}</span>
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <MarkdownRenderer content={cleanContent} />
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         {/* Completed streaming messages (from delimiter splits) */}
-                        {isSending && streamingMessages.map((content, idx) => (
-                            <div
-                                key={`streaming-complete-${idx}`}
-                                className="flex gap-3 max-w-[85%] mr-auto animate-slide-in-left"
-                            >
-                                {/* Avatar - rounded square */}
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-primary/20">
-                                    <Bot size={16} />
+                        {isSending && streamingMessages.map((content, idx) => {
+                            const { thinking, content: cleanContent, isThinkingComplete } = extractThinking(content);
+                            return (
+                                <div
+                                    key={`streaming-complete-${idx}`}
+                                    className="flex gap-3 max-w-[85%] mr-auto animate-slide-in-left"
+                                >
+                                    {/* Avatar - rounded square */}
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-primary/20">
+                                        <Bot size={16} />
+                                    </div>
+                                    {/* Message content with optional thinking above */}
+                                    <div className="flex flex-col">
+                                        {thinking && (
+                                            <ThinkingBlock content={thinking} isComplete={isThinkingComplete} />
+                                        )}
+                                        <div className="p-3 rounded-2xl rounded-tl-md bg-card border border-border/50 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-border">
+                                            <MarkdownRenderer content={cleanContent} />
+                                        </div>
+                                    </div>
                                 </div>
-                                {/* Message bubble */}
-                                <div className="p-3 rounded-2xl rounded-tl-md bg-card border border-border/50 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-border">
-                                    <MarkdownRenderer content={content} />
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         {/* Current streaming message (in progress) */}
-                        {isSending && (
-                            <div className="flex gap-3 max-w-[85%] mr-auto animate-slide-in-left">
-                                {/* Avatar - rounded square matching message history */}
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-primary/20">
-                                    <Bot size={16} className="animate-pulse" />
-                                </div>
-                                <div className="p-3 rounded-2xl rounded-tl-md bg-card border border-border/50 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-border">
-                                    {streamingContent ? (
-                                        <div className="break-words">
-                                            <MarkdownRenderer content={streamingContent} />
-                                            {/* Loading indicator after content */}
-                                            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
-                                                <span className="flex gap-0.5">
-                                                    <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                                    <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                                    <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                                </span>
-                                            </div>
+                        {isSending && (() => {
+                            const { thinking, content: cleanContent, isThinkingComplete } = extractThinking(streamingContent || '');
+                            return (
+                                <div className="flex gap-3 max-w-[85%] mr-auto animate-slide-in-left">
+                                    {/* Avatar - rounded square matching message history */}
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-primary/20">
+                                        <Bot size={16} className="animate-pulse" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        {/* Thinking block above bubble while streaming */}
+                                        {thinking && (
+                                            <ThinkingBlock content={thinking} isComplete={isThinkingComplete} />
+                                        )}
+                                        <div className="p-3 rounded-2xl rounded-tl-md bg-card border border-border/50 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-border">
+                                            {cleanContent ? (
+                                                <div className="break-words">
+                                                    <MarkdownRenderer content={cleanContent} />
+                                                    {/* Loading indicator after content */}
+                                                    <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
+                                                        <span className="flex gap-0.5">
+                                                            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : thinking ? (
+                                                // If only thinking, show minimal indicator
+                                                <div className="flex items-center gap-1 text-muted-foreground/50 text-xs">
+                                                    <span>Formulating response</span>
+                                                    <span className="flex gap-0.5">
+                                                        <span className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                        <span className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                        <span className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <ThinkingIndicator />
+                                            )}
                                         </div>
-                                    ) : (
-                                        <ThinkingIndicator />
-                                    )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
                     </>
                 )}
                 <div ref={messagesEndRef} />
             </ScrollArea>
 
             {/* Input */}
-            <div className="p-3 border-t border-border">
+            <div
+                className={cn(
+                    "p-3 border-t border-border transition-colors",
+                    isDraggingFile && "bg-primary/5 border-primary/30"
+                )}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
+                {/* Hidden file input */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileInputChange}
+                />
+
+                {/* Attached files chips */}
+                {attachedFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                        {attachedFiles.map((filePath) => {
+                            const fileName = filePath.split(/[/\\]/).pop() || filePath;
+                            return (
+                                <div
+                                    key={filePath}
+                                    className="flex items-center gap-1 px-2 py-1 text-xs bg-primary/10 text-primary rounded-full border border-primary/20 group hover:bg-primary/20 transition-colors"
+                                    title={filePath}
+                                >
+                                    <File size={12} />
+                                    <span className="max-w-[150px] truncate">{fileName}</span>
+                                    <button
+                                        onClick={() => handleRemoveFile(filePath)}
+                                        className="ml-0.5 p-0.5 rounded-full hover:bg-primary/30 transition-colors"
+                                    >
+                                        <X size={10} />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Drag overlay hint */}
+                {isDraggingFile && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm rounded-lg border-2 border-dashed border-primary/40 pointer-events-none z-10">
+                        <div className="flex flex-col items-center gap-2 text-primary">
+                            <Paperclip size={24} />
+                            <span className="text-sm font-medium">Drop files to attach</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Mode and Provider indicator */}
                 <div className="flex items-center justify-between gap-2 mb-2 text-xs">
                     <div className={cn(
@@ -638,7 +802,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                         </DropdownMenuContent>
                     </DropdownMenuRoot>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-end">
+                    {/* Attach file button */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleFileSelect}
+                        disabled={!activeChatId}
+                        className="shrink-0 h-10 w-10 p-0"
+                        title="Attach files"
+                    >
+                        <Paperclip size={18} className={attachedFiles.length > 0 ? "text-primary" : ""} />
+                    </Button>
                     <Textarea
                         ref={textareaRef}
                         value={inputValue}

@@ -46,6 +46,7 @@ interface GlobalAppConfig {
   setupCompletedAt?: string;
   wantsCodeViewing?: boolean;
   vscodePreferenceSetAt?: string;
+  selectedProvider?: ProviderType;
 }
 
 /**
@@ -313,6 +314,12 @@ export function registerSettingsHandlers(): void {
       }
 
       setAgentProvider(newProvider);
+
+      // Persist the provider selection to global config
+      const config = readGlobalConfig();
+      config.selectedProvider = providerType;
+      writeGlobalConfig(config);
+
       return {
         success: true,
         provider: newProvider.getName(),

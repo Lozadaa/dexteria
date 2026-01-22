@@ -553,35 +553,67 @@ interface MarkdownRendererProps {
 }
 
 /**
- * Thinking block component - shows AI reasoning as a collapsible toggle above the message
+ * Thinking block component - shows AI reasoning as a collapsible toggle
+ * Designed to appear above the message bubble with a subtle, elegant appearance
  */
-const ThinkingBlock: React.FC<{ content: string; isComplete: boolean }> = ({ content, isComplete }) => {
+export const ThinkingBlock: React.FC<{ content: string; isComplete: boolean }> = ({ content, isComplete }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div className="mb-1">
-            {/* Toggle button - minimal, above the message */}
+        <div className="mb-2">
+            {/* Toggle button - elegant pill style */}
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors mb-1"
+                className={cn(
+                    "group flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] transition-all duration-300 ease-out",
+                    "bg-gradient-to-r from-violet-500/5 to-purple-500/5 hover:from-violet-500/10 hover:to-purple-500/10",
+                    "border border-violet-500/10 hover:border-violet-500/20",
+                    "text-muted-foreground/50 hover:text-muted-foreground/70",
+                    isExpanded && "from-violet-500/10 to-purple-500/10 border-violet-500/20"
+                )}
             >
-                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                <span>Reasoning</span>
+                <LucideIcons.Sparkles
+                    size={10}
+                    className={cn(
+                        "transition-all duration-300",
+                        isExpanded ? "text-violet-400/60" : "text-violet-400/30 group-hover:text-violet-400/50"
+                    )}
+                />
+                <span className="font-medium tracking-wide">Reasoning</span>
                 {!isComplete && (
-                    <span className="flex gap-0.5 ml-1">
-                        <span className="w-1 h-1 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1 h-1 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1 h-1 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="flex gap-0.5 ml-0.5">
+                        <span className="w-1 h-1 bg-violet-400/40 rounded-full animate-pulse" />
+                        <span className="w-1 h-1 bg-violet-400/40 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1 h-1 bg-violet-400/40 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
                     </span>
                 )}
+                <ChevronDown
+                    size={10}
+                    className={cn(
+                        "transition-transform duration-300 ease-out ml-0.5",
+                        isExpanded ? "rotate-180" : "rotate-0"
+                    )}
+                />
             </button>
 
-            {/* Expandable content - light gray text */}
-            {isExpanded && (
-                <div className="mb-2 px-3 py-2 text-xs text-muted-foreground/50 bg-muted/20 rounded-lg whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-border/30">
+            {/* Expandable content with smooth animation */}
+            <div
+                className={cn(
+                    "overflow-hidden transition-all duration-300 ease-out",
+                    isExpanded ? "max-h-64 opacity-100 mt-2" : "max-h-0 opacity-0 mt-0"
+                )}
+            >
+                <div className={cn(
+                    "px-3 py-2.5 text-[11px] leading-relaxed",
+                    "text-muted-foreground/40 italic",
+                    "bg-gradient-to-br from-violet-500/[0.02] to-purple-500/[0.02]",
+                    "rounded-lg border border-violet-500/5",
+                    "max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-violet-500/10",
+                    "whitespace-pre-wrap"
+                )}>
                     {content}
                 </div>
-            )}
+            </div>
         </div>
     );
 };
@@ -1065,3 +1097,34 @@ export const ThinkingIndicator: React.FC = () => {
         </div>
     );
 };
+
+/**
+ * Extract thinking blocks from content
+ * Returns { thinking: string | null, content: string, isThinkingComplete: boolean }
+ */
+export function extractThinking(content: string): {
+    thinking: string | null;
+    content: string;
+    isThinkingComplete: boolean;
+} {
+    if (!content) return { thinking: null, content: '', isThinkingComplete: true };
+
+    const thinkingRegex = /<(?:antml:)?thinking>([\s\S]*?)(?:<\/(?:antml:)?thinking>|$)/gi;
+    const match = thinkingRegex.exec(content);
+
+    if (!match) {
+        return { thinking: null, content, isThinkingComplete: true };
+    }
+
+    const thinkingContent = match[1].trim();
+    const isComplete = match[0].includes('</thinking>') || match[0].includes('</thinking>');
+
+    // Remove thinking block from content
+    const cleanedContent = content.replace(thinkingRegex, '').trim();
+
+    return {
+        thinking: thinkingContent,
+        content: cleanedContent,
+        isThinkingComplete: isComplete
+    };
+}

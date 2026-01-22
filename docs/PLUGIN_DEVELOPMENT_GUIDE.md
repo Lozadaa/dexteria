@@ -27,11 +27,37 @@ This guide provides comprehensive documentation for developing plugins for Dexte
 - Understanding of Dexteria's architecture (Electron + React)
 - Node.js installed for development
 
+### ⚠️ CRITICAL: Use CommonJS Format
+
+**Plugins MUST use CommonJS format, NOT ES Modules.**
+
+```javascript
+// ✅ CORRECT - CommonJS format
+module.exports = {
+  activate: async function(context) {
+    // Your plugin code
+  },
+  deactivate: async function() {
+    // Cleanup code
+  },
+  api: {
+    // Exposed methods
+  }
+};
+
+// ❌ WRONG - ES Modules (will cause "Unexpected token 'export'" error)
+export async function activate(context) { }
+export async function deactivate() { }
+export const api = { };
+```
+
+This is because Electron's main process uses Node.js `require()` which doesn't support ES modules syntax.
+
 ### Quick Start
 
 1. Create a new folder in `.local-kanban/plugins/` with your plugin ID
 2. Create a `manifest.json` file with plugin metadata
-3. Create a `main.js` file with your plugin code
+3. Create a `main.js` file with your plugin code (CommonJS format!)
 4. Restart Dexteria or reload the project
 
 ```bash
@@ -39,6 +65,37 @@ This guide provides comprehensive documentation for developing plugins for Dexte
 mkdir -p .local-kanban/plugins/com.example.hello
 cd .local-kanban/plugins/com.example.hello
 ```
+
+### Installing Plugins via ZIP
+
+You can also import plugins from ZIP files:
+
+1. Go to **Settings > Plugins**
+2. Click the **Import** button
+3. Select a `.zip` file containing your plugin
+
+The ZIP structure should be:
+```
+my-plugin.zip
+├── manifest.json    # Required
+├── main.js          # Required
+└── (other files)
+```
+
+Or with a root folder:
+```
+my-plugin.zip
+└── com.example.plugin/
+    ├── manifest.json
+    ├── main.js
+    └── ...
+```
+
+Dexteria will:
+- Extract the ZIP
+- Validate the manifest
+- Install to `%APPDATA%/Dexteria/plugins/`
+- Enable the plugin automatically
 
 ---
 

@@ -44,7 +44,9 @@
     "checkAgain": "Check Again",
     "openExistingProject": "Open an existing project folder",
     "createNewDexteria": "Create a new Dexteria project",
-    "createTasksFromBoard": "Create tasks from the board or chat"
+    "createTasksFromBoard": "Create tasks from the board or chat",
+    "later": "Later",
+    "restartNow": "Restart Now"
   },
   "labels": {
     "settings": "Settings",
@@ -239,7 +241,10 @@
         "providedBy": "Settings provided by plugin: {{pluginId}}",
         "pluginTabNotFound": "Plugin tab not found",
         "checkDevTools": "Check DevTools console (F12) for more details",
-        "by": "by {{author}}"
+        "by": "by {{author}}",
+        "deleteConfirm": "Delete plugin \"{{name}}\"? This action cannot be undone.",
+        "restartRequired": "Restart Required",
+        "restartRequiredDesc": "The application needs to restart to complete the plugin changes."
       }
     },
     "topbar": {

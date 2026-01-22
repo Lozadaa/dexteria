@@ -15,6 +15,8 @@ import {
   getRuntime,
   setRuntime,
   ClaudeCodeProvider,
+  OpenCodeProvider,
+  CodexProvider,
 } from './shared';
 import type { AgentRun, RunTaskOptions, RalphModeOptions, Task } from '../../../shared/types';
 
@@ -311,9 +313,9 @@ export function registerAgentHandlers(): void {
     const ralph = getRalphEngine();
     ralph.setWindowGetter(() => BrowserWindow.fromWebContents(event.sender));
 
-    // Set provider if not already set
+    // Set provider if not already set (supports all CLI-based providers)
     const provider = getOrCreateProvider();
-    if (provider instanceof ClaudeCodeProvider) {
+    if (provider instanceof ClaudeCodeProvider || provider instanceof OpenCodeProvider || provider instanceof CodexProvider) {
       ralph.setProvider(provider);
     }
 

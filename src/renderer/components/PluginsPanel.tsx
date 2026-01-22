@@ -14,14 +14,20 @@ import {
   Power,
   PowerOff,
   AlertCircle,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import type { PluginInfo } from '../../shared/types';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 import { t } from '../i18n/t';
 export const PluginsPanel: React.FC = () => {
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingPlugin, setTogglingPlugin] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [deletingPlugin, setDeletingPlugin] = useState<string | null>(null);
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     loadPlugins();
@@ -53,6 +59,53 @@ export const PluginsPanel: React.FC = () => {
     setTogglingPlugin(null);
   };
 
+  const handleImport = async () => {
+    setImporting(true);
+    try {
+      const result = await window.dexteria?.plugin?.import?.();
+      if (result?.success) {
+        await loadPlugins();
+      } else if (result?.error && result.error !== 'No file selected') {
+        alert(`Failed to import plugin: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to import plugin:', error);
+      alert('Failed to import plugin');
+    }
+    setImporting(false);
+  };
+
+  const handleDelete = async (plugin: PluginInfo) => {
+    const confirmed = await confirm({
+      title: 'Delete Plugin',
+      message: `Are you sure you want to delete "${plugin.manifest.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
+    setDeletingPlugin(plugin.manifest.id);
+    try {
+      const result = await window.dexteria?.plugin?.delete?.(plugin.manifest.id);
+      if (result?.success) {
+        await loadPlugins();
+      } else if (result?.error) {
+        alert(`Failed to delete plugin: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete plugin:', error);
+      alert('Failed to delete plugin');
+    }
+    setDeletingPlugin(null);
+  };
+
+  // Check if a plugin is bundled (cannot be deleted)
+  const isBundledPlugin = (plugin: PluginInfo) => {
+    return plugin.path?.includes('bundled') ?? false;
+  };
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -69,15 +122,30 @@ export const PluginsPanel: React.FC = () => {
           <Puzzle size={18} className="text-primary" />
           <h2 className="font-semibold">{t('labels.plugins')}</h2>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={loadPlugins}
-          disabled={loading}
-        >
-          <RefreshCw size={14} className={cn("mr-1", loading && "animate-spin")} />
-          {t('actions.refresh')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleImport}
+            disabled={importing}
+          >
+            {importing ? (
+              <Spinner size="xs" className="mr-1" />
+            ) : (
+              <Upload size={14} className="mr-1" />
+            )}
+            {t('actions.import')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={loadPlugins}
+            disabled={loading}
+          >
+            <RefreshCw size={14} className={cn("mr-1", loading && "animate-spin")} />
+            {t('actions.refresh')}
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
@@ -161,7 +229,7 @@ export const PluginsPanel: React.FC = () => {
                         variant={isActive || isEnabled ? "success-soft" : "secondary"}
                         size="sm"
                         onClick={() => togglePlugin(plugin.manifest.id, plugin.state)}
-                        disabled={isToggling}
+                        disabled={isToggling || deletingPlugin === plugin.manifest.id}
                         className="w-24"
                       >
                         {isToggling ? (
@@ -178,6 +246,21 @@ export const PluginsPanel: React.FC = () => {
                           </>
                         )}
                       </Button>
+                      {!isBundledPlugin(plugin) && (
+                        <Button
+                          variant="danger-soft"
+                          size="sm"
+                          onClick={() => handleDelete(plugin)}
+                          disabled={deletingPlugin === plugin.manifest.id}
+                          title="Delete plugin"
+                        >
+                          {deletingPlugin === plugin.manifest.id ? (
+                            <Spinner size="xs" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -44,6 +44,9 @@ import {
   ExternalLink,
   Globe,
   GitBranch,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
 } from 'lucide-react';
 import { GitSettingsPanel } from './Git/GitSettingsPanel';
 import { useThemeContext } from '../contexts/ThemeContext';
@@ -88,6 +91,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   const [loadingPlugins, setLoadingPlugins] = useState(false);
   const [togglingPlugin, setTogglingPlugin] = useState<string | null>(null);
   const [pluginError, setPluginError] = useState<{ pluginId: string; error: string } | null>(null);
+  const [expandedPluginErrors, setExpandedPluginErrors] = useState<Set<string>>(new Set());
+  const [pendingRestart, setPendingRestart] = useState(false);
+  const [deletingPlugin, setDeletingPlugin] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<ProjectSettings | null>(null);
 
@@ -248,6 +254,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }
+  };
+
+  const togglePluginErrorExpanded = (pluginId: string) => {
+    setExpandedPluginErrors(prev => {
+      const next = new Set(prev);
+      if (next.has(pluginId)) {
+        next.delete(pluginId);
+      } else {
+        next.add(pluginId);
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -1070,16 +1088,75 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                     Extend Dexteria&apos;s functionality with plugins.
                   </p>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={loadPlugins}
-                  disabled={loadingPlugins}
-                >
-                  <RefreshCw size={14} className={cn("mr-1", loadingPlugins && "animate-spin")} />
-                  {t('actions.refresh')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const result = await window.dexteria?.plugin?.import?.();
+                        if (result?.success) {
+                          loadPlugins();
+                        } else if (result?.error && result.error !== 'No file selected') {
+                          alert(`Failed to import plugin: ${result.error}`);
+                        }
+                      } catch (err) {
+                        console.error('Failed to import plugin:', err);
+                      }
+                    }}
+                  >
+                    <Upload size={14} className="mr-1" />
+                    {t('actions.import')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={loadPlugins}
+                    disabled={loadingPlugins}
+                  >
+                    <RefreshCw size={14} className={cn("mr-1", loadingPlugins && "animate-spin")} />
+                    {t('actions.refresh')}
+                  </Button>
+                </div>
               </div>
+
+              {/* Restart Required Banner */}
+              {pendingRestart && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <RotateCcw size={20} className="text-amber-500" />
+                      <div>
+                        <p className="font-medium text-amber-500">
+                          {t('views.settings.plugins.restartRequired')}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {t('views.settings.plugins.restartRequiredDesc')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setPendingRestart(false)}
+                      >
+                        {t('actions.later')}
+                      </Button>
+                      <Button
+                        variant="warning"
+                        size="sm"
+                        onClick={async () => {
+                          await window.dexteria?.app?.restart?.();
+                        }}
+                      >
+                        <RotateCcw size={14} className="mr-1" />
+                        {t('actions.restartNow')}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 {loadingPlugins ? (
@@ -1152,36 +1229,68 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                   by {plugin.manifest.author}
                                 </p>
                               )}
-                              {(isError && plugin.error) || (pluginError?.pluginId === plugin.manifest.id) ? (
-                                <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm text-red-400 font-medium">
-                                      Error: {plugin.error || pluginError?.error}
-                                    </p>
-                                    <div className="flex gap-1 shrink-0">
-                                      <button
-                                        onClick={() => copyErrorToClipboard(plugin.error || pluginError?.error || '')}
-                                        className="p-1 hover:bg-red-500/20 rounded text-red-400"
-                                        title="Copy error"
-                                      >
-                                        <Copy size={14} />
-                                      </button>
-                                      {pluginError?.pluginId === plugin.manifest.id && (
+                              {(isError && plugin.error) || (pluginError?.pluginId === plugin.manifest.id) ? (() => {
+                                const errorText = plugin.error || pluginError?.error || '';
+                                const isExpanded = expandedPluginErrors.has(plugin.manifest.id);
+                                // Extract first line as summary
+                                const firstLine = errorText.split('\n')[0];
+                                const hasMoreLines = errorText.includes('\n') || errorText.length > 100;
+
+                                return (
+                                  <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded">
+                                    {/* Error Header */}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-red-400 font-medium truncate">
+                                          Error: {firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine}
+                                        </p>
+                                      </div>
+                                      <div className="flex gap-1 shrink-0">
+                                        {hasMoreLines && (
+                                          <button
+                                            onClick={() => togglePluginErrorExpanded(plugin.manifest.id)}
+                                            className="p-1 hover:bg-red-500/20 rounded text-red-400"
+                                            title={isExpanded ? "Collapse" : "Expand"}
+                                          >
+                                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                          </button>
+                                        )}
                                         <button
-                                          onClick={() => setPluginError(null)}
+                                          onClick={() => copyErrorToClipboard(errorText)}
                                           className="p-1 hover:bg-red-500/20 rounded text-red-400"
-                                          title="Dismiss"
+                                          title="Copy error"
                                         >
-                                          <X size={14} />
+                                          <Copy size={14} />
                                         </button>
-                                      )}
+                                        {pluginError?.pluginId === plugin.manifest.id && (
+                                          <button
+                                            onClick={() => setPluginError(null)}
+                                            className="p-1 hover:bg-red-500/20 rounded text-red-400"
+                                            title="Dismiss"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
+
+                                    {/* Expanded Error Details */}
+                                    {isExpanded && (
+                                      <div className="mt-2 pt-2 border-t border-red-500/20">
+                                        <pre className="text-xs text-red-400/90 whitespace-pre-wrap break-all font-mono bg-red-950/30 p-2 rounded max-h-48 overflow-y-auto">
+                                          {errorText}
+                                        </pre>
+                                      </div>
+                                    )}
+
+                                    {!isExpanded && hasMoreLines && (
+                                      <p className="text-xs text-red-400/70 mt-1">
+                                        Click expand to see full error
+                                      </p>
+                                    )}
                                   </div>
-                                  <p className="text-xs text-red-400/70 mt-1">
-                                    {t('views.settings.plugins.checkDevTools')}
-                                  </p>
-                                </div>
-                              ) : null}
+                                );
+                              })() : null}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
@@ -1206,6 +1315,40 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                 </>
                               )}
                             </Button>
+                            {/* Delete button - only for non-bundled plugins */}
+                            {!plugin.manifest.id.startsWith('com.dexteria.') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (confirm(t('views.settings.plugins.deleteConfirm', { name: plugin.manifest.name }))) {
+                                    setDeletingPlugin(plugin.manifest.id);
+                                    try {
+                                      const result = await window.dexteria?.plugin?.delete?.(plugin.manifest.id);
+                                      if (result?.success) {
+                                        await loadPlugins();
+                                        setPendingRestart(true);
+                                      } else if (result?.error) {
+                                        alert(`Failed to delete plugin: ${result.error}`);
+                                      }
+                                    } catch (err) {
+                                      console.error('Failed to delete plugin:', err);
+                                      alert('Failed to delete plugin');
+                                    }
+                                    setDeletingPlugin(null);
+                                  }
+                                }}
+                                disabled={deletingPlugin === plugin.manifest.id}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                title={t('actions.delete')}
+                              >
+                                {deletingPlugin === plugin.manifest.id ? (
+                                  <Spinner size="xs" />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -174,4 +174,48 @@ export function registerPluginHandlers(): void {
 
     return manager.callPluginAPI(pluginId, methodName, ...args);
   });
+
+  // ============================================
+  // Plugin Import/Delete Handlers
+  // ============================================
+
+  // Import a plugin from ZIP (opens file dialog)
+  ipcMain.handle('plugin:import', async (): Promise<{ success: boolean; pluginId?: string; pluginName?: string; error?: string }> => {
+    const manager = getPluginManager();
+    if (!manager) {
+      return { success: false, error: 'Plugin manager not initialized' };
+    }
+
+    return manager.selectAndImportPlugin();
+  });
+
+  // Import a plugin from a specific ZIP path
+  ipcMain.handle('plugin:importFromPath', async (_, zipPath: string): Promise<{ success: boolean; pluginId?: string; pluginName?: string; error?: string }> => {
+    const manager = getPluginManager();
+    if (!manager) {
+      return { success: false, error: 'Plugin manager not initialized' };
+    }
+
+    return manager.importPlugin(zipPath);
+  });
+
+  // Delete a user-installed plugin
+  ipcMain.handle('plugin:delete', async (_, pluginId: string): Promise<{ success: boolean; error?: string }> => {
+    const manager = getPluginManager();
+    if (!manager) {
+      return { success: false, error: 'Plugin manager not initialized' };
+    }
+
+    return manager.deletePlugin(pluginId);
+  });
+
+  // Get the plugins directory path
+  ipcMain.handle('plugin:getPluginsDirectory', async (): Promise<string | null> => {
+    const manager = getPluginManager();
+    if (!manager) {
+      return null;
+    }
+
+    return manager.getPluginsDirectory();
+  });
 }

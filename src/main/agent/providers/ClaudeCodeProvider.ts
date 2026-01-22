@@ -6,6 +6,8 @@
  */
 
 import { spawn, spawnSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AgentProvider, AgentProviderConfig } from '../AgentProvider';
 import type {
   AgentMessage,
@@ -33,6 +35,7 @@ export class ClaudeCodeProvider extends AgentProvider {
   private currentProcess: ReturnType<typeof spawn> | null = null;
   private cancelled: boolean = false;
   private projectContext: ProjectContext | null = null;
+  private attachedFiles: string[] = [];
 
   constructor(config: ClaudeCodeProviderConfig = {}) {
     super(config);
@@ -508,7 +511,13 @@ export class ClaudeCodeProvider extends AgentProvider {
     }
 
     try {
-      const prompt = this.buildPrompt(messages, tools, mode);
+      // Build prompt with attached files prepended
+      const fileContents = this.buildFileContents();
+      const basePrompt = this.buildPrompt(messages, tools, mode);
+      const prompt = fileContents + basePrompt;
+
+      // Clear attached files after building prompt (one-time use)
+      this.attachedFiles = [];
 
       // Use claude with streaming JSON output for real-time feedback
       // See: https://docs.anthropic.com/claude-code/streaming
@@ -567,6 +576,57 @@ export class ClaudeCodeProvider extends AgentProvider {
    */
   getProjectContext(): ProjectContext | null {
     return this.projectContext;
+  }
+
+  /**
+   * Set attached files to include in the next prompt.
+   * Files will be read and their contents prepended to the prompt via stdin.
+   */
+  setAttachedFiles(files: string[]): void {
+    this.attachedFiles = files;
+    console.log('[ClaudeCode] Attached files set:', files);
+  }
+
+  /**
+   * Get attached files.
+   */
+  getAttachedFiles(): string[] {
+    return this.attachedFiles;
+  }
+
+  /**
+   * Build file contents string to prepend to prompt.
+   * Reads each attached file and formats it for Claude.
+   */
+  private buildFileContents(): string {
+    if (this.attachedFiles.length === 0) return '';
+
+    let fileContents = '## Attached Files\n\n';
+    fileContents += 'The following files have been attached for reference:\n\n';
+
+    for (const filePath of this.attachedFiles) {
+      try {
+        const absolutePath = path.isAbsolute(filePath)
+          ? filePath
+          : path.join(this.workingDirectory, filePath);
+
+        const content = fs.readFileSync(absolutePath, 'utf-8');
+        const fileName = path.basename(filePath);
+        const ext = path.extname(filePath).slice(1) || 'text';
+
+        fileContents += `### ${fileName}\n`;
+        fileContents += `Path: \`${filePath}\`\n\n`;
+        fileContents += `\`\`\`${ext}\n${content}\n\`\`\`\n\n`;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`[ClaudeCode] Error reading attached file ${filePath}:`, errorMsg);
+        fileContents += `### ${path.basename(filePath)}\n`;
+        fileContents += `*Error reading file: ${errorMsg}*\n\n`;
+      }
+    }
+
+    fileContents += '---\n\n';
+    return fileContents;
   }
 }
 

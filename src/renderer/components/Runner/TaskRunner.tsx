@@ -45,9 +45,9 @@ export const TaskRunner: React.FC = () => {
     }, [log]);
 
     // Get pending tasks (backlog and doing)
-    const pendingTasks = tasks.filter(t => t.status === 'backlog' || t.status === 'doing');
+    const pendingTasks = tasks.filter(task => task.status === 'backlog' || task.status === 'doing');
     const recentlyDone = tasks
-        .filter(t => t.status === 'done' && t.completedAt)
+        .filter(task => task.status === 'done' && task.completedAt)
         .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
         .slice(0, 3);
 

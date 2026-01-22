@@ -31,12 +31,13 @@ import * as path from 'path';
 import { LocalKanbanStore } from '../services/LocalKanbanStore';
 import { ClaudeCodeProvider } from './providers/ClaudeCodeProvider';
 import { OpenCodeProvider } from './providers/OpenCodeProvider';
+import { CodexProvider } from './providers/CodexProvider';
 import { notifyRalphTaskComplete } from '../services/NotificationService';
 import { PromptBuilder } from './prompts';
 import type { Task, RalphModeOptions } from '../../shared/types';
 
 // Type for providers that support Ralph mode (have setWorkingDirectory and setProjectContext)
-type RalphCompatibleProvider = ClaudeCodeProvider | OpenCodeProvider;
+type RalphCompatibleProvider = ClaudeCodeProvider | OpenCodeProvider | CodexProvider;
 
 export interface RalphEngineConfig {
   projectRoot: string;
@@ -561,9 +562,9 @@ This helps if the task is interrupted - you can resume from where you left off.`
   }
 
   /**
-   * Set the agent provider.
+   * Set the agent provider (supports ClaudeCodeProvider and OpenCodeProvider).
    */
-  setProvider(provider: ClaudeCodeProvider): void {
+  setProvider(provider: RalphCompatibleProvider): void {
     this.provider = provider;
   }
 

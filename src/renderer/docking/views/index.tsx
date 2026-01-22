@@ -37,6 +37,9 @@ const ThemeEditorLazy = React.lazy(() =>
 const BottomPanelLazy = React.lazy(() =>
   import('../../components/BottomPanel').then((m) => ({ default: m.BottomPanel }))
 );
+const PluginsPanelLazy = React.lazy(() =>
+  import('../../components/PluginsPanel').then((m) => ({ default: m.PluginsPanel }))
+);
 
 // ============================================================================
 // View Wrappers
@@ -116,6 +119,12 @@ const ThemeEditorView: React.FC<ViewComponentProps> = ({ params }) => {
 const TaskRunnerView: React.FC<ViewComponentProps> = () => (
   <React.Suspense fallback={<ViewLoading />}>
     <BottomPanelLazy />
+  </React.Suspense>
+);
+
+const PluginsView: React.FC<ViewComponentProps> = () => (
+  <React.Suspense fallback={<ViewLoading />}>
+    <PluginsPanelLazy />
   </React.Suspense>
 );
 
@@ -210,7 +219,7 @@ export const viewDefinitions: ViewTypeDefinition[] = [
   },
   {
     viewType: 'plugins',
-    component: WelcomeView, // Placeholder
+    component: PluginsView,
     title: 'Plugins',
     icon: Puzzle,
     closable: true,

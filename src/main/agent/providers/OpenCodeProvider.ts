@@ -16,7 +16,6 @@ import type {
   ProjectContext,
 } from '../../../shared/types';
 import { OpenCodeInstaller } from '../../services/OpenCodeInstaller';
-import { PromptBuilder } from '../prompts';
 
 export interface OpenCodeProviderConfig extends AgentProviderConfig {
   binaryPath?: string; // Path to opencode executable
@@ -27,6 +26,14 @@ export interface OpenCodeProviderConfig extends AgentProviderConfig {
 /**
  * Provider that uses OpenCode CLI for LLM interactions.
  */
+// Todowrite task from OpenCode
+export interface OpenCodeTodo {
+  id?: string;
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  priority?: 'low' | 'medium' | 'high';
+}
+
 export class OpenCodeProvider extends AgentProvider {
   private binaryPath: string;
   private workingDirectory: string;
@@ -36,6 +43,9 @@ export class OpenCodeProvider extends AgentProvider {
   private currentTimeout: NodeJS.Timeout | null = null;
   private cancelled: boolean = false;
   private projectContext: ProjectContext | null = null;
+  private attachedFiles: string[] = [];
+  private collectedTodos: OpenCodeTodo[] = [];
+  private onTodoCallback?: (todos: OpenCodeTodo[]) => void;
 
   constructor(config: OpenCodeProviderConfig = {}) {
     super(config);
@@ -130,8 +140,8 @@ export class OpenCodeProvider extends AgentProvider {
 
       const proc = spawn(this.binaryPath, args, {
         cwd: this.workingDirectory,
-        stdio: ['pipe', 'pipe', 'pipe'], // Use stdin for prompt
-        shell: false,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: process.env,  // Critical: pass environment variables (API keys, etc.)
         windowsHide: true,
       });
 
@@ -191,8 +201,27 @@ export class OpenCodeProvider extends AgentProvider {
           try {
             const event = JSON.parse(line);
 
-            // Debug: log event type
-            console.log('[OpenCode] Event:', event.type);
+            // Debug: log event type and full structure for debugging
+            console.log('[OpenCode] Event:', event.type, JSON.stringify(event).substring(0, 400));
+
+            // Log tool-related events specially - check for many possible formats
+            if (event.type === 'tool_use' || event.type === 'tool_result' || event.type === 'tool_call' ||
+                event.type === 'TodoWrite' || event.type === 'todowrite' ||
+                (event.part && (event.part.tool || event.part.name))) {
+              console.log('[OpenCode] TOOL EVENT type:', event.type, 'has part:', !!event.part,
+                'part.tool:', event.part?.tool, 'part.name:', event.part?.name,
+                'full event keys:', Object.keys(event),
+                'part keys:', event.part ? Object.keys(event.part) : 'none');
+            }
+
+            // Also check for todos in any event type
+            if (event.todos || event.part?.todos || event.part?.state?.input?.todos ||
+                event.input?.todos || event.message?.content?.[0]?.input?.todos) {
+              console.log('[OpenCode] FOUND TODOS in event!', event.type,
+                'direct:', !!event.todos,
+                'part.todos:', !!event.part?.todos,
+                'state.input.todos:', !!event.part?.state?.input?.todos);
+            }
 
             // Handle different event types from OpenCode CLI
             // OpenCode uses similar event format to Claude Code
@@ -215,11 +244,33 @@ export class OpenCodeProvider extends AgentProvider {
                   // Tool use - show what tool is being called
                   else if (block.type === 'tool_use') {
                     const toolName = block.name || 'unknown';
+                    const toolNameLower = toolName.toLowerCase();
                     const toolInput = block.input || {};
                     let toolDesc = `\n🔧 ${toolName}`;
 
+                    // Intercept TodoWrite to collect tasks (case-insensitive)
+                    if (toolNameLower === 'todowrite' && toolInput.todos && Array.isArray(toolInput.todos)) {
+                      console.log('[OpenCode] TODOWRITE INTERCEPTED (assistant block)! todos count:', toolInput.todos.length);
+                      console.log('[OpenCode] Raw todos sample (assistant):', JSON.stringify(toolInput.todos[0]));
+                      // Map to our format in case field names differ
+                      const newTodos: OpenCodeTodo[] = toolInput.todos.map((t: Record<string, unknown>) => ({
+                        id: t.id as string | undefined,
+                        content: (t.content || t.title || t.text || String(t)) as string,
+                        status: (t.status as 'pending' | 'in_progress' | 'completed') || 'pending',
+                        priority: t.priority as 'low' | 'medium' | 'high' | undefined,
+                      }));
+                      this.collectedTodos = newTodos;
+                      console.log('[OpenCode] Mapped todos (assistant):', JSON.stringify(newTodos.slice(0, 2)));
+
+                      if (this.onTodoCallback) {
+                        this.onTodoCallback(newTodos);
+                      }
+
+                      const pendingCount = newTodos.filter(t => t.status !== 'completed').length;
+                      toolDesc = `\n📋 Task list updated (${pendingCount} pending)`;
+                    }
                     // Add descriptive info based on tool type
-                    if (toolName === 'Read' && toolInput.file_path) {
+                    else if (toolName === 'Read' && toolInput.file_path) {
                       toolDesc = `\n📖 Reading: \`${toolInput.file_path}\``;
                     } else if (toolName === 'Write' && toolInput.file_path) {
                       toolDesc = `\n✏️ Writing: \`${toolInput.file_path}\``;
@@ -234,7 +285,7 @@ export class OpenCodeProvider extends AgentProvider {
                       toolDesc = `\n🔎 Grep: \`${toolInput.pattern}\``;
                     } else if (toolName === 'Task') {
                       toolDesc = `\n🤖 Spawning agent...`;
-                    } else if (toolName === 'TodoWrite') {
+                    } else if (toolNameLower === 'todowrite') {
                       toolDesc = `\n📋 Updating task list...`;
                     }
 
@@ -270,11 +321,84 @@ export class OpenCodeProvider extends AgentProvider {
                 typeText(newContent);
               }
             }
-            // Handle text events (OpenCode might use this format)
-            else if (event.type === 'text' && event.text) {
-              displayedContent += event.text;
+            // Handle text events (OpenCode format: event.part.text)
+            else if (event.type === 'text') {
+              // OpenCode puts text in event.part.text
+              const textContent = event.part?.text || event.text || '';
+              if (textContent) {
+                displayedContent += textContent;
+                fullContent = displayedContent;
+                typeText(textContent);
+              }
+            }
+            // Handle step events (OpenCode uses these for progress)
+            else if (event.type === 'step_start' || event.type === 'step_finish') {
+              // Log step info but don't add to content
+              console.log('[OpenCode] Step:', event.type, event.step || event.name || '');
+            }
+            // Handle tool_use events (OpenCode format: event.part with tool info)
+            else if (event.type === 'tool_use' && event.part) {
+              const toolName = event.part.tool || event.part.name || 'unknown';
+              const toolNameLower = toolName.toLowerCase();
+              const toolInput = event.part.state?.input || event.part.input || {};
+              let toolDesc = `\n🔧 ${toolName}`;
+
+              console.log('[OpenCode] tool_use detected:', toolName, 'toolNameLower:', toolNameLower, 'has todos:', !!toolInput.todos);
+
+              // Intercept todowrite events to collect tasks (case-insensitive)
+              if (toolNameLower === 'todowrite' && toolInput.todos && Array.isArray(toolInput.todos)) {
+                console.log('[OpenCode] TODOWRITE INTERCEPTED! todos count:', toolInput.todos.length);
+                console.log('[OpenCode] Raw todos sample:', JSON.stringify(toolInput.todos[0]));
+                // Collect todos for later processing - map to our format in case field names differ
+                const newTodos: OpenCodeTodo[] = toolInput.todos.map((t: Record<string, unknown>) => ({
+                  id: t.id as string | undefined,
+                  content: (t.content || t.title || t.text || String(t)) as string,
+                  status: (t.status as 'pending' | 'in_progress' | 'completed') || 'pending',
+                  priority: t.priority as 'low' | 'medium' | 'high' | undefined,
+                }));
+                this.collectedTodos = newTodos;
+                console.log('[OpenCode] Mapped todos:', JSON.stringify(newTodos.slice(0, 2)));
+                console.log('[OpenCode] Collected todos:', newTodos.length);
+
+                // Notify callback if registered
+                if (this.onTodoCallback) {
+                  this.onTodoCallback(newTodos);
+                }
+
+                // Show a nice indicator
+                const pendingCount = newTodos.filter(t => t.status !== 'completed').length;
+                toolDesc = `\n📋 Task list updated (${pendingCount} pending)`;
+              }
+              // Add descriptive info based on tool type (case-insensitive)
+              else if (toolNameLower === 'read' && (toolInput.file_path || toolInput.filePath)) {
+                toolDesc = `\n📖 Reading: \`${toolInput.file_path || toolInput.filePath}\``;
+              } else if (toolNameLower === 'write' && (toolInput.file_path || toolInput.filePath)) {
+                toolDesc = `\n✏️ Writing: \`${toolInput.file_path || toolInput.filePath}\``;
+              } else if (toolNameLower === 'edit' && (toolInput.file_path || toolInput.filePath)) {
+                toolDesc = `\n📝 Editing: \`${toolInput.file_path || toolInput.filePath}\``;
+              } else if (toolNameLower === 'bash' && (toolInput.command || toolInput.description)) {
+                const cmd = String(toolInput.description || toolInput.command).substring(0, 100);
+                toolDesc = `\n💻 Running: \`${cmd}\``;
+              } else if (toolNameLower === 'glob' && toolInput.pattern) {
+                toolDesc = `\n🔍 Searching: \`${toolInput.pattern}\``;
+              } else if (toolNameLower === 'grep' && toolInput.pattern) {
+                toolDesc = `\n🔎 Grep: \`${toolInput.pattern}\``;
+              } else if (toolNameLower === 'task') {
+                toolDesc = `\n🤖 Spawning agent...`;
+              }
+
+              displayedContent += toolDesc;
               fullContent = displayedContent;
-              typeText(event.text);
+              typeText(toolDesc);
+            }
+            // Fallback: any event with part.text we haven't caught
+            else if (event.part?.text) {
+              const partText = event.part.text;
+              if (!displayedContent.endsWith(partText)) {
+                displayedContent += partText;
+                fullContent = displayedContent;
+                typeText(partText);
+              }
             }
           } catch (parseError) {
             // Not valid JSON - might be plain text output
@@ -327,6 +451,7 @@ export class OpenCodeProvider extends AgentProvider {
         }
 
         console.log('[OpenCode] Closed with code:', code, 'content length:', fullContent.length);
+        console.log('[OpenCode] Final content preview:', fullContent.substring(0, 200));
 
         if (code === 0 || fullContent.length > 0) {
           resolve(fullContent);
@@ -349,62 +474,43 @@ export class OpenCodeProvider extends AgentProvider {
   }
 
   /**
-   * Get system prompt based on mode.
-   * Uses the centralized PromptBuilder for consistent prompts.
-   */
-  private getSystemPrompt(mode: 'planner' | 'agent'): string {
-    // Map mode to PromptMode type
-    const promptMode = mode === 'planner' ? 'planner' : 'agent';
-
-    // Build system prompt using centralized PromptBuilder
-    return PromptBuilder.buildSystemPrompt({
-      mode: promptMode,
-      projectContext: this.projectContext ? {
-        name: this.projectContext.name,
-        description: this.projectContext.description,
-        purpose: this.projectContext.purpose,
-        architecture: this.projectContext.architecture,
-        devWorkflow: this.projectContext.devWorkflow,
-        constraints: this.projectContext.constraints,
-      } : undefined,
-    });
-  }
-
-  /**
    * Build a prompt from messages for OpenCode.
-   * Note: Project context is now included via PromptBuilder.buildSystemPrompt()
+   * OpenCode has its own tools (Read, Write, Bash, etc.) so we don't add our own tool definitions.
+   * We just pass the conversation with minimal context.
    */
-  private buildPrompt(messages: AgentMessage[], tools?: AgentToolDefinition[], mode: 'planner' | 'agent' = 'planner'): string {
+  private buildPrompt(messages: AgentMessage[], _tools?: AgentToolDefinition[], mode: 'planner' | 'agent' = 'planner'): string {
+    // Get the last user message - this is what we send to OpenCode
+    const userMessages = messages.filter(m => m.role === 'user');
+    const lastUserMessage = userMessages[userMessages.length - 1]?.content || '';
+
+    // For OpenCode, we send a simple prompt
+    // OpenCode handles its own system prompt and tools
     let prompt = '';
 
-    // Add default system prompt based on mode (includes project context)
-    prompt += this.getSystemPrompt(mode);
-    prompt += '\n\n---\n\n';
-
-    // Add any additional system messages
-    const systemMessages = messages.filter(m => m.role === 'system');
-    if (systemMessages.length > 0) {
-      prompt += systemMessages.map(m => m.content).join('\n\n');
-      prompt += '\n\n---\n\n';
-    }
-
-    // Add tool definitions if available
-    if (tools && tools.length > 0) {
-      prompt += '## Available Tools\n\n';
-      prompt += 'You can use the following tools by responding with a JSON block:\n\n';
-      for (const tool of tools) {
-        prompt += `### ${tool.name}\n`;
-        prompt += `${tool.description}\n`;
-        prompt += `Parameters: ${JSON.stringify(tool.parameters, null, 2)}\n\n`;
+    // Add project context if available
+    if (this.projectContext) {
+      prompt += `Project: ${this.projectContext.name}\n`;
+      if (this.projectContext.description) {
+        prompt += `Description: ${this.projectContext.description}\n`;
       }
-      prompt += 'To use a tool, respond with:\n';
-      prompt += '```json\n{"tool": "tool_name", "arguments": {...}}\n```\n\n';
-      prompt += '---\n\n';
+      prompt += '\n';
     }
 
-    // Add conversation history
-    const conversationMessages = messages.filter(m => m.role !== 'system');
-    for (const msg of conversationMessages) {
+    // Add mode hint - planner can READ but not WRITE
+    if (mode === 'planner') {
+      prompt += `[Mode: Planner]
+You CAN use these tools to analyze: Read, Glob, Grep, Search, list files
+You CANNOT use: Write, Edit, Bash, or any tool that modifies files/runs commands
+Analyze thoroughly, then provide recommendations.\n\n`;
+    } else {
+      prompt += `[Mode: Agent]
+You have full access to all tools: Read, Write, Edit, Bash, Glob, Grep, etc.
+Execute the requested changes.\n\n`;
+    }
+
+    // Add conversation history for context (last few messages)
+    const recentMessages = messages.slice(-6); // Last 3 exchanges
+    for (const msg of recentMessages) {
       if (msg.role === 'user') {
         prompt += `User: ${msg.content}\n\n`;
       } else if (msg.role === 'assistant') {
@@ -412,7 +518,12 @@ export class OpenCodeProvider extends AgentProvider {
       }
     }
 
-    return prompt;
+    // If no history, just the last message
+    if (recentMessages.length === 0 && lastUserMessage) {
+      prompt += lastUserMessage;
+    }
+
+    return prompt.trim();
   }
 
   /**
@@ -542,16 +653,37 @@ export class OpenCodeProvider extends AgentProvider {
     try {
       const prompt = this.buildPrompt(messages, tools, mode);
 
-      // OpenCode CLI syntax: opencode run --format json < prompt
+      // OpenCode CLI syntax: opencode run --format json [-f file1 -f file2 ...] < prompt
       // - run: Non-interactive mode
       // - --format json: Output as NDJSON events for streaming
+      // - -f: Attach files to the message
+      // - Working directory is set via spawn's cwd option
       // - Prompt is passed via stdin to avoid Windows command line length limits
       const args = [
         'run',
         '--format', 'json',
       ];
 
+      // Add attached files using -f flag
+      for (const filePath of this.attachedFiles) {
+        args.push('-f', filePath);
+      }
+
+      console.log('[OpenCode] Working directory:', this.workingDirectory);
+      console.log('[OpenCode] Args:', args);
+      console.log('[OpenCode] Attached files:', this.attachedFiles);
+      console.log('[OpenCode] Prompt preview:', prompt.substring(0, 300));
+
       const response = await this.executeStreamingCommand(args, onChunk, prompt);
+
+      // Handle empty response
+      if (!response || response.trim().length === 0) {
+        console.warn('[OpenCode] Empty response received');
+        return {
+          content: 'OpenCode returned an empty response. The AI may still be processing or there might be an issue with the request.',
+          finishReason: 'stop',
+        };
+      }
 
       // Parse tool calls from response
       const toolCalls = this.parseToolCalls(response);
@@ -563,8 +695,11 @@ export class OpenCodeProvider extends AgentProvider {
         finishReason = 'tool_calls';
       }
 
+      // Ensure content is never null/undefined
+      const finalContent = cleanedContent || response || '';
+
       return {
-        content: cleanedContent,
+        content: finalContent,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         finishReason,
       };
@@ -577,6 +712,21 @@ export class OpenCodeProvider extends AgentProvider {
         finishReason: 'error',
       };
     }
+  }
+
+  /**
+   * Set attached files for the next message.
+   */
+  setAttachedFiles(files: string[]): void {
+    this.attachedFiles = files;
+    console.log('[OpenCode] Attached files set:', files);
+  }
+
+  /**
+   * Get attached files.
+   */
+  getAttachedFiles(): string[] {
+    return this.attachedFiles;
   }
 
   /**
@@ -599,6 +749,29 @@ export class OpenCodeProvider extends AgentProvider {
    */
   getProjectContext(): ProjectContext | null {
     return this.projectContext;
+  }
+
+  /**
+   * Get collected todos from the last OpenCode run.
+   * These are captured from todowrite tool events.
+   */
+  getCollectedTodos(): OpenCodeTodo[] {
+    return this.collectedTodos;
+  }
+
+  /**
+   * Clear collected todos.
+   */
+  clearCollectedTodos(): void {
+    this.collectedTodos = [];
+  }
+
+  /**
+   * Set callback for todo events.
+   * Called whenever OpenCode's todowrite tool is invoked.
+   */
+  setOnTodoCallback(callback: ((todos: OpenCodeTodo[]) => void) | undefined): void {
+    this.onTodoCallback = callback;
   }
 }
 

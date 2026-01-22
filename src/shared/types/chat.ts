@@ -20,6 +20,8 @@ export interface ChatMessage {
   content: string;
   /** Unix timestamp when message was sent */
   timestamp: number;
+  /** Attached file paths (for user messages) */
+  attachedFiles?: string[];
 }
 
 // ============================================

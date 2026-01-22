@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { TopBar } from './components/TopBar';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary, setGlobalErrorHandler, clearGlobalErrorHandler } from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { SetupWizard } from './components/SetupWizard';
 import { ModeProvider, useMode } from './contexts/ModeContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ExtensionPointsProvider } from './contexts/ExtensionPointsContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 import { useSystemTheme } from './hooks/useTheme';
 import { AlertTriangle, X } from 'lucide-react';
 import './index.css';
@@ -25,6 +26,7 @@ import { viewDefinitions } from './docking/views';
 import { useTranslation } from './i18n/useTranslation';
 // Planner Block Modal - shown at App level so it appears regardless of active tab
 const PlannerBlockModal: React.FC = () => {
+  const { t } = useTranslation();
   const { showPlannerBlockModal, closePlannerBlock, switchToAgentAndClose } = useMode();
 
   if (!showPlannerBlockModal) return null;
@@ -77,6 +79,48 @@ interface RecentProject {
   name: string;
   lastOpened: string;
 }
+
+// Global Error Handler - connects ErrorBoundary to Toast system
+const GlobalErrorHandler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const toast = useToast();
+
+  useEffect(() => {
+    // Set up the global error handler for ErrorBoundary
+    setGlobalErrorHandler((error: Error, context?: string) => {
+      const title = context ? `Error ${context}` : 'Error';
+      toast.error(error.message, title);
+    });
+
+    // Catch unhandled promise rejections
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      event.preventDefault();
+      const message = event.reason?.message || String(event.reason) || 'Unknown error';
+      toast.error(message, 'Unhandled Error');
+      console.error('[GlobalErrorHandler] Unhandled rejection:', event.reason);
+    };
+
+    // Catch global errors
+    const handleError = (event: ErrorEvent) => {
+      // Don't show toast for ResizeObserver errors (common and harmless)
+      if (event.message?.includes('ResizeObserver')) {
+        return;
+      }
+      toast.error(event.message || 'Unknown error', 'Error');
+      console.error('[GlobalErrorHandler] Global error:', event.error);
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleError);
+
+    return () => {
+      clearGlobalErrorHandler();
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleError);
+    };
+  }, [toast]);
+
+  return <>{children}</>;
+};
 
 // Layout persistence hook - uses selective subscriptions to avoid infinite loops
 function useLayoutPersistence(enabled: boolean) {
@@ -368,13 +412,17 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
-      <ConfirmProvider>
-        <ModeProvider>
-          <ThemeProvider>
-            <AppContent />
-          </ThemeProvider>
-        </ModeProvider>
-      </ConfirmProvider>
+      <ToastProvider>
+        <GlobalErrorHandler>
+          <ConfirmProvider>
+            <ModeProvider>
+              <ThemeProvider>
+                <AppContent />
+              </ThemeProvider>
+            </ModeProvider>
+          </ConfirmProvider>
+        </GlobalErrorHandler>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

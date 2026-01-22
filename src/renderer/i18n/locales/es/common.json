@@ -44,7 +44,9 @@
     "checkAgain": "Verificar de nuevo",
     "openExistingProject": "Abrir una carpeta de proyecto existente",
     "createNewDexteria": "Crear un nuevo proyecto Dexteria",
-    "createTasksFromBoard": "Crea tareas desde el tablero o el chat"
+    "createTasksFromBoard": "Crea tareas desde el tablero o el chat",
+    "later": "Despues",
+    "restartNow": "Reiniciar ahora"
   },
   "labels": {
     "settings": "Configuracion",
@@ -239,7 +241,10 @@
         "providedBy": "Configuracion proporcionada por el plugin: {{pluginId}}",
         "pluginTabNotFound": "Pestana del plugin no encontrada",
         "checkDevTools": "Revisa la consola de DevTools (F12) para mas detalles",
-        "by": "por {{author}}"
+        "by": "por {{author}}",
+        "deleteConfirm": "Eliminar plugin \"{{name}}\"? Esta accion no se puede deshacer.",
+        "restartRequired": "Reinicio requerido",
+        "restartRequiredDesc": "La aplicacion necesita reiniciarse para completar los cambios del plugin."
       }
     },
     "topbar": {

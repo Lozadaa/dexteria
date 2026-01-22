@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { cn, formatDateTime } from '../lib/utils';
 import {
   MessageSquare,
@@ -11,8 +11,10 @@ import {
   RotateCw,
   ChevronDown,
   ChevronUp,
+  Plus,
+  X,
 } from 'lucide-react';
-import { Button, Textarea } from 'adnia-ui';
+import { Button, Textarea, IconButton } from 'adnia-ui';
 import type { TaskComment, Task } from '../../shared/types';
 
 interface TaskCommentsProps {
@@ -70,8 +72,32 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
   const [commentType, setCommentType] = useState<'note' | 'instruction'>('instruction');
   const [isExpanded, setIsExpanded] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCommentPopup, setShowCommentPopup] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const comments = task.comments || [];
+
+  // Focus textarea when popup opens
+  useEffect(() => {
+    if (showCommentPopup && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [showCommentPopup]);
+
+  // Close popup on click outside
+  useEffect(() => {
+    if (!showCommentPopup) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        setShowCommentPopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCommentPopup]);
 
   // Only show failure banner if the LAST comment is a failure
   const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
@@ -90,6 +116,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
     try {
       await onAddComment(newComment.trim(), commentType);
       setNewComment('');
+      setShowCommentPopup(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -256,58 +283,100 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
             )}
           </div>
 
-          {/* Comment Input */}
-          <div className="p-3 border-t border-border space-y-2">
-            {/* Type Selector */}
-            <div className="flex gap-2">
-              <Button
-                variant={commentType === 'instruction' ? "status-info" : "ghost"}
-                size="xs"
-                onClick={() => setCommentType('instruction')}
-              >
-                <Info size={12} />
-                Instruction
-              </Button>
-              <Button
-                variant={commentType === 'note' ? "muted" : "ghost"}
-                size="xs"
-                onClick={() => setCommentType('note')}
-                className={commentType === 'note' ? "border border-border" : ""}
-              >
-                <MessageSquare size={12} />
-                Note
-              </Button>
-            </div>
+          {/* Add Comment Button */}
+          <div className="p-2 border-t border-border relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCommentPopup(true)}
+              className="w-full justify-start text-muted-foreground hover:text-foreground"
+            >
+              <Plus size={14} />
+              Add instruction or note...
+            </Button>
 
-            {/* Input Area */}
-            <div className="flex gap-2">
-              <Textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  commentType === 'instruction'
-                    ? "Add instructions for the agent..."
-                    : "Add a note..."
-                }
-                className="flex-1 resize-none h-20"
-              />
-              <Button
-                onClick={handleSubmit}
-                disabled={!newComment.trim() || isSubmitting}
-                className="self-end"
-                size="sm"
+            {/* Comment Popup */}
+            {showCommentPopup && (
+              <div
+                ref={popupRef}
+                className="absolute bottom-full left-0 right-0 mb-1 mx-2 bg-card border border-border rounded-lg shadow-lg p-3 space-y-3 z-50"
               >
-                {isSubmitting ? (
-                  <RotateCw size={16} className="animate-spin" />
-                ) : (
-                  <Send size={16} />
-                )}
-              </Button>
-            </div>
-            <div className="text-xs text-muted-foreground/50">
-              Press Cmd/Ctrl + Enter to send
-            </div>
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Add Comment</span>
+                  <IconButton
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setShowCommentPopup(false)}
+                  >
+                    <X size={14} />
+                  </IconButton>
+                </div>
+
+                {/* Type Selector */}
+                <div className="flex gap-2">
+                  <Button
+                    variant={commentType === 'instruction' ? "status-info" : "ghost"}
+                    size="xs"
+                    onClick={() => setCommentType('instruction')}
+                  >
+                    <Info size={12} />
+                    Instruction
+                  </Button>
+                  <Button
+                    variant={commentType === 'note' ? "muted" : "ghost"}
+                    size="xs"
+                    onClick={() => setCommentType('note')}
+                    className={commentType === 'note' ? "border border-border" : ""}
+                  >
+                    <MessageSquare size={12} />
+                    Note
+                  </Button>
+                </div>
+
+                {/* Input Area */}
+                <Textarea
+                  ref={textareaRef}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    commentType === 'instruction'
+                      ? "Add instructions for the agent..."
+                      : "Add a note..."
+                  }
+                  className="w-full resize-none h-24"
+                />
+
+                {/* Actions */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground/50">
+                    Cmd/Ctrl + Enter to send
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowCommentPopup(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!newComment.trim() || isSubmitting}
+                      size="sm"
+                    >
+                      {isSubmitting ? (
+                        <RotateCw size={14} className="animate-spin" />
+                      ) : (
+                        <Send size={14} />
+                      )}
+                      Send
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

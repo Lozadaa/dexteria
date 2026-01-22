@@ -12,7 +12,9 @@ import {
   getStore,
   getOrCreateProvider,
   ClaudeCodeProvider,
+  OpenCodeProvider,
 } from './shared';
+import type { OpenCodeTodo } from '../../agent/providers/OpenCodeProvider';
 import { getPluginManager } from '../../services/PluginManager';
 import type { ToolResult } from './types';
 import type {
@@ -39,22 +41,34 @@ function filterToolJsonForStreaming(content: string): string {
 
   let filtered = content;
 
-  // 1. Replace complete JSON code blocks with tool calls
+  // 1. Replace complete JSON code blocks with tool calls (including batch tasks format)
   filtered = filtered.replace(
-    /```json\s*\n?\s*\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*\{[^]*?\}\s*\}\s*\n?```/g,
-    (_match, toolName) => getToolIndicator(toolName, 'complete')
+    /```json\s*\n?([\s\S]*?)\n?```/g,
+    (match, jsonContent) => {
+      try {
+        const parsed = JSON.parse(jsonContent.trim().replace(/,(\s*[}\]])/g, '$1'));
+        if (parsed.tool) {
+          // Count tasks if batch format
+          const taskCount = Array.isArray(parsed.tasks) ? parsed.tasks.length : 1;
+          return getToolIndicator(parsed.tool, 'complete', taskCount);
+        }
+      } catch {
+        // Not valid JSON, return original
+      }
+      return match;
+    }
   );
 
-  // 2. Replace inline tool JSON
-  filtered = filtered.replace(
-    /\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*\{[^}]*\}\s*\}/g,
-    (_match, toolName) => getToolIndicator(toolName, 'complete')
-  );
-
-  // 3. Handle partial/incomplete JSON blocks during streaming
+  // 2. Handle partial/incomplete JSON blocks during streaming
   filtered = filtered.replace(
     /```json\s*\n?\s*\{\s*"tool"\s*:\s*"([^"]+)"[^`]*$/,
     (_match, toolName) => getToolIndicator(toolName, 'pending')
+  );
+
+  // 3. Replace inline tool JSON
+  filtered = filtered.replace(
+    /\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*\{[^}]*\}\s*\}/g,
+    (_match, toolName) => getToolIndicator(toolName, 'complete')
   );
 
   // 4. Handle partial inline tool JSON
@@ -66,15 +80,15 @@ function filterToolJsonForStreaming(content: string): string {
   return filtered;
 }
 
-function getToolIndicator(toolName: string, status: 'pending' | 'complete'): string {
+function getToolIndicator(toolName: string, status: 'pending' | 'complete', count: number = 1): string {
   const icon = status === 'pending' ? '⏳' : '✅';
   const messages: Record<string, [string, string]> = {
-    'create_task': ['Creando tarea...', 'Tarea creada'],
-    'update_task': ['Actualizando tarea...', 'Tarea actualizada'],
-    'list_tasks': ['Listando tareas...', 'Tareas listadas'],
-    'save_progress': ['Guardando progreso...', 'Progreso guardado'],
+    'create_task': ['Creating tasks...', count > 1 ? `Created ${count} tasks` : 'Task created'],
+    'update_task': ['Updating task...', 'Task updated'],
+    'list_tasks': ['Listing tasks...', 'Tasks listed'],
+    'save_progress': ['Saving progress...', 'Progress saved'],
   };
-  const [pending, complete] = messages[toolName] || [`Ejecutando ${toolName}...`, `${toolName} completado`];
+  const [pending, complete] = messages[toolName] || [`Running ${toolName}...`, `${toolName} complete`];
   return `\n${icon} ${status === 'pending' ? pending : complete}\n`;
 }
 
@@ -86,7 +100,11 @@ export async function executeToolCall(
   args: Record<string, unknown>,
   mode: 'planner' | 'agent'
 ): Promise<ToolResult> {
+  console.log(`[Tool] executeToolCall called: ${toolName}`, JSON.stringify(args).substring(0, 200));
+  console.log(`[Tool] hasProject: ${hasProject()}`);
+
   if (!hasProject()) {
+    console.log('[Tool] No project open, returning error');
     return {
       name: toolName,
       success: false,
@@ -95,6 +113,7 @@ export async function executeToolCall(
     };
   }
   const s = getStore();
+  console.log(`[Tool] Got store, has tasks: ${s.getTasks().length}`);
 
   try {
     switch (toolName) {
@@ -104,14 +123,29 @@ export async function executeToolCall(
         const description = args.description as string || '';
         const acceptanceCriteria = args.acceptanceCriteria as string[] || ['Task completed'];
         const status = (args.status as TaskStatus) || 'backlog';
+        const priority = (args.priority as 'low' | 'medium' | 'high' | 'critical') || 'medium';
+
+        console.log(`[Tool] Creating task: title="${title}", status="${status}", priority="${priority}"`);
+
+        if (!title || title.trim() === '') {
+          console.log('[Tool] Error: Empty title');
+          return {
+            name: toolName,
+            success: false,
+            result: null,
+            error: 'Task title cannot be empty',
+          };
+        }
 
         // Create basic task
         const task = s.createTask(title, status);
+        console.log(`[Tool] Task created with ID: ${task.id}`);
 
         // Update with additional fields
         const updatedTask = s.updateTask(task.id, {
           description,
           acceptanceCriteria,
+          priority,
           agent: {
             goal: description,
             scope: ['*'],
@@ -119,6 +153,7 @@ export async function executeToolCall(
           }
         });
 
+        console.log(`[Tool] Task creation SUCCESS: ${updatedTask.id} - "${updatedTask.title}"`);
         return {
           name: toolName,
           success: true,
@@ -126,7 +161,8 @@ export async function executeToolCall(
             taskId: updatedTask.id,
             title: updatedTask.title,
             status: updatedTask.status,
-            message: `Task created! ID: "${updatedTask.id}" - Title: "${updatedTask.title}" - Use this ID for update_task calls.`
+            priority: updatedTask.priority,
+            message: `Task created: "${updatedTask.title}"`
           }
         };
       }
@@ -275,6 +311,7 @@ export async function executeToolCall(
         };
     }
   } catch (error) {
+    console.error(`[Tool] Error in ${toolName}:`, error);
     return {
       name: toolName,
       success: false,
@@ -286,6 +323,9 @@ export async function executeToolCall(
 
 /**
  * Parse and execute inline tool JSON calls from content.
+ * Supports multiple formats:
+ * - Standard: {"tool": "name", "arguments": {...}}
+ * - Batch tasks: {"tool": "create_task", "tasks": [...]}
  * Returns the cleaned content with tool results appended.
  */
 async function parseAndExecuteInlineTools(
@@ -293,47 +333,192 @@ async function parseAndExecuteInlineTools(
   mode: 'planner' | 'agent'
 ): Promise<{ cleanedContent: string; results: ToolResult[] }> {
   const results: ToolResult[] = [];
-
-  // Match JSON blocks with tool calls: ```json{"tool": "...", "arguments": {...}}```
-  // Also match inline: {"tool": "...", "arguments": {...}}
-  const toolJsonPattern = /```json\s*\n?\s*\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[\s\S]*?\})\s*\}\s*\n?```|\{\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})\s*\}/g;
-
   let cleanedContent = content;
-  let match;
-  const toolCalls: Array<{ fullMatch: string; toolName: string; args: Record<string, unknown> }> = [];
 
-  // First pass: find all tool calls
-  while ((match = toolJsonPattern.exec(content)) !== null) {
-    const toolName = match[1] || match[3];
-    const argsJson = match[2] || match[4];
+  // Try to find JSON blocks in the content
+  const jsonBlockPattern = /```json\s*\n?([\s\S]*?)\n?```/g;
+  const inlineJsonPattern = /\{\s*"tool"\s*:\s*"[^"]+"\s*,[\s\S]*?\}(?=\s*(?:$|[^}\]]))/g;
+
+  const toolCalls: Array<{ fullMatch: string; parsed: Record<string, unknown> }> = [];
+
+  // First, extract JSON from code blocks
+  let blockMatch;
+  while ((blockMatch = jsonBlockPattern.exec(content)) !== null) {
+    const jsonContent = blockMatch[1].trim();
+    try {
+      const parsed = JSON.parse(jsonContent);
+      if (parsed.tool) {
+        toolCalls.push({ fullMatch: blockMatch[0], parsed });
+      }
+    } catch (e) {
+      // Try to fix common JSON issues (trailing commas, etc)
+      try {
+        const fixed = jsonContent.replace(/,(\s*[}\]])/g, '$1');
+        const parsed = JSON.parse(fixed);
+        if (parsed.tool) {
+          toolCalls.push({ fullMatch: blockMatch[0], parsed });
+        }
+      } catch {
+        console.log('[Chat] Failed to parse JSON block:', e);
+      }
+    }
+  }
+
+  // Then, try to find inline JSON tool calls
+  let inlineMatch;
+  while ((inlineMatch = inlineJsonPattern.exec(content)) !== null) {
+    // Skip if this is inside a code block we already processed
+    const isInCodeBlock = toolCalls.some(tc => tc.fullMatch.includes(inlineMatch![0]));
+    if (isInCodeBlock) continue;
 
     try {
-      const args = JSON.parse(argsJson);
-      toolCalls.push({
-        fullMatch: match[0],
-        toolName,
-        args
-      });
-    } catch (e) {
-      console.log('[Chat] Failed to parse tool JSON:', e);
+      const parsed = JSON.parse(inlineMatch[0]);
+      if (parsed.tool) {
+        toolCalls.push({ fullMatch: inlineMatch[0], parsed });
+      }
+    } catch {
+      // Inline JSON might be incomplete, skip
     }
   }
 
   // Execute each tool call
   for (const call of toolCalls) {
-    console.log(`[Chat] Executing inline tool: ${call.toolName}`);
-    const result = await executeToolCall(call.toolName, call.args, mode);
-    results.push(result);
+    const { fullMatch, parsed } = call;
+    const toolName = parsed.tool as string;
 
-    // Replace JSON with result indicator
-    const resultText = result.success
-      ? `✅ **${call.toolName}**: ${(result.result as Record<string, unknown>)?.message || 'Success'}`
-      : `❌ **${call.toolName}**: ${result.error}`;
+    console.log(`[Chat] Executing inline tool: ${toolName}`, parsed);
 
-    cleanedContent = cleanedContent.replace(call.fullMatch, resultText);
+    // Handle batch task creation format: {"tool": "create_task", "tasks": [...]}
+    if (toolName === 'create_task' && Array.isArray(parsed.tasks)) {
+      const tasks = parsed.tasks as Array<Record<string, unknown>>;
+      const createdTasks: string[] = [];
+
+      for (const taskData of tasks) {
+        const result = await executeToolCall('create_task', {
+          title: taskData.title,
+          description: taskData.description,
+          status: taskData.status || 'backlog',
+          priority: taskData.priority || 'medium',
+          acceptanceCriteria: taskData.acceptanceCriteria || ['Task completed'],
+        }, mode);
+
+        results.push(result);
+
+        if (result.success && result.result) {
+          const taskResult = result.result as { title?: string; taskId?: string };
+          createdTasks.push(taskResult.title || taskResult.taskId || 'Unknown');
+        }
+      }
+
+      // Replace JSON with summary
+      const resultText = `\n✅ **Created ${createdTasks.length} tasks:**\n${createdTasks.map((t, i) => `   ${i + 1}. ${t}`).join('\n')}\n`;
+      cleanedContent = cleanedContent.replace(fullMatch, resultText);
+    }
+    // Standard format: {"tool": "name", "arguments": {...}}
+    else if (parsed.arguments) {
+      const result = await executeToolCall(toolName, parsed.arguments as Record<string, unknown>, mode);
+      results.push(result);
+
+      const resultText = result.success
+        ? `\n✅ **${toolName}**: ${(result.result as Record<string, unknown>)?.message || 'Success'}\n`
+        : `\n❌ **${toolName}**: ${result.error}\n`;
+
+      cleanedContent = cleanedContent.replace(fullMatch, resultText);
+    }
+    // Simple format without arguments wrapper
+    else {
+      // Pass the whole parsed object minus 'tool' as arguments
+      const { tool: _tool, ...args } = parsed;
+      const result = await executeToolCall(toolName, args, mode);
+      results.push(result);
+
+      const resultText = result.success
+        ? `\n✅ **${toolName}**: ${(result.result as Record<string, unknown>)?.message || 'Success'}\n`
+        : `\n❌ **${toolName}**: ${result.error}\n`;
+
+      cleanedContent = cleanedContent.replace(fullMatch, resultText);
+    }
   }
 
   return { cleanedContent, results };
+}
+
+/**
+ * Process OpenCode todos and create Dexteria tasks from them.
+ * Only creates tasks that don't already exist (based on title match).
+ */
+async function processOpenCodeTodos(todos: OpenCodeTodo[], mode: 'planner' | 'agent'): Promise<ToolResult[]> {
+  const results: ToolResult[] = [];
+
+  console.log('[Chat] processOpenCodeTodos called with', todos.length, 'todos');
+  console.log('[Chat] hasProject:', hasProject());
+  console.log('[Chat] Todos to process:', JSON.stringify(todos.slice(0, 3)));
+
+  if (!hasProject()) {
+    console.log('[Chat] processOpenCodeTodos: NO PROJECT OPEN - cannot create tasks');
+    return results;
+  }
+
+  if (todos.length === 0) {
+    console.log('[Chat] processOpenCodeTodos: no todos to process');
+    return results;
+  }
+
+  const s = getStore();
+  const existingTasks = s.getTasks();
+  console.log('[Chat] Existing tasks count:', existingTasks.length);
+
+  // Only create tasks that don't already exist (by title)
+  const existingTitles = new Set(existingTasks.map(t => t.title.toLowerCase()));
+
+  for (let i = 0; i < todos.length; i++) {
+    const todo = todos[i];
+    const title = todo.content;
+    console.log(`[Chat] Processing todo ${i + 1}/${todos.length}: "${title}" (status: ${todo.status})`);
+
+    if (!title || title.trim() === '') {
+      console.log(`[Chat] Skipping todo ${i + 1} - empty title`);
+      continue;
+    }
+
+    const titleLower = title.toLowerCase().trim();
+
+    // Skip if task with same title exists
+    if (existingTitles.has(titleLower)) {
+      console.log(`[Chat] Skipping todo ${i + 1} - task already exists: "${title}"`);
+      continue;
+    }
+
+    // Map OpenCode status to Dexteria status
+    let status: 'backlog' | 'todo' | 'doing' | 'review' | 'done' = 'backlog';
+    if (todo.status === 'in_progress') {
+      status = 'doing';
+    } else if (todo.status === 'completed') {
+      status = 'done';
+    }
+
+    console.log(`[Chat] Creating task: "${title}" with status="${status}"`);
+
+    // Create task
+    const result = await executeToolCall('create_task', {
+      title: title.trim(),
+      description: '',
+      status,
+      priority: todo.priority || 'medium',
+    }, mode);
+
+    results.push(result);
+
+    if (result.success) {
+      existingTitles.add(titleLower); // Add to set to prevent duplicates in same batch
+      console.log(`[Chat] SUCCESS: Created task from OpenCode todo: "${title}"`);
+    } else {
+      console.log(`[Chat] FAILED to create task: "${title}" - Error: ${result.error}`);
+    }
+  }
+
+  console.log(`[Chat] processOpenCodeTodos completed: ${results.filter(r => r.success).length}/${results.length} tasks created`);
+  return results;
 }
 
 /**
@@ -375,7 +560,7 @@ export function registerChatHandlers(): void {
     return getStore().deleteChat(chatId);
   });
 
-  ipcMain.handle('chat:sendMessage', async (event, chatId: string, content: string, mode: 'planner' | 'agent' = 'planner'): Promise<ChatMessage | null> => {
+  ipcMain.handle('chat:sendMessage', async (event, chatId: string, content: string, mode: 'planner' | 'agent' = 'planner', attachedFiles: string[] = []): Promise<ChatMessage | null> => {
     if (!hasProject()) return null;
     const s = getStore();
     const chat = s.getChat(chatId);
@@ -494,38 +679,74 @@ export function registerChatHandlers(): void {
 
         let response;
 
-        // Call complete with streaming if provider supports it (ClaudeCodeProvider)
-        if (provider instanceof ClaudeCodeProvider) {
-          const onChunk = (chunk: string) => {
-            accumulated += chunk;
+        // Streaming callback for providers that support it
+        const onChunk = (chunk: string) => {
+          accumulated += chunk;
 
-            // Check for message boundaries
-            const { current, completed } = processContentWithDelimiters(accumulated);
+          // Check for message boundaries
+          const { current, completed } = processContentWithDelimiters(accumulated);
 
-            // If we have newly completed messages, emit them
-            while (completed.length > completedMessages.length) {
-              const newCompletedIdx = completedMessages.length;
-              const completedContent = completed[newCompletedIdx];
-              completedMessages.push(completedContent);
+          // If we have newly completed messages, emit them
+          while (completed.length > completedMessages.length) {
+            const newCompletedIdx = completedMessages.length;
+            const completedContent = completed[newCompletedIdx];
+            completedMessages.push(completedContent);
 
-              // Send the completed message
-              sendUpdate(filterToolJsonForStreaming(completedContent), true, true);
-            }
+            // Send the completed message
+            sendUpdate(filterToolJsonForStreaming(completedContent), true, true);
+          }
 
-            // Send current (in-progress) message
-            if (current) {
-              sendUpdate(filterToolJsonForStreaming(current), false, completedMessages.length > 0);
-            }
-          };
+          // Send current (in-progress) message
+          if (current) {
+            sendUpdate(filterToolJsonForStreaming(current), false, completedMessages.length > 0);
+          }
+        };
+
+        // Set attached files for providers that support it
+        if (attachedFiles.length > 0) {
+          if ('setAttachedFiles' in provider && typeof provider.setAttachedFiles === 'function') {
+            provider.setAttachedFiles(attachedFiles);
+          }
+        }
+
+        // Call complete with streaming for providers that support it
+        if (provider instanceof ClaudeCodeProvider || provider instanceof OpenCodeProvider) {
           response = await provider.complete(conversationMessages, AGENT_TOOLS, onChunk, mode);
         } else {
-          // Non-streaming provider - just wait for response
+          // Other providers - no mode parameter support
           response = await provider.complete(conversationMessages, AGENT_TOOLS);
+        }
+
+        // Clear attached files after use
+        if ('setAttachedFiles' in provider && typeof provider.setAttachedFiles === 'function') {
+          provider.setAttachedFiles([]);
         }
 
         // Parse and execute inline tool calls from content (JSON blocks)
         const { cleanedContent, results: inlineResults } = await parseAndExecuteInlineTools(response.content, mode);
         allToolResults.push(...inlineResults);
+
+        // Process OpenCode todos if any were collected
+        console.log('[Chat] Provider type:', provider.getName(), 'isOpenCode:', provider instanceof OpenCodeProvider);
+        if (provider instanceof OpenCodeProvider) {
+          const collectedTodos = provider.getCollectedTodos();
+          console.log('[Chat] OpenCode collected todos:', collectedTodos.length, JSON.stringify(collectedTodos.slice(0, 2)));
+          if (collectedTodos.length > 0) {
+            console.log('[Chat] Processing OpenCode todos:', collectedTodos.length);
+            const todoResults = await processOpenCodeTodos(collectedTodos, mode);
+            allToolResults.push(...todoResults);
+
+            // Add summary to content if tasks were created
+            const createdCount = todoResults.filter(r => r.success).length;
+            if (createdCount > 0) {
+              const taskSummary = `\n\n✅ **Created ${createdCount} tasks in Dexteria**`;
+              response.content = (cleanedContent || response.content) + taskSummary;
+            }
+
+            // Clear collected todos
+            provider.clearCollectedTodos();
+          }
+        }
 
         // Handle structured tool calls if provider returned them
         const structuredToolCalls = response.toolCalls || [];
