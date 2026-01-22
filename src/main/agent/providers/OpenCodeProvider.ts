@@ -119,20 +119,27 @@ export class OpenCodeProvider extends AgentProvider {
    * Execute an opencode command with streaming JSON output.
    * Parses NDJSON events and streams text in real-time.
    *
-   * OpenCode CLI syntax: opencode run --format json "prompt"
+   * OpenCode CLI syntax: opencode run --format json < prompt
+   * Uses stdin for prompt to avoid command line length limits on Windows.
    */
-  private executeStreamingCommand(args: string[], onChunk?: (chunk: string) => void): Promise<string> {
+  private executeStreamingCommand(args: string[], onChunk?: (chunk: string) => void, stdinData?: string): Promise<string> {
     this.cancelled = false;
 
     return new Promise((resolve, reject) => {
-      console.log('[OpenCode] Spawning opencode with args:', args);
+      console.log('[OpenCode] Spawning opencode with args:', args.slice(0, 3), '(prompt via stdin)');
 
       const proc = spawn(this.binaryPath, args, {
         cwd: this.workingDirectory,
-        stdio: ['ignore', 'pipe', 'pipe'], // No stdin needed - prompt is in args
+        stdio: ['pipe', 'pipe', 'pipe'], // Use stdin for prompt
         shell: false,
         windowsHide: true,
       });
+
+      // Write prompt to stdin and close it
+      if (stdinData && proc.stdin) {
+        proc.stdin.write(stdinData);
+        proc.stdin.end();
+      }
 
       // Track the current process for cancellation
       this.currentProcess = proc;
@@ -535,17 +542,16 @@ export class OpenCodeProvider extends AgentProvider {
     try {
       const prompt = this.buildPrompt(messages, tools, mode);
 
-      // OpenCode CLI syntax: opencode run --format json "prompt"
+      // OpenCode CLI syntax: opencode run --format json < prompt
       // - run: Non-interactive mode
       // - --format json: Output as NDJSON events for streaming
-      // - The prompt is passed as the last argument
+      // - Prompt is passed via stdin to avoid Windows command line length limits
       const args = [
         'run',
         '--format', 'json',
-        prompt,
       ];
 
-      const response = await this.executeStreamingCommand(args, onChunk);
+      const response = await this.executeStreamingCommand(args, onChunk, prompt);
 
       // Parse tool calls from response
       const toolCalls = this.parseToolCalls(response);
