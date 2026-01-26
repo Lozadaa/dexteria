@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        default: '0.1.0'
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            artifacts: |
+              release/Dexteria-Setup.exe
+              release/Dexteria-Portable.exe
+          - os: macos-latest
+            platform: mac
+            artifacts: |
+              release/Dexteria-macOS.dmg
+              release/Dexteria-macOS.zip
+          - os: ubuntu-latest
+            platform: linux
+            artifacts: |
+              release/Dexteria-Linux.AppImage
+              release/Dexteria-Linux.deb
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Package application
+        run: npm run package:${{ matrix.platform }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-build
+          path: |
+            ${{ matrix.artifacts }}
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Display structure
+        run: ls -R release-artifacts
+
+      - name: Delete existing release if exists
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete v${{ github.event.inputs.version }} --yes
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v${{ github.event.inputs.version }} \
+            --title "Dexteria v${{ github.event.inputs.version }}" \
+            --generate-notes \
+            release-artifacts/win-build/release/* \
+            release-artifacts/mac-build/release/* \
+            release-artifacts/linux-build/release/*

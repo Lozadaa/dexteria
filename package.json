@@ -16,6 +16,8 @@
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
+    "package:linux": "npm run build && electron-builder --linux",
+    "package:all": "npm run build && electron-builder --win --mac --linux",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
@@ -24,8 +26,9 @@
     "i18n:codemod": "tsx scripts/i18n-codemod.ts",
     "i18n:codemod:dry": "tsx scripts/i18n-codemod.ts --dry-run",
     "i18n:check": "tsx scripts/i18n-check.ts",
-    "release": "npm run package:win && npm run release:github",
-    "release:github": "gh release delete v%npm_package_version% --yes 2>nul & gh release create v%npm_package_version% --title \"Dexteria v%npm_package_version%\" --generate-notes release/Dexteria-Setup.exe release/Dexteria-Portable.exe"
+    "release": "npm run package:all && npm run release:github",
+    "release:github": "gh release delete v%npm_package_version% --yes 2>nul || true && gh release create v%npm_package_version% --title \"Dexteria v%npm_package_version%\" --generate-notes release/Dexteria-Setup.exe release/Dexteria-Portable.exe release/Dexteria-macOS.dmg release/Dexteria-macOS.zip release/Dexteria-Linux.AppImage release/Dexteria-Linux.deb",
+    "release:win": "npm run package:win && gh release delete v%npm_package_version% --yes 2>nul || true && gh release create v%npm_package_version% --title \"Dexteria v%npm_package_version%\" --generate-notes release/Dexteria-Setup.exe release/Dexteria-Portable.exe"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
