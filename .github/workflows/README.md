@@ -1,87 +1,87 @@
 # Release Workflow
 
-Este workflow permite crear releases multiplataforma de Dexteria para Windows, macOS y Linux.
+This workflow enables creating multi-platform releases of Dexteria for Windows, macOS, and Linux.
 
-## Uso
+## Usage
 
-### Opción 1: GitHub Actions (Recomendado)
+### Option 1: GitHub Actions (Recommended)
 
-1. Ve a la pestaña **Actions** en tu repositorio de GitHub
-2. Selecciona el workflow **Release**
-3. Haz clic en **Run workflow**
-4. Ingresa la versión que deseas liberar (ej: `0.1.0`)
-5. Haz clic en **Run workflow**
+1. Go to the **Actions** tab in your GitHub repository
+2. Select the **Release** workflow
+3. Click **Run workflow**
+4. Enter the version you want to release (e.g., `0.1.0`)
+5. Click **Run workflow**
 
-El workflow automáticamente:
-- Compilará la aplicación para Windows, macOS y Linux en paralelo
-- Creará (o sobrescribirá) el release con tag `vX.X.X`
-- Subirá todos los artefactos:
+The workflow will automatically:
+- Build the application for Windows, macOS, and Linux in parallel
+- Create (or overwrite) the release with tag `vX.X.X`
+- Upload all artifacts:
   - **Windows**: `Dexteria-Setup.exe`, `Dexteria-Portable.exe`
   - **macOS**: `Dexteria-macOS.dmg`, `Dexteria-macOS.zip`
   - **Linux**: `Dexteria-Linux.AppImage`, `Dexteria-Linux.deb`
 
-### Opción 2: Build Local
+### Option 2: Local Build
 
-Para hacer builds locales:
+To build locally:
 
 ```bash
-# Build solo para tu plataforma actual
+# Build for current platform only
 npm run package
 
-# Build solo para Windows
+# Build for Windows only
 npm run package:win
 
-# Build solo para macOS
+# Build for macOS only
 npm run package:mac
 
-# Build solo para Linux
+# Build for Linux only
 npm run package:linux
 
-# Build para todas las plataformas (requiere Docker para Linux/Windows en Mac)
+# Build for all platforms (requires Docker for cross-compilation)
 npm run package:all
 ```
 
-### Opción 3: Release desde Local
+### Option 3: Release from Local
 
-Para crear un release manualmente desde tu máquina:
+To create a release manually from your machine:
 
 ```bash
-# Asegúrate de que tu package.json tenga la versión correcta
-# Luego ejecuta:
+# Make sure your package.json has the correct version
+# Then run:
 npm run release
 ```
 
-Esto:
-1. Hará build para todas las plataformas
-2. Borrará el release existente si existe
-3. Creará un nuevo release con todos los artefactos
+This will:
+1. Build for all platforms
+2. Delete the existing release if it exists
+3. Create a new release with all artifacts
 
-**Nota**: Para hacer build de todas las plataformas desde una sola máquina, necesitarás:
-- En macOS: puede hacer builds de macOS, pero Windows/Linux requieren Docker
-- En Windows: puede hacer builds de Windows, pero macOS/Linux requieren configuración adicional
-- En Linux: puede hacer builds de Linux y Windows, pero macOS requiere macOS nativo
+**Note**: To build all platforms from a single machine:
+- On macOS: can build macOS natively, but Windows/Linux require Docker
+- On Windows: can build Windows natively, but macOS/Linux require additional configuration
+- On Linux: can build Linux and Windows, but macOS requires a Mac
 
-Por eso se recomienda usar GitHub Actions que tiene runners nativos para cada plataforma.
+This is why GitHub Actions is recommended - it has native runners for each platform.
 
-## Requisitos
+## Requirements
 
 - Node.js 18+
-- GitHub CLI (`gh`) instalado y autenticado
-- Para releases locales: permisos de escritura en el repositorio
-- Para GitHub Actions: el workflow ya tiene los permisos configurados
+- GitHub CLI (`gh`) installed and authenticated
+- For local releases: write permissions on the repository
+- For GitHub Actions: workflow permissions are already configured
 
 ## Troubleshooting
 
 ### Error: "gh: command not found"
 
-Instala GitHub CLI:
+Install GitHub CLI:
 - macOS: `brew install gh`
 - Windows: `winget install GitHub.cli`
-- Linux: Ver https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+- Linux: See https://github.com/cli/cli/blob/trunk/docs/install_linux.md
 
-### Error de permisos en GitHub Actions
+### Permission errors in GitHub Actions
 
-Verifica que el repositorio tenga habilitados los permisos de escritura para workflows:
-1. Ve a Settings → Actions → General
-2. En "Workflow permissions", selecciona "Read and write permissions"
-3. Guarda los cambios
+Verify that the repository has write permissions enabled for workflows:
+1. Go to Settings → Actions → General
+2. Under "Workflow permissions", select "Read and write permissions"
+3. Save changes

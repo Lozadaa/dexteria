@@ -90,6 +90,6 @@ jobs:
           gh release create v${{ github.event.inputs.version }} \
             --title "Dexteria v${{ github.event.inputs.version }}" \
             --generate-notes \
-            release-artifacts/win-build/release/* \
-            release-artifacts/mac-build/release/* \
-            release-artifacts/linux-build/release/*
+            release-artifacts/win-build/* \
+            release-artifacts/mac-build/* \
+            release-artifacts/linux-build/*

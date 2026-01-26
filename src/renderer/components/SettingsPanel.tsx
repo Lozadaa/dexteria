@@ -47,18 +47,19 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
+  ArrowUpCircle,
 } from 'lucide-react';
 import { GitSettingsPanel } from './Git/GitSettingsPanel';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useSettingsTabs, type SettingsTabContribution } from '../contexts/ExtensionPointsContext';
 import { PluginComponentLoader } from '../plugins/PluginComponentLoader';
 import * as LucideIcons from 'lucide-react';
-import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo } from '../../shared/types';
+import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo, UpdatePreferences } from '../../shared/types';
 import { useTranslation } from '../i18n/useTranslation';
 import type { Locale } from '../i18n';
 
 // Built-in tabs
-type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'integrations' | 'git' | 'language' | 'themes' | 'plugins' | 'other';
+type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'integrations' | 'git' | 'language' | 'themes' | 'plugins' | 'updates' | 'other';
 // All tabs including plugin tabs (plugin tabs use format: plugin:pluginId:tabId)
 type SettingsTab = BuiltInSettingsTab | `plugin:${string}`;
 
@@ -103,6 +104,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   const [vscodeVersion, setVscodeVersion] = useState<string | null>(null);
   const [checkingVscode, setCheckingVscode] = useState(true);
 
+  // Update preferences state
+  const [updatePrefs, setUpdatePrefs] = useState<UpdatePreferences | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateCheckResult, setUpdateCheckResult] = useState<{ available: boolean; version?: string } | null>(null);
+
   // Theme context
   const {
     themes,
@@ -122,6 +128,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   useEffect(() => {
     loadSettings();
     loadVSCodeStatus();
+    loadUpdatePreferences();
   }, []);
 
   // Track changes
@@ -181,6 +188,46 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       console.error('Failed to load VSCode status:', error);
     }
     setCheckingVscode(false);
+  };
+
+  const loadUpdatePreferences = async () => {
+    try {
+      const prefs = await window.dexteria?.update?.getPreferences?.();
+      setUpdatePrefs(prefs || null);
+    } catch (error) {
+      console.error('Failed to load update preferences:', error);
+    }
+  };
+
+  const handleCheckForUpdates = async () => {
+    setCheckingUpdate(true);
+    setUpdateCheckResult(null);
+    try {
+      const info = await window.dexteria?.update?.check?.();
+      if (info) {
+        setUpdateCheckResult({
+          available: info.updateAvailable,
+          version: info.latestVersion,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error);
+      setUpdateCheckResult({ available: false });
+    }
+    setCheckingUpdate(false);
+  };
+
+  const handleUpdatePreferenceChange = async (key: keyof UpdatePreferences, value: any) => {
+    if (!updatePrefs) return;
+
+    const newPrefs = { ...updatePrefs, [key]: value };
+    setUpdatePrefs(newPrefs);
+
+    try {
+      await window.dexteria?.update?.setPreferences?.(newPrefs);
+    } catch (error) {
+      console.error('Failed to save update preferences:', error);
+    }
   };
 
   const toggleVscodeIntegration = async (enabled: boolean) => {
@@ -361,6 +408,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     { id: 'language', label: t('labels.language'), icon: <Globe size={16} /> },
     { id: 'themes', label: t('labels.themes'), icon: <Palette size={16} /> },
     { id: 'plugins', label: t('labels.plugins'), icon: <Puzzle size={16} /> },
+    { id: 'updates', label: 'Updates', icon: <ArrowUpCircle size={16} /> },
     { id: 'other', label: t('labels.other'), icon: <Settings2 size={16} /> },
   ];
 
@@ -1356,6 +1404,156 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   })
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Updates Tab */}
+          {activeTab === 'updates' && (
+            <div className="space-y-6 max-w-2xl">
+              <div>
+                <h3 className="text-lg font-semibold mb-1">Updates</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configure how Dexteria checks for and installs updates.
+                </p>
+              </div>
+
+              {/* Check for Updates Now */}
+              <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Check for Updates</div>
+                    <div className="text-sm text-muted-foreground">
+                      Manually check if a new version is available
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleCheckForUpdates}
+                    disabled={checkingUpdate}
+                  >
+                    {checkingUpdate ? (
+                      <>
+                        <Spinner size="xs" className="mr-2" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={14} className="mr-2" />
+                        Check Now
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Check result */}
+                {updateCheckResult && (
+                  <div className={cn(
+                    "p-3 rounded-md border",
+                    updateCheckResult.available
+                      ? "bg-green-500/10 border-green-500/20"
+                      : "bg-muted border-border"
+                  )}>
+                    <div className="flex items-start gap-2">
+                      {updateCheckResult.available ? (
+                        <>
+                          <ArrowUpCircle size={16} className="text-green-500 mt-0.5" />
+                          <div className="text-sm">
+                            <p className="font-medium text-green-600 dark:text-green-400">
+                              Update available: v{updateCheckResult.version}
+                            </p>
+                            <p className="text-muted-foreground mt-1">
+                              A new version is ready to download. Check your notifications to install it.
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} className="text-muted-foreground mt-0.5" />
+                          <p className="text-sm text-muted-foreground">
+                            You&apos;re running the latest version
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Auto-check preferences */}
+              {updatePrefs && (
+                <>
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Auto-check on startup</div>
+                        <div className="text-sm text-muted-foreground">
+                          Automatically check for updates when Dexteria starts
+                        </div>
+                      </div>
+                      <Switch
+                        checked={updatePrefs.autoCheckOnStartup}
+                        onCheckedChange={(checked) => handleUpdatePreferenceChange('autoCheckOnStartup', checked)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Auto-download updates</div>
+                        <div className="text-sm text-muted-foreground">
+                          Download updates automatically in the background
+                        </div>
+                      </div>
+                      <Switch
+                        checked={updatePrefs.autoDownload}
+                        onCheckedChange={(checked) => handleUpdatePreferenceChange('autoDownload', checked)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Update channel</div>
+                        <div className="text-sm text-muted-foreground">
+                          Choose which updates to receive
+                        </div>
+                      </div>
+                      <select
+                        value={updatePrefs.channel}
+                        onChange={(e) => handleUpdatePreferenceChange('channel', e.target.value as 'stable' | 'beta')}
+                        className="px-3 py-1.5 rounded-md border border-border bg-background text-sm"
+                      >
+                        <option value="stable">Stable</option>
+                        <option value="beta">Beta</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Check interval</div>
+                        <div className="text-sm text-muted-foreground">
+                          How often to check for updates
+                        </div>
+                      </div>
+                      <select
+                        value={updatePrefs.checkIntervalHours}
+                        onChange={(e) => handleUpdatePreferenceChange('checkIntervalHours', parseInt(e.target.value))}
+                        className="px-3 py-1.5 rounded-md border border-border bg-background text-sm"
+                      >
+                        <option value={6}>Every 6 hours</option>
+                        <option value={12}>Every 12 hours</option>
+                        <option value={24}>Daily</option>
+                        <option value={168}>Weekly</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

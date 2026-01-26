@@ -10,6 +10,9 @@ import { ExtensionPointsProvider } from './contexts/ExtensionPointsContext';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { useSystemTheme } from './hooks/useTheme';
 import { AlertTriangle, X } from 'lucide-react';
+import { UpdateNotificationToast } from './components/UpdateNotificationToast';
+import { UpdateProgressDialog } from './components/UpdateProgressDialog';
+import { useUpdater } from './hooks/useUpdater';
 import './index.css';
 
 // Docking System
@@ -202,6 +205,81 @@ function AppContent() {
   const [isOpeningProject, setIsOpeningProject] = useState(false);
   const [providerReady, setProviderReady] = useState<boolean | null>(null);
   const [pendingThemeId, setPendingThemeId] = useState<string | null>(null);
+
+  // Update system
+  const {
+    updateInfo,
+    downloadProgress,
+    isDownloading,
+    installerPath,
+    error: updateError,
+    downloadUpdate,
+    installAndRestart,
+    skipVersion,
+    dismissUpdate,
+  } = useUpdater();
+  const [showUpdateToast, setShowUpdateToast] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const toast = useToast();
+
+  // Show toast when update is available
+  useEffect(() => {
+    if (updateInfo && updateInfo.updateAvailable) {
+      setShowUpdateToast(true);
+    }
+  }, [updateInfo]);
+
+  // Handle update download
+  const handleDownloadUpdate = async () => {
+    setShowUpdateToast(false);
+    setShowUpdateDialog(true);
+    try {
+      await downloadUpdate();
+    } catch (err) {
+      console.error('Failed to download update:', err);
+      toast.error('Failed to download update. Please try again.');
+    }
+  };
+
+  // Handle install and restart
+  const handleInstallAndRestart = async () => {
+    if (!installerPath) return;
+    try {
+      await installAndRestart(installerPath);
+      // If we reach here on macOS/Linux, show manual install instructions
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('manually')) {
+        toast.info(message);
+        setShowUpdateDialog(false);
+      } else {
+        toast.error(message);
+      }
+    }
+  };
+
+  // Handle skip version
+  const handleSkipVersion = async () => {
+    if (!updateInfo) return;
+    setShowUpdateToast(false);
+    try {
+      await skipVersion(updateInfo.latestVersion);
+      toast.info(`Version ${updateInfo.latestVersion} will be skipped`);
+    } catch (err) {
+      console.error('Failed to skip version:', err);
+    }
+  };
+
+  // Handle dismiss
+  const handleDismissUpdate = () => {
+    setShowUpdateToast(false);
+    dismissUpdate();
+  };
+
+  // Handle cancel download
+  const handleCancelDownload = () => {
+    setShowUpdateDialog(false);
+  };
 
   // Check for provider and project on mount
   useEffect(() => {
@@ -405,6 +483,26 @@ function AppContent() {
       </ComponentRegistryProvider>
       {/* Global modal for planner mode block */}
       <PlannerBlockModal />
+      {/* Update notification toast */}
+      {showUpdateToast && updateInfo && (
+        <UpdateNotificationToast
+          updateInfo={updateInfo}
+          onDownload={handleDownloadUpdate}
+          onSkip={handleSkipVersion}
+          onDismiss={handleDismissUpdate}
+        />
+      )}
+      {/* Update progress dialog */}
+      {showUpdateDialog && (
+        <UpdateProgressDialog
+          progress={downloadProgress}
+          isDownloading={isDownloading}
+          installerPath={installerPath}
+          error={updateError}
+          onInstallAndRestart={handleInstallAndRestart}
+          onCancel={handleCancelDownload}
+        />
+      )}
     </ExtensionPointsProvider>
   );
 }

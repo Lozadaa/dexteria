@@ -31,6 +31,9 @@ import type {
   CommitOptions,
   MergeOptions,
   ResolveConflictOptions,
+  AppUpdateInfo,
+  AppUpdateProgress,
+  UpdatePreferences,
 } from '../shared/types';
 
 /** Clarification request from a task */
@@ -491,6 +494,16 @@ export interface DexteriaAPI {
     // Config
     getConfig: () => Promise<GitConfig>;
   };
+  update: {
+    check: () => Promise<AppUpdateInfo>;
+    download: () => Promise<{ success: boolean; installerPath?: string; error?: string }>;
+    installAndRestart: (installerPath: string) => Promise<{ success: boolean; error?: string }>;
+    skipVersion: (version: string) => Promise<{ success: boolean; error?: string }>;
+    getPreferences: () => Promise<UpdatePreferences | null>;
+    setPreferences: (prefs: Partial<UpdatePreferences>) => Promise<{ success: boolean; error?: string }>;
+    onDownloadProgress: (callback: (progress: AppUpdateProgress) => void) => () => void;
+    onUpdateAvailable: (callback: (info: AppUpdateInfo) => void) => () => void;
+  };
 }
 
 // ============================================
@@ -811,6 +824,24 @@ const api: DexteriaAPI = {
     generateBranchName: (taskId, taskTitle) => ipcRenderer.invoke('git:generateBranchName', taskId, taskTitle),
     // Config
     getConfig: () => ipcRenderer.invoke('git:getConfig'),
+  },
+  update: {
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    installAndRestart: (installerPath) => ipcRenderer.invoke('update:installAndRestart', installerPath),
+    skipVersion: (version) => ipcRenderer.invoke('update:skipVersion', version),
+    getPreferences: () => ipcRenderer.invoke('update:getPreferences'),
+    setPreferences: (prefs) => ipcRenderer.invoke('update:setPreferences', prefs),
+    onDownloadProgress: (callback: (progress: AppUpdateProgress) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: AppUpdateProgress) => callback(progress);
+      ipcRenderer.on('update:download-progress', handler);
+      return () => ipcRenderer.removeListener('update:download-progress', handler);
+    },
+    onUpdateAvailable: (callback: (info: AppUpdateInfo) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: AppUpdateInfo) => callback(info);
+      ipcRenderer.on('update:available', handler);
+      return () => ipcRenderer.removeListener('update:available', handler);
+    },
   },
 };
 

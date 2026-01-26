@@ -3,6 +3,7 @@ import * as path from 'path';
 import { initializeIpcHandlers } from './ipc/handlers';
 import { initBadgeClearing } from './services/NotificationService';
 import { OpenCodeInstaller } from './services/OpenCodeInstaller';
+import { AppUpdaterService } from './services/AppUpdaterService';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
 // This is only needed for Squirrel.Windows installers
@@ -131,6 +132,51 @@ app.whenReady().then(async () => {
         installed: isOpenCodeInstalled,
         version: isOpenCodeInstalled ? OpenCodeInstaller.getInstalledVersion() : null,
       });
+
+      // Check for app updates in the background (after 5 seconds)
+      setTimeout(async () => {
+        try {
+          const updatePrefs = AppUpdaterService.getUpdatePreferences();
+
+          if (!updatePrefs.autoCheckOnStartup) {
+            console.log('[Update] Auto-check disabled');
+            return;
+          }
+
+          const lastCheck = updatePrefs.lastCheckTime
+            ? new Date(updatePrefs.lastCheckTime)
+            : null;
+
+          const hoursSinceLastCheck = lastCheck
+            ? (Date.now() - lastCheck.getTime()) / (1000 * 60 * 60)
+            : Infinity;
+
+          if (hoursSinceLastCheck < updatePrefs.checkIntervalHours) {
+            console.log(
+              `[Update] Skipping check (last check: ${hoursSinceLastCheck.toFixed(1)}h ago, interval: ${updatePrefs.checkIntervalHours}h)`
+            );
+            return;
+          }
+
+          console.log('[Update] Checking for updates in background...');
+          const updateInfo = await AppUpdaterService.checkForUpdates();
+
+          if (
+            updateInfo.updateAvailable &&
+            updateInfo.latestVersion !== updatePrefs.skipVersion
+          ) {
+            console.log(
+              `[Update] Update available: ${updateInfo.currentVersion} → ${updateInfo.latestVersion}`
+            );
+            // Notify renderer
+            mainWindow?.webContents.send('update:available', updateInfo);
+          } else {
+            console.log('[Update] App is up to date');
+          }
+        } catch (error) {
+          console.error('[Update] Background check failed:', error);
+        }
+      }, 5000); // Wait 5 seconds after app start
     });
   }
 

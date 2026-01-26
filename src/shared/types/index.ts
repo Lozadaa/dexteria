@@ -177,3 +177,12 @@ export type {
 } from './git';
 
 export { DEFAULT_GIT_CONFIG, DEFAULT_GIT_STATE } from './git';
+
+// Update types
+export type {
+  AppUpdateInfo,
+  AppUpdateProgress,
+  UpdateChannel,
+  UpdatePreferences,
+  GlobalAppConfig,
+} from './update';
