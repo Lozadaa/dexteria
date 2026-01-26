@@ -38,6 +38,8 @@ temp/
 # Electron-builder cache
 .electron-builder/
 
-# Optional: Don't ignore .local-kanban since it's part of the project brain
-# !.local-kanban/
-.local-kanban/chats/
+# Local project data (user-specific, contains personal info)
+.local-kanban/
+
+# Claude Code settings (contains personal paths and permissions)
+.claude/
