@@ -108,7 +108,8 @@ export class InterviewEngine {
    * Resume an existing interview from saved state.
    */
   async resume(projectPath: string): Promise<InterviewState | null> {
-    const saved = this.store.getInterview();
+    const raw = this.store.getInterview();
+    const saved = raw as InterviewState | null;
     if (saved && saved.projectPath === projectPath && saved.stage !== 'done') {
       this.currentState = saved;
       return saved;
