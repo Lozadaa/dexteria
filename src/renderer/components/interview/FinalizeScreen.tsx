@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
+import LogoIcon from '../../../../assets/logoicon.png';
 import type { InterviewState, BacklogEpic, ProjectBrief } from '../../../shared/types';
 
 interface FinalizeScreenProps {
@@ -46,7 +47,7 @@ function GenerationProgress({ step, t }: { step: GenerationStep; t: (key: string
     <div className="flex flex-col items-center justify-center h-screen p-6">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center mb-8">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <img src={LogoIcon} alt="Dexteria" className="w-12 h-12 mx-auto mb-4 animate-pulse" />
           <h2 className="text-xl font-semibold mb-2">
             {t('interview.finalize.processing', 'Processing your project')}
           </h2>
