@@ -77,6 +77,8 @@ export function registerInterviewHandlers(): void {
   ipcMain.handle(
     'interview:init',
     async (event, config: InterviewConfig): Promise<InterviewState> => {
+      // Clear any existing engine so a fresh one is created
+      clearInterviewEngine();
       const win = BrowserWindow.fromWebContents(event.sender);
       const engine = getOrCreateEngine(win);
       return engine.init(config);

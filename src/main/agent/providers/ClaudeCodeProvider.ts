@@ -542,6 +542,7 @@ export class ClaudeCodeProvider extends AgentProvider {
 
       return {
         content: cleanedContent,
+        rawContent: response,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         finishReason,
       };

@@ -407,10 +407,8 @@ export class InterviewEngine {
             this.sendStreamUpdate('brief', fullResponse, false);
           }
         );
-        // Prefer streaming fullResponse (has raw content) over cleaned response.content
-        if (!fullResponse && response.content) {
-          fullResponse = response.content;
-        }
+        // Use rawContent for parsing, fallback to streaming or cleaned content
+        fullResponse = response.rawContent || fullResponse || response.content;
       }
 
       this.sendStreamUpdate('brief', fullResponse, true);
@@ -526,11 +524,10 @@ ONLY respond with JSON blocks, one after another. DO NOT include explanations or
               this.sendStreamUpdate('backlog', fullResponse, false);
             }
           );
-          // Prefer streaming fullResponse (has raw JSON blocks) over response.content
-          // which is cleaned/stripped of JSON by the provider
-          if (!fullResponse && response.content) {
-            fullResponse = response.content;
-          }
+          // Use rawContent (full unprocessed response) for parsing JSON blocks
+          // response.content is cleaned/stripped of JSON by the provider
+          // fullResponse from streaming may be incomplete due to async typing queue
+          fullResponse = response.rawContent || fullResponse || response.content;
         } else {
           console.warn('[InterviewEngine] No provider available for backlog generation');
           break;

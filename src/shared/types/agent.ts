@@ -243,8 +243,10 @@ export interface AgentToolCall {
  * Response from the agent provider.
  */
 export interface AgentResponse {
-  /** Text content of the response */
+  /** Text content of the response (cleaned for display) */
   content: string;
+  /** Raw unprocessed content including JSON blocks and tool calls */
+  rawContent?: string;
   /** Tool calls requested */
   toolCalls?: AgentToolCall[];
   /** Reason the response ended */
