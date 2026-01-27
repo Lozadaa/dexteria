@@ -843,6 +843,28 @@ const api: DexteriaAPI = {
       return () => ipcRenderer.removeListener('update:available', handler);
     },
   },
+  interview: {
+    init: (config: unknown) => ipcRenderer.invoke('interview:init', config),
+    resume: (projectPath: string) => ipcRenderer.invoke('interview:resume', projectPath),
+    nextQuestion: () => ipcRenderer.invoke('interview:nextQuestion'),
+    submitAnswer: (answer: unknown) => ipcRenderer.invoke('interview:submitAnswer', answer),
+    getOptions: () => ipcRenderer.invoke('interview:getOptions'),
+    skip: () => ipcRenderer.invoke('interview:skip'),
+    getExample: () => ipcRenderer.invoke('interview:getExample'),
+    generateBrief: () => ipcRenderer.invoke('interview:generateBrief'),
+    generateBacklog: () => ipcRenderer.invoke('interview:generateBacklog'),
+    createTasks: (projectPath: string) => ipcRenderer.invoke('interview:createTasks', projectPath),
+    skipBacklog: () => ipcRenderer.invoke('interview:skipBacklog'),
+    saveAndExit: () => ipcRenderer.invoke('interview:saveAndExit'),
+    cancel: () => ipcRenderer.invoke('interview:cancel'),
+    getLocale: () => ipcRenderer.invoke('interview:getLocale'),
+    isActive: () => ipcRenderer.invoke('interview:isActive'),
+    onStreamUpdate: (callback: (data: { type: string; content: string; done: boolean }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { type: string; content: string; done: boolean }) => callback(data);
+      ipcRenderer.on('interview:stream-update', handler);
+      return () => ipcRenderer.removeListener('interview:stream-update', handler);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('dexteria', api);
