@@ -189,7 +189,7 @@ const DockingContent: React.FC = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
-      <TopBar onOpenSettings={handleOpenSettings} onOpenThemeEditor={handleOpenThemeEditor} />
+      <TopBar onOpenSettings={handleOpenSettings} onOpenThemeEditor={handleOpenThemeEditor} onNewProject={handleNewProject} />
       <div className="flex-1 overflow-hidden">
         <DockingLayout />
       </div>

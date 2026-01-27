@@ -24,9 +24,10 @@ import { useTranslation } from '../i18n/useTranslation';
   interface TopBarProps {
       onOpenSettings?: () => void;
       onOpenThemeEditor?: (themeId: string, themeName?: string) => void;
+      onNewProject?: () => void;
   }
 
-  export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings }) => {
+  export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings, onNewProject }) => {
       const { t } = useTranslation();
       const { state, refresh } = useAgentState();
       const { mode, setMode, triggerPlannerBlock } = useMode();
@@ -260,12 +261,10 @@ import { useTranslation } from '../i18n/useTranslation';
           }
       };
 
-      const handleNewProject = async () => {
+      const handleNewProject = () => {
           setShowFileMenu(false);
-          try {
-              await window.dexteria?.project?.create?.();
-          } catch (err) {
-              console.error('Failed to create project:', err);
+          if (onNewProject) {
+              onNewProject();
           }
       };
 
