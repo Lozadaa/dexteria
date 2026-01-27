@@ -176,7 +176,7 @@ const LayoutInitializer: React.FC<{ children: React.ReactNode }> = ({ children }
 };
 
 // Main docking content
-const DockingContent: React.FC = () => {
+const DockingContent: React.FC<{ onNewProject: () => void }> = ({ onNewProject }) => {
   const openView = useLayoutStore((s) => s.openView);
 
   const handleOpenSettings = () => {
@@ -189,7 +189,7 @@ const DockingContent: React.FC = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
-      <TopBar onOpenSettings={handleOpenSettings} onOpenThemeEditor={handleOpenThemeEditor} onNewProject={handleNewProject} />
+      <TopBar onOpenSettings={handleOpenSettings} onOpenThemeEditor={handleOpenThemeEditor} onNewProject={onNewProject} />
       <div className="flex-1 overflow-hidden">
         <DockingLayout />
       </div>
@@ -491,7 +491,7 @@ function AppContent() {
     <ExtensionPointsProvider>
       <ComponentRegistryProvider definitions={viewDefinitions}>
         <LayoutInitializer>
-          <DockingContent />
+          <DockingContent onNewProject={handleNewProject} />
         </LayoutInitializer>
       </ComponentRegistryProvider>
       {/* Global modal for planner mode block */}
