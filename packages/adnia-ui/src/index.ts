@@ -53,10 +53,16 @@ export * from "./components/ui/tree-view"
 export * from "./components/ui/tag-input"
 export * from "./components/ui/list-editor"
 export * from "./components/ui/filter-tabs"
+export * from "./components/ui/auto-grow-textarea"
 
 // Status Components
 export * from "./components/ui/status-badge"
 export * from "./components/ui/credential-row"
+
+// Interview / Chat Components
+export * from "./components/ui/message-bubble"
+export * from "./components/ui/progress-mini"
+export * from "./components/ui/inline-action-row"
 
 // Feedback Components (Phase 4)
 export * from "./components/ui/spinner"
