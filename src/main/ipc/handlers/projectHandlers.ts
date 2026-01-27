@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ipcMain, BrowserWindow, dialog } from 'electron';
+import { app, ipcMain, BrowserWindow, dialog } from 'electron';
 import { initStore } from '../../services/LocalKanbanStore';
 import { Runner } from '../../agent/tools/Runner';
 import { initRalphEngine } from '../../agent/RalphEngine';
@@ -204,6 +204,40 @@ export function registerProjectHandlers(): void {
     // Initialize as new project
     const success = await openProject(projectPath, win, projectName);
 
+    return success
+      ? { success: true, path: projectPath }
+      : { success: false, error: 'Failed to create project' };
+  });
+
+  // Create new project by name (no dialog - used by interview wizard)
+  ipcMain.handle('project:createWithName', async (event, projectName: string): Promise<{ success: boolean; path?: string; error?: string }> => {
+    if (!projectName || !projectName.trim()) {
+      return { success: false, error: 'Project name is required' };
+    }
+
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const safeName = projectName.trim().replace(/[<>:"/\\|?*]/g, '_');
+    const baseDir = path.join(app.getPath('documents'), 'Dexteria Projects');
+
+    // Ensure base directory exists
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir, { recursive: true });
+    }
+
+    // Find a unique folder name
+    let projectPath = path.join(baseDir, safeName);
+    let suffix = 1;
+    while (fs.existsSync(projectPath) && fs.existsSync(path.join(projectPath, '.local-kanban'))) {
+      projectPath = path.join(baseDir, `${safeName} (${suffix})`);
+      suffix++;
+    }
+
+    // Create the folder if it doesn't exist
+    if (!fs.existsSync(projectPath)) {
+      fs.mkdirSync(projectPath, { recursive: true });
+    }
+
+    const success = await openProject(projectPath, win, projectName.trim());
     return success
       ? { success: true, path: projectPath }
       : { success: false, error: 'Failed to create project' };

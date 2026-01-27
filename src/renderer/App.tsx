@@ -13,6 +13,7 @@ import { AlertTriangle, X } from 'lucide-react';
 import { UpdateNotificationToast } from './components/UpdateNotificationToast';
 import { UpdateProgressDialog } from './components/UpdateProgressDialog';
 import { useUpdater } from './hooks/useUpdater';
+import { ProjectInterviewWizard } from './components/interview';
 import './index.css';
 
 // Docking System
@@ -205,6 +206,7 @@ function AppContent() {
   const [isOpeningProject, setIsOpeningProject] = useState(false);
   const [providerReady, setProviderReady] = useState<boolean | null>(null);
   const [pendingThemeId, setPendingThemeId] = useState<string | null>(null);
+  const [showInterviewWizard, setShowInterviewWizard] = useState(false);
 
   // Update system
   const {
@@ -345,17 +347,17 @@ function AppContent() {
     }
   };
 
-  const handleNewProject = async () => {
-    setIsOpeningProject(true);
-    try {
-      const result = await window.dexteria?.project?.create?.();
-      if (!result?.success) {
-        setIsOpeningProject(false);
-      }
-    } catch (err) {
-      console.error('Failed to create project:', err);
-      setIsOpeningProject(false);
-    }
+  const handleNewProject = () => {
+    setShowInterviewWizard(true);
+  };
+
+  const handleInterviewComplete = () => {
+    setShowInterviewWizard(false);
+    // Project was already opened by createWithName handler, just refresh state
+  };
+
+  const handleInterviewCancel = () => {
+    setShowInterviewWizard(false);
   };
 
   const handleSetupComplete = async (selectedThemeId?: string) => {
@@ -419,6 +421,17 @@ function AppContent() {
   // Show setup wizard if no provider is ready
   if (!providerReady) {
     return <SetupWizard onComplete={handleSetupComplete} />;
+  }
+
+  // Show interview wizard for new project creation
+  if (showInterviewWizard) {
+    return (
+      <ProjectInterviewWizard
+        projectPath={null}
+        onComplete={handleInterviewComplete}
+        onCancel={handleInterviewCancel}
+      />
+    );
   }
 
   // Show welcome screen if no project is open

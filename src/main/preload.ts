@@ -319,6 +319,7 @@ export interface DexteriaAPI {
   project: {
     open: () => Promise<ProjectActionResult>;
     create: () => Promise<ProjectActionResult>;
+    createWithName: (name: string) => Promise<ProjectActionResult>;
     openPath: (path: string) => Promise<{ success: boolean; error?: string }>;
     close: () => Promise<void>;
     getCurrent: () => Promise<string | null>;
@@ -643,6 +644,7 @@ const api: DexteriaAPI = {
   project: {
     open: () => ipcRenderer.invoke('project:open'),
     create: () => ipcRenderer.invoke('project:create'),
+    createWithName: (name: string) => ipcRenderer.invoke('project:createWithName', name),
     openPath: (path) => ipcRenderer.invoke('project:openPath', path),
     close: () => ipcRenderer.invoke('project:close'),
     getCurrent: () => ipcRenderer.invoke('project:getCurrent'),

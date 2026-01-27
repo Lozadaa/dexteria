@@ -16,7 +16,7 @@ export function useUpdater() {
 
   // Listen for background update checks
   useEffect(() => {
-    const cleanup = window.dexteria.update.onUpdateAvailable((info) => {
+    const cleanup = window.dexteria?.update?.onUpdateAvailable?.((info) => {
       setUpdateInfo(info);
     });
 
@@ -25,7 +25,7 @@ export function useUpdater() {
 
   // Listen for download progress
   useEffect(() => {
-    const cleanup = window.dexteria.update.onDownloadProgress((progress) => {
+    const cleanup = window.dexteria?.update?.onDownloadProgress?.((progress) => {
       setDownloadProgress(progress);
 
       if (progress.phase === 'error') {
