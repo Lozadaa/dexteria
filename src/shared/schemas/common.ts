@@ -79,6 +79,7 @@ export const LOCAL_KANBAN_PATHS = {
   projectRuns: '.local-kanban/runs/project',
   agentRuns: '.local-kanban/agent-runs',
   backups: '.local-kanban/backups',
+  skills: '.local-kanban/skills.json',
 } as const;
 
 // ============================================

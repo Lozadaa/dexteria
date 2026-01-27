@@ -16,9 +16,11 @@ import {
   AgentProvider,
   MockAgentProvider,
   AGENT_TOOLS,
-  buildSystemPrompt,
   buildTaskPrompt,
+  PromptBuilder,
 } from './AgentProvider';
+import { getSkillRegistry } from './skills/SkillRegistry';
+import { SkillMatcher } from './skills/SkillMatcher';
 // createComment is available via store.addTypedComment
 import type {
   Task,
@@ -153,11 +155,42 @@ export class AgentRuntime {
         taskPrompt += `\n**IMPORTANT:** Learn from previous failures. Try a different approach if the same method keeps failing.\n`;
       }
 
+      // Match skills based on task description
+      const skillRegistry = getSkillRegistry();
+      let matchedSkills: import('../../shared/types/skill').Skill[] = [];
+      if (skillRegistry) {
+        const enabledSkills = skillRegistry.getEnabled();
+        const matchText = `${task.title} ${task.description} ${task.acceptanceCriteria.join(' ')}`;
+        const matches = SkillMatcher.match(matchText, enabledSkills);
+        matchedSkills = matches
+          .map(m => skillRegistry.get(m.skillId))
+          .filter((s): s is import('../../shared/types/skill').Skill => s !== null);
+
+        if (matchedSkills.length > 0) {
+          console.log(`[AgentRuntime] Activated skills: ${matchedSkills.map(s => s.id).join(', ')}`);
+        }
+      }
+
       // Build initial messages
       const messages: AgentMessage[] = [
         {
           role: 'system',
-          content: buildSystemPrompt(projectContext, repoIndex),
+          content: PromptBuilder.buildSystemPrompt({
+            mode: 'execution',
+            projectContext: projectContext ? {
+              name: projectContext.name,
+              description: projectContext.description,
+              purpose: projectContext.purpose,
+              architecture: projectContext.architecture,
+              devWorkflow: projectContext.devWorkflow,
+              constraints: projectContext.constraints,
+            } : undefined,
+            repoIndex: repoIndex ? {
+              keyFiles: repoIndex.keyFiles,
+              importantPaths: repoIndex.importantPaths,
+            } : undefined,
+            skills: matchedSkills.length > 0 ? matchedSkills : undefined,
+          }),
         },
         {
           role: 'user',

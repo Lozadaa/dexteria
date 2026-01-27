@@ -23,5 +23,6 @@
     "baseUrl": "."
   },
   "include": ["src/renderer", "src/shared"],
+  "exclude": ["dist"],
   "references": [{ "path": "./tsconfig.main.json" }]
 }

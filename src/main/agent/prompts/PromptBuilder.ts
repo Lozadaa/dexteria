@@ -19,6 +19,7 @@ import type {
   TaskPromptOptions,
   TaskForPrompt,
 } from './types';
+import type { Skill } from '../../../shared/types/skill';
 import { buildPrimeDirectivesPrompt } from './primeDirectives';
 import { buildModePrompt } from './modePrompts';
 import { buildOutputContractsPrompt } from './outputContracts';
@@ -32,8 +33,8 @@ export class PromptBuilder {
    * Build the complete system prompt for the agent.
    * Follows the prompt hierarchy for proper layering.
    */
-  static buildSystemPrompt(options: SystemPromptOptions): string {
-    const { mode, projectContext, repoIndex } = options;
+  static buildSystemPrompt(options: SystemPromptOptions & { skills?: Skill[] }): string {
+    const { mode, projectContext, repoIndex, skills } = options;
 
     const sections: string[] = [];
 
@@ -46,20 +47,41 @@ export class PromptBuilder {
     // 3. Output Contracts
     sections.push(buildOutputContractsPrompt());
 
-    // 4. Failure Handling
+    // 4. Active Skills (injected expertise)
+    if (skills && skills.length > 0) {
+      sections.push(this.buildSkillsSection(skills));
+    }
+
+    // 5. Failure Handling
     sections.push(buildFailureHandlingPrompt());
 
-    // 5. Project Context (Level 3 - if available)
+    // 6. Project Context (Level 3 - if available)
     if (projectContext) {
       sections.push(this.buildProjectContextSection(projectContext));
     }
 
-    // 6. Repository Index (if available)
+    // 7. Repository Index (if available)
     if (repoIndex) {
       sections.push(this.buildRepoIndexSection(repoIndex));
     }
 
     return sections.join('\n\n---\n\n');
+  }
+
+  /**
+   * Build skills section from matched skills.
+   */
+  private static buildSkillsSection(skills: Skill[]): string {
+    const skillBlocks = skills
+      .sort((a, b) => b.priority - a.priority)
+      .map(s => s.promptContent)
+      .join('\n\n---\n\n');
+
+    return `## Active Skills
+
+The following domain expertise has been activated for this task:
+
+${skillBlocks}`;
   }
 
   /**

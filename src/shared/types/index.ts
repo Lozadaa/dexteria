@@ -178,6 +178,15 @@ export type {
 
 export { DEFAULT_GIT_CONFIG, DEFAULT_GIT_STATE } from './git';
 
+// Skill types
+export type {
+  SkillCategory,
+  SkillSource,
+  Skill,
+  SkillMatch,
+  SkillsFile,
+} from './skill';
+
 // Interview types
 export type {
   InterviewStage,

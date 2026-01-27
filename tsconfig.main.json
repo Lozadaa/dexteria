@@ -13,7 +13,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "declaration": false,
+    "composite": true,
+    "declaration": true,
     "paths": {
       "@shared/*": ["./src/shared/*"]
     },

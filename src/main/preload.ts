@@ -34,6 +34,7 @@ import type {
   AppUpdateInfo,
   AppUpdateProgress,
   UpdatePreferences,
+  Skill,
 } from '../shared/types';
 
 /** Clarification request from a task */
@@ -505,6 +506,16 @@ export interface DexteriaAPI {
     onDownloadProgress: (callback: (progress: AppUpdateProgress) => void) => () => void;
     onUpdateAvailable: (callback: (info: AppUpdateInfo) => void) => () => void;
   };
+  skill: {
+    getAll: () => Promise<Skill[]>;
+    get: (skillId: string) => Promise<Skill | null>;
+    enable: (skillId: string) => Promise<{ success: boolean }>;
+    disable: (skillId: string) => Promise<{ success: boolean }>;
+    install: (skill: Skill) => Promise<{ success: boolean }>;
+    remove: (skillId: string) => Promise<{ success: boolean }>;
+    import: (json: string) => Promise<{ success: boolean; skill?: Skill; error?: string }>;
+    export: (skillId: string) => Promise<string | null>;
+  };
   interview: {
     init: (config: unknown) => Promise<unknown>;
     resume: (projectPath: string) => Promise<unknown>;
@@ -862,6 +873,16 @@ const api: DexteriaAPI = {
       ipcRenderer.on('update:available', handler);
       return () => ipcRenderer.removeListener('update:available', handler);
     },
+  },
+  skill: {
+    getAll: () => ipcRenderer.invoke('skill:getAll'),
+    get: (skillId: string) => ipcRenderer.invoke('skill:get', skillId),
+    enable: (skillId: string) => ipcRenderer.invoke('skill:enable', skillId),
+    disable: (skillId: string) => ipcRenderer.invoke('skill:disable', skillId),
+    install: (skill: Skill) => ipcRenderer.invoke('skill:install', skill),
+    remove: (skillId: string) => ipcRenderer.invoke('skill:remove', skillId),
+    import: (json: string) => ipcRenderer.invoke('skill:import', json),
+    export: (skillId: string) => ipcRenderer.invoke('skill:export', skillId),
   },
   interview: {
     init: (config: unknown) => ipcRenderer.invoke('interview:init', config),

@@ -48,18 +48,22 @@ import {
   ChevronUp,
   RotateCcw,
   ArrowUpCircle,
+  Zap,
+  Eye,
+  EyeOff,
+  Tag,
 } from 'lucide-react';
 import { GitSettingsPanel } from './Git/GitSettingsPanel';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useSettingsTabs, type SettingsTabContribution } from '../contexts/ExtensionPointsContext';
 import { PluginComponentLoader } from '../plugins/PluginComponentLoader';
 import * as LucideIcons from 'lucide-react';
-import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo, UpdatePreferences } from '../../shared/types';
+import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo, UpdatePreferences, Skill } from '../../shared/types';
 import { useTranslation } from '../i18n/useTranslation';
 import type { Locale } from '../i18n';
 
 // Built-in tabs
-type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'integrations' | 'git' | 'language' | 'themes' | 'plugins' | 'updates' | 'other';
+type BuiltInSettingsTab = 'notifications' | 'commands' | 'runner' | 'integrations' | 'git' | 'language' | 'themes' | 'plugins' | 'skills' | 'updates' | 'other';
 // All tabs including plugin tabs (plugin tabs use format: plugin:pluginId:tabId)
 type SettingsTab = BuiltInSettingsTab | `plugin:${string}`;
 
@@ -98,6 +102,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   const [hasChanges, setHasChanges] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<ProjectSettings | null>(null);
 
+  // Skills state
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [loadingSkills, setLoadingSkills] = useState(false);
+  const [expandedSkillPrompt, setExpandedSkillPrompt] = useState<string | null>(null);
+  const [showImportSkill, setShowImportSkill] = useState(false);
+  const [importSkillJson, setImportSkillJson] = useState('');
+  const [showCreateSkill, setShowCreateSkill] = useState(false);
+  const [newSkill, setNewSkill] = useState({ id: '', name: '', description: '', category: 'general' as string, keywords: '', promptContent: '' });
+
   // VSCode integration state
   const [vscodeEnabled, setVscodeEnabled] = useState(false);
   const [vscodeInstalled, setVscodeInstalled] = useState(false);
@@ -129,6 +142,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     loadSettings();
     loadVSCodeStatus();
     loadUpdatePreferences();
+    loadSkills();
   }, []);
 
   // Track changes
@@ -155,6 +169,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       console.error('Failed to load settings:', error);
     }
     setLoading(false);
+  };
+
+  const loadSkills = async () => {
+    setLoadingSkills(true);
+    try {
+      const skillList = await window.dexteria?.skill?.getAll?.();
+      setSkills((skillList as Skill[]) || []);
+    } catch (error) {
+      console.error('Failed to load skills:', error);
+    }
+    setLoadingSkills(false);
   };
 
   const loadPlugins = async () => {
@@ -408,6 +433,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     { id: 'language', label: t('labels.language'), icon: <Globe size={16} /> },
     { id: 'themes', label: t('labels.themes'), icon: <Palette size={16} /> },
     { id: 'plugins', label: t('labels.plugins'), icon: <Puzzle size={16} /> },
+    { id: 'skills', label: 'Skills', icon: <Zap size={16} /> },
     { id: 'updates', label: 'Updates', icon: <ArrowUpCircle size={16} /> },
     { id: 'other', label: t('labels.other'), icon: <Settings2 size={16} /> },
   ];
@@ -1399,6 +1425,313 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                             )}
                           </div>
                         </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Skills Tab */}
+          {activeTab === 'skills' && (
+            <div className="space-y-6 max-w-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold mb-1">Skills</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Domain expertise modules injected into the AI agent&apos;s prompt. Skills auto-activate based on task content.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowImportSkill(true)}
+                  >
+                    <Upload size={14} className="mr-1" />
+                    Import
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowCreateSkill(true)}
+                  >
+                    <Plus size={14} className="mr-1" />
+                    Create
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={loadSkills}
+                    disabled={loadingSkills}
+                  >
+                    <RefreshCw size={14} className={cn("mr-1", loadingSkills && "animate-spin")} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {/* Import Skill Modal */}
+              {showImportSkill && (
+                <div className="p-4 bg-muted/30 rounded-lg space-y-3 border border-primary/30">
+                  <div className="flex items-center gap-2">
+                    <Upload size={16} className="text-primary" />
+                    <span className="font-medium">Import Skill (JSON)</span>
+                  </div>
+                  <textarea
+                    value={importSkillJson}
+                    onChange={(e) => setImportSkillJson(e.target.value)}
+                    placeholder='Paste skill JSON here...'
+                    className="w-full h-32 bg-background border border-border rounded-md p-3 text-sm font-mono resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        if (importSkillJson.trim()) {
+                          const result = await window.dexteria?.skill?.import?.(importSkillJson.trim());
+                          if (result?.success) {
+                            setImportSkillJson('');
+                            setShowImportSkill(false);
+                            loadSkills();
+                          } else {
+                            alert(`Failed to import: ${result?.error || 'Invalid JSON'}`);
+                          }
+                        }
+                      }}
+                      disabled={!importSkillJson.trim()}
+                    >
+                      Import
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setImportSkillJson(''); setShowImportSkill(false); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Create Skill Form */}
+              {showCreateSkill && (
+                <div className="p-4 bg-muted/30 rounded-lg space-y-3 border border-primary/30">
+                  <div className="flex items-center gap-2">
+                    <Plus size={16} className="text-primary" />
+                    <span className="font-medium">Create Custom Skill</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      value={newSkill.id}
+                      onChange={(e) => setNewSkill({ ...newSkill, id: e.target.value })}
+                      placeholder="skill-id (lowercase-hyphens)"
+                    />
+                    <Input
+                      value={newSkill.name}
+                      onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
+                      placeholder="Display Name"
+                    />
+                  </div>
+                  <Input
+                    value={newSkill.description}
+                    onChange={(e) => setNewSkill({ ...newSkill, description: e.target.value })}
+                    placeholder="Short description..."
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={newSkill.category}
+                      onChange={(e) => setNewSkill({ ...newSkill, category: e.target.value })}
+                      className="px-3 py-1.5 rounded-md border border-border bg-background text-sm"
+                    >
+                      <option value="frontend">Frontend</option>
+                      <option value="backend">Backend</option>
+                      <option value="testing">Testing</option>
+                      <option value="devops">DevOps</option>
+                      <option value="general">General</option>
+                    </select>
+                    <Input
+                      value={newSkill.keywords}
+                      onChange={(e) => setNewSkill({ ...newSkill, keywords: e.target.value })}
+                      placeholder="Keywords (comma-separated)"
+                    />
+                  </div>
+                  <textarea
+                    value={newSkill.promptContent}
+                    onChange={(e) => setNewSkill({ ...newSkill, promptContent: e.target.value })}
+                    placeholder="Prompt content (instructions injected into the agent's system prompt)..."
+                    className="w-full h-40 bg-background border border-border rounded-md p-3 text-sm font-mono resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        if (newSkill.id && newSkill.name && newSkill.promptContent) {
+                          const skill: Skill = {
+                            id: newSkill.id,
+                            name: newSkill.name,
+                            description: newSkill.description,
+                            category: newSkill.category as Skill['category'],
+                            keywords: newSkill.keywords.split(',').map(k => k.trim()).filter(Boolean),
+                            promptContent: newSkill.promptContent,
+                            version: '1.0.0',
+                            source: 'custom',
+                            enabled: true,
+                            priority: 5,
+                          };
+                          const result = await window.dexteria?.skill?.install?.(skill);
+                          if (result?.success) {
+                            setNewSkill({ id: '', name: '', description: '', category: 'general', keywords: '', promptContent: '' });
+                            setShowCreateSkill(false);
+                            loadSkills();
+                          }
+                        }
+                      }}
+                      disabled={!newSkill.id || !newSkill.name || !newSkill.promptContent}
+                    >
+                      Create
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setNewSkill({ id: '', name: '', description: '', category: 'general', keywords: '', promptContent: '' }); setShowCreateSkill(false); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Skills List */}
+              <div className="space-y-3">
+                {loadingSkills ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Spinner size="sm" label="Loading skills..." />
+                  </div>
+                ) : skills.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Zap size={32} className="mx-auto mb-2 opacity-50" />
+                    <p>No skills installed</p>
+                    <p className="text-sm mt-1">Skills add domain expertise to the AI agent.</p>
+                  </div>
+                ) : (
+                  skills.map((skill) => {
+                    const isExpanded = expandedSkillPrompt === skill.id;
+                    const categoryColors: Record<string, string> = {
+                      frontend: 'bg-blue-500/20 text-blue-400',
+                      backend: 'bg-green-500/20 text-green-400',
+                      testing: 'bg-yellow-500/20 text-yellow-400',
+                      devops: 'bg-purple-500/20 text-purple-400',
+                      general: 'bg-gray-500/20 text-gray-400',
+                    };
+
+                    return (
+                      <div
+                        key={skill.id}
+                        className={cn(
+                          "p-4 rounded-lg border transition-colors",
+                          skill.enabled
+                            ? "border-primary/30 bg-primary/5"
+                            : "border-border bg-muted/50"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className={cn(
+                              "w-10 h-10 rounded-md flex items-center justify-center shrink-0",
+                              skill.enabled ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                            )}>
+                              <Zap size={20} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium flex items-center gap-2 flex-wrap">
+                                <span className="truncate">{skill.name}</span>
+                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded", categoryColors[skill.category] || categoryColors.general)}>
+                                  {skill.category}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+                                  v{skill.version}
+                                </span>
+                                {skill.source !== 'bundled' && (
+                                  <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded shrink-0">
+                                    {skill.source}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{skill.description}</p>
+                              {skill.keywords.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {skill.keywords.slice(0, 8).map((kw) => (
+                                    <span key={kw} className="text-[10px] text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded">
+                                      {kw}
+                                    </span>
+                                  ))}
+                                  {skill.keywords.length > 8 && (
+                                    <span className="text-[10px] text-muted-foreground">+{skill.keywords.length - 8} more</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedSkillPrompt(isExpanded ? null : skill.id)}
+                              title="View prompt"
+                            >
+                              {isExpanded ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                const json = await window.dexteria?.skill?.export?.(skill.id);
+                                if (json) {
+                                  const blob = new Blob([json], { type: 'application/json' });
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `${skill.id}.json`;
+                                  a.click();
+                                  URL.revokeObjectURL(url);
+                                }
+                              }}
+                              title="Export"
+                            >
+                              <Download size={14} />
+                            </Button>
+                            <Switch
+                              checked={skill.enabled}
+                              onCheckedChange={async (checked) => {
+                                if (checked) {
+                                  await window.dexteria?.skill?.enable?.(skill.id);
+                                } else {
+                                  await window.dexteria?.skill?.disable?.(skill.id);
+                                }
+                                loadSkills();
+                              }}
+                            />
+                            {skill.source !== 'bundled' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (confirm(`Delete skill "${skill.name}"?`)) {
+                                    await window.dexteria?.skill?.remove?.(skill.id);
+                                    loadSkills();
+                                  }
+                                }}
+                                className="text-red-400 hover:text-red-300"
+                                title="Delete"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expanded Prompt Content */}
+                        {isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-border">
+                            <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all font-mono bg-muted/30 p-3 rounded max-h-64 overflow-y-auto">
+                              {skill.promptContent}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     );
                   })

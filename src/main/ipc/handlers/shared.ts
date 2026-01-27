@@ -17,6 +17,7 @@ import { OpenCodeProvider } from '../../agent/providers/OpenCodeProvider';
 import { CodexProvider } from '../../agent/providers/CodexProvider';
 import { OpenCodeInstaller } from '../../services/OpenCodeInstaller';
 import { initRalphEngine } from '../../agent/RalphEngine';
+import { initSkillRegistry } from '../../agent/skills/SkillRegistry';
 import type { RecentProject, HandlerState, ProviderType } from './types';
 
 // Shared state
@@ -331,6 +332,9 @@ export async function initializeProjectState(root: string): Promise<void> {
     store: state.store,
     provider: isRalphCompatible ? provider as (OpenCodeProvider | ClaudeCodeProvider) : undefined,
   });
+
+  // Initialize skill registry
+  initSkillRegistry(state.store);
 
   // Note: Theme and Plugin services are now global (stored in AppData)
   // They are initialized once at app startup via initializeIpcHandlers

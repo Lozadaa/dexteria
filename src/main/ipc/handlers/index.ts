@@ -25,6 +25,7 @@ import { registerCodexHandlers } from './codexHandlers';
 import { registerVSCodeHandlers } from './vscodeHandlers';
 import { registerGitHandlers } from './gitHandlers';
 import { registerUpdateHandlers } from './updateHandlers';
+import { registerSkillHandlers } from './skillHandlers';
 
 // Re-export shared utilities for external use
 export { getProjectRoot } from './shared';
@@ -79,4 +80,5 @@ export async function initializeIpcHandlers(root?: string): Promise<void> {
   registerVSCodeHandlers();
   registerGitHandlers();
   registerUpdateHandlers();
+  registerSkillHandlers();
 }

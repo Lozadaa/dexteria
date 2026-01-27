@@ -988,6 +988,22 @@ export class LocalKanbanStore {
   }
 
   // ============================================
+  // Skills Operations
+  // ============================================
+
+  getSkills(): import('../../shared/types/skill').SkillsFile {
+    const data = this.readJSON<import('../../shared/types/skill').SkillsFile>(LOCAL_KANBAN_PATHS.skills);
+    if (!data) {
+      return { version: 1, installed: [] };
+    }
+    return data;
+  }
+
+  saveSkills(skills: import('../../shared/types/skill').SkillsFile): void {
+    this.atomicWriteJSON(LOCAL_KANBAN_PATHS.skills, skills);
+  }
+
+  // ============================================
   // Interview Persistence
   // ============================================
 
