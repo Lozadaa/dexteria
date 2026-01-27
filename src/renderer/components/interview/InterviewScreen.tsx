@@ -58,31 +58,28 @@ export function InterviewScreen({
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [generatingFirstQuestion, setGeneratingFirstQuestion] = useState(false);
 
+  // Subscribe directly to store for currentQuestion to avoid stale prop issues
+  const storeCurrentQuestion = useInterviewStore((state) => state.interview?.currentQuestion ?? null);
+  const storeAnswers = useInterviewStore((state) => state.interview?.answers ?? []);
+
+  // Use store values (more reliable) with prop fallback
+  const currentQuestion = storeCurrentQuestion ?? interview.currentQuestion;
+  const answers = storeAnswers.length > 0 ? storeAnswers : interview.answers;
+
   // Generate first question when entering interview stage without a question
   const questionGenerationStarted = useRef(false);
 
-  // Debug log
-  console.log('[InterviewScreen] Render - currentQuestion:', interview.currentQuestion?.text, 'isLoading:', isLoading, 'stage:', interview.stage);
-
   useEffect(() => {
-    console.log('[InterviewScreen] useEffect check - hasQuestion:', !!interview.currentQuestion, 'started:', questionGenerationStarted.current);
-
     // Only generate if we don't have a question and haven't started yet
-    if (!interview.currentQuestion && !questionGenerationStarted.current) {
+    if (!currentQuestion && !questionGenerationStarted.current) {
       questionGenerationStarted.current = true;
       setGeneratingFirstQuestion(true);
-      console.log('[InterviewScreen] Generating first question...');
 
       // Call backend to generate first question
       window.dexteria?.interview?.nextQuestion?.()
         .then((question) => {
-          console.log('[InterviewScreen] nextQuestion response:', question);
           if (question) {
-            // Update the frontend store with the question
-            useInterviewStore.getState().setCurrentQuestion(question);
-            console.log('[InterviewScreen] Question set in store:', question.text);
-          } else {
-            console.error('[InterviewScreen] No question returned from backend');
+            useInterviewStore.getState().setCurrentQuestion(question as any);
           }
         })
         .catch((err) => {
@@ -99,7 +96,7 @@ export function InterviewScreen({
     const newMessages: Message[] = [];
 
     // Add past Q&As
-    interview.answers.forEach((answer, i) => {
+    answers.forEach((answer, i) => {
       // Question
       newMessages.push({
         id: `q-${i}`,
@@ -127,17 +124,17 @@ export function InterviewScreen({
     });
 
     // Add current question
-    if (interview.currentQuestion) {
+    if (currentQuestion) {
       newMessages.push({
         id: `current-q`,
         type: 'assistant',
-        content: interview.currentQuestion.text,
+        content: currentQuestion.text,
         timestamp: new Date(),
       });
     }
 
     setMessages(newMessages);
-  }, [interview.answers, interview.currentQuestion, t]);
+  }, [answers, currentQuestion, t]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -146,10 +143,10 @@ export function InterviewScreen({
 
   // Focus input when question arrives
   useEffect(() => {
-    if (interview.currentQuestion && !isLoading) {
+    if (currentQuestion && !isLoading) {
       inputRef.current?.focus();
     }
-  }, [interview.currentQuestion, isLoading]);
+  }, [currentQuestion, isLoading]);
 
   const handleSubmit = async () => {
     const value = inputValue.trim();
@@ -266,7 +263,7 @@ export function InterviewScreen({
       <ScrollArea className="flex-1 p-6">
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Welcome message */}
-          {messages.length === 0 && !interview.currentQuestion && (
+          {messages.length === 0 && !currentQuestion && (
             <MessageBubble
               variant="assistant"
               avatar={<Bot className="w-4 h-4" />}
@@ -321,7 +318,7 @@ export function InterviewScreen({
           )}
 
           {/* Loading indicator for first question */}
-          {(isLoading || generatingFirstQuestion) && !interview.currentQuestion && !pendingUserMessage && (
+          {(isLoading || generatingFirstQuestion) && !currentQuestion && !pendingUserMessage && (
             <MessageBubble
               variant="assistant"
               avatar={<Bot className="w-4 h-4" />}
@@ -363,7 +360,7 @@ export function InterviewScreen({
       <footer className="border-t bg-card p-4">
         <div className="max-w-2xl mx-auto">
           {/* Quick actions */}
-          {interview.currentQuestion && !isLoading && (
+          {currentQuestion && !isLoading && (
             <div className="mb-3">
               <InlineActionRow
                 actions={quickActions}
@@ -381,14 +378,14 @@ export function InterviewScreen({
               onChange={(e) => setInputValue(e.target.value)}
               onSubmit={handleSubmit}
               placeholder={t('interview.inputPlaceholder', 'Type your answer...')}
-              disabled={isLoading || !interview.currentQuestion}
+              disabled={isLoading || !currentQuestion}
               minRows={1}
               maxRows={4}
               className="flex-1"
             />
             <Button
               onClick={handleSubmit}
-              disabled={!inputValue.trim() || isLoading || !interview.currentQuestion}
+              disabled={!inputValue.trim() || isLoading || !currentQuestion}
               className="self-end"
             >
               <Send className="w-4 h-4" />
