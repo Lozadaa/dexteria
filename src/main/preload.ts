@@ -504,6 +504,24 @@ export interface DexteriaAPI {
     onDownloadProgress: (callback: (progress: AppUpdateProgress) => void) => () => void;
     onUpdateAvailable: (callback: (info: AppUpdateInfo) => void) => () => void;
   };
+  interview: {
+    init: (config: unknown) => Promise<unknown>;
+    resume: (projectPath: string) => Promise<unknown>;
+    nextQuestion: () => Promise<unknown>;
+    submitAnswer: (answer: unknown) => Promise<unknown>;
+    getOptions: () => Promise<string[]>;
+    skip: () => Promise<unknown>;
+    getExample: () => Promise<string>;
+    generateBrief: () => Promise<unknown>;
+    generateBacklog: () => Promise<unknown>;
+    createTasks: (projectPath: string) => Promise<unknown>;
+    skipBacklog: () => Promise<unknown>;
+    saveAndExit: () => Promise<unknown>;
+    cancel: () => Promise<unknown>;
+    getLocale: () => Promise<string>;
+    isActive: () => Promise<boolean>;
+    onStreamUpdate: (callback: (data: { type: string; content: string; done: boolean }) => void) => () => void;
+  };
 }
 
 // ============================================

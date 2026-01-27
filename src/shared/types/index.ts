@@ -178,6 +178,31 @@ export type {
 
 export { DEFAULT_GIT_CONFIG, DEFAULT_GIT_STATE } from './git';
 
+// Interview types
+export type {
+  InterviewStage,
+  TechLevel,
+  InterviewDepth,
+  TechLevelMode,
+  InterviewUserProfile,
+  InterviewQuestion,
+  InterviewQuestionCategory,
+  InterviewAnswer,
+  InterviewAssumption,
+  InterviewRisk,
+  ProjectBrief,
+  BacklogEpic,
+  BacklogStory,
+  InterviewState,
+  InterviewConfig,
+  InterviewStreamType,
+  InterviewStreamUpdate,
+  SubmitAnswerResult,
+  CreateTasksResult,
+} from './interview';
+
+export { INTERVIEW_DEPTH_MAP } from './interview';
+
 // Update types
 export type {
   AppUpdateInfo,

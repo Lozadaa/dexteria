@@ -986,6 +986,40 @@ export class LocalKanbanStore {
 
     return result;
   }
+
+  // ============================================
+  // Interview Persistence
+  // ============================================
+
+  private get interviewPath(): string {
+    return '.local-kanban/interview.json';
+  }
+
+  getInterview(): unknown | null {
+    return this.readJSON(this.interviewPath);
+  }
+
+  saveInterview(state: unknown): void {
+    this.atomicWriteJSON(this.interviewPath, state);
+  }
+
+  deleteInterview(): void {
+    const fullPath = this.getPath(this.interviewPath);
+    try {
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    } catch (err) {
+      console.warn('[Store] Failed to delete interview state:', err);
+    }
+  }
+
+  hasActiveInterview(): boolean {
+    const data = this.getInterview();
+    if (!data || typeof data !== 'object') return false;
+    const state = data as Record<string, unknown>;
+    return state.stage !== undefined && state.stage !== 'done';
+  }
 }
 
 // Singleton instance
