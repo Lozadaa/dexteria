@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useChats } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
-import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2, Cpu, ChevronDown, Paperclip, File } from 'lucide-react';
+import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2, Cpu, ChevronDown, Paperclip, File, Play } from 'lucide-react';
 import { MarkdownRenderer, ThinkingIndicator, ThinkingBlock, extractThinking } from './MarkdownRenderer';
 import {
     Button,
@@ -78,6 +78,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     const [changingProvider, setChangingProvider] = useState(false);
     const [attachedFiles, setAttachedFiles] = useState<string[]>([]); // Array of file paths
     const [isDraggingFile, setIsDraggingFile] = useState(false);
+    const [taskRunRequest, setTaskRunRequest] = useState<{ taskId: string; taskTitle: string; reason: string } | null>(null);
+    const [isExecutingTask, setIsExecutingTask] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const {
         mode,
@@ -289,6 +291,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         return () => cleanup?.();
     }, [activeChatId]);
 
+    // Listen for task run requests from AI
+    useEffect(() => {
+        const cleanup = window.dexteria?.chat?.onTaskRunRequested?.((data) => {
+            console.log('Task run requested:', data);
+            setTaskRunRequest(data);
+        });
+
+        return () => cleanup?.();
+    }, []);
+
     const handleCancel = useCallback(() => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -436,6 +448,38 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
         dismissFirstMessageWarning(false);
         setPendingMessage(null);
         setDontShowAgainChecked(false);
+    };
+
+    // Task run request handlers
+    const handleConfirmTaskRun = async () => {
+        if (!taskRunRequest) return;
+
+        setIsExecutingTask(true);
+        try {
+            await window.dexteria.agent.runTask(taskRunRequest.taskId);
+            // Add a system message to the chat about the task execution
+            setMessages(prev => [...prev, {
+                id: `system-${Date.now()}`,
+                role: 'assistant' as const,
+                content: `✅ Task "${taskRunRequest.taskTitle}" has been started in the TaskRunner panel. Check the panel for execution progress.`,
+                timestamp: Date.now(),
+            }]);
+        } catch (err) {
+            console.error('Failed to run task:', err);
+            setMessages(prev => [...prev, {
+                id: `error-${Date.now()}`,
+                role: 'assistant' as const,
+                content: `❌ Failed to start task: ${err instanceof Error ? err.message : 'Unknown error'}`,
+                timestamp: Date.now(),
+            }]);
+        } finally {
+            setIsExecutingTask(false);
+            setTaskRunRequest(null);
+        }
+    };
+
+    const handleCancelTaskRun = () => {
+        setTaskRunRequest(null);
     };
 
     return (
@@ -893,6 +937,55 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                         </Button>
                         <Button onClick={handleSwitchToAgent}>
                             Switch to Agent
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </DialogRoot>
+
+            {/* Task Run Request Modal */}
+            <DialogRoot open={taskRunRequest !== null} onOpenChange={(open) => !open && handleCancelTaskRun()}>
+                <DialogContent size="md" className="p-0">
+                    <DialogHeader className="p-4 border-b border-border bg-primary/10">
+                        <div className="flex items-center gap-2 text-primary">
+                            <Play size={20} />
+                            <DialogTitle>Run Task</DialogTitle>
+                        </div>
+                    </DialogHeader>
+                    <div className="p-4 space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            The AI is requesting to execute the following task:
+                        </p>
+                        <div className="p-3 bg-muted/50 rounded-lg border border-border">
+                            <p className="font-medium text-foreground">
+                                {taskRunRequest?.taskTitle}
+                            </p>
+                            {taskRunRequest?.reason && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    {taskRunRequest.reason}
+                                </p>
+                            )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            This will start the task in the <strong className="text-foreground">TaskRunner</strong> panel
+                            where you can monitor its progress.
+                        </p>
+                    </div>
+                    <DialogFooter className="p-4 border-t border-border">
+                        <Button variant="ghost" onClick={handleCancelTaskRun} disabled={isExecutingTask}>
+                            {t('actions.cancel')}
+                        </Button>
+                        <Button onClick={handleConfirmTaskRun} disabled={isExecutingTask}>
+                            {isExecutingTask ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Starting...
+                                </>
+                            ) : (
+                                <>
+                                    <Play size={16} />
+                                    Run Task
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

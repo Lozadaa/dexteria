@@ -87,6 +87,7 @@ function getToolIndicator(toolName: string, status: 'pending' | 'complete', coun
     'update_task': ['Updating task...', 'Task updated'],
     'list_tasks': ['Listing tasks...', 'Tasks listed'],
     'save_progress': ['Saving progress...', 'Progress saved'],
+    'invoke_task_run': ['Requesting task execution...', 'Execution requested'],
   };
   const [pending, complete] = messages[toolName] || [`Running ${toolName}...`, `${toolName} complete`];
   return `\n${icon} ${status === 'pending' ? pending : complete}\n`;
@@ -98,7 +99,7 @@ function getToolIndicator(toolName: string, status: 'pending' | 'complete', coun
 export async function executeToolCall(
   toolName: string,
   args: Record<string, unknown>,
-  mode: 'planner' | 'agent'
+  _mode: 'planner' | 'agent' // Mode kept for API compatibility, but execution tools are blocked in chat
 ): Promise<ToolResult> {
   console.log(`[Tool] executeToolCall called: ${toolName}`, JSON.stringify(args).substring(0, 200));
   console.log(`[Tool] hasProject: ${hasProject()}`);
@@ -275,29 +276,75 @@ export async function executeToolCall(
         };
       }
 
-      // File/command tools - only in agent mode
+      // Read-only file tools - allowed in both modes
       case 'list_files':
       case 'read_file':
-      case 'search':
-      case 'write_file':
-      case 'apply_patch':
-      case 'run_command': {
-        if (mode === 'planner') {
-          return {
-            name: toolName,
-            success: false,
-            result: null,
-            error: `Tool '${toolName}' is not available in Planner mode. Switch to Agent mode to execute code changes.`
-          };
-        }
-
-        // In agent mode, these would be executed by the Runner
-        // For now, return a placeholder - Claude Code CLI handles these internally
+      case 'search': {
+        // These are read-only operations, handled by Claude Code CLI
         return {
           name: toolName,
           success: true,
           result: {
             message: `Tool '${toolName}' executed (handled by Claude Code CLI)`
+          }
+        };
+      }
+
+      // Execution tools - FORBIDDEN in chat, must use invoke_task_run
+      case 'write_file':
+      case 'apply_patch':
+      case 'run_command': {
+        // Block execution tools in chat - AI must use invoke_task_run instead
+        return {
+          name: toolName,
+          success: false,
+          result: null,
+          error: `Tool '${toolName}' cannot be executed directly from chat. Create a task and use 'invoke_task_run' to request execution via the TaskRunner.`
+        };
+      }
+
+      // invoke_task_run - Request task execution via TaskRunner
+      case 'invoke_task_run': {
+        const taskId = args.taskId as string;
+        const reason = args.reason as string || 'AI requested execution';
+
+        if (!taskId) {
+          return {
+            name: toolName,
+            success: false,
+            result: null,
+            error: 'taskId is required for invoke_task_run'
+          };
+        }
+
+        // Verify the task exists
+        const task = s.getTask(taskId);
+        if (!task) {
+          return {
+            name: toolName,
+            success: false,
+            result: null,
+            error: `Task not found: ${taskId}. Make sure to use a real task ID from create_task or list_tasks.`
+          };
+        }
+
+        // Get the window to emit the event
+        const windows = BrowserWindow.getAllWindows();
+        if (windows.length > 0) {
+          windows[0].webContents.send('chat:task-run-requested', {
+            taskId,
+            taskTitle: task.title,
+            reason
+          });
+        }
+
+        return {
+          name: toolName,
+          success: true,
+          result: {
+            message: `Execution requested for task "${task.title}" (${taskId}). User will be prompted to run it in the TaskRunner.`,
+            taskId,
+            taskTitle: task.title
           }
         };
       }

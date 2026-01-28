@@ -160,9 +160,23 @@ export class ClaudeCodeProvider extends AgentProvider {
       // Track displayed content to build full output
       let displayedContent = '';
 
+      // Inactivity-based timeout: reset on each chunk
+      let lastActivityTime = Date.now();
+      const inactivityCheckInterval = setInterval(() => {
+        if (Date.now() - lastActivityTime > this.timeout) {
+          console.log('[ClaudeCode] TIMEOUT - no activity for', this.timeout, 'ms');
+          clearInterval(inactivityCheckInterval);
+          proc.kill();
+          reject(new Error('Claude Code timed out - no activity'));
+        }
+      }, 5000); // Check every 5 seconds
+
       proc.stdout.on('data', (data) => {
         const chunk = data.toString();
         lineBuffer += chunk;
+
+        // Reset inactivity timer on each chunk
+        lastActivityTime = Date.now();
 
         // Process complete lines (NDJSON format)
         const lines = lineBuffer.split('\n');
@@ -184,8 +198,15 @@ export class ClaudeCodeProvider extends AgentProvider {
               const content = event.message.content;
               if (Array.isArray(content)) {
                 for (const block of content) {
+                  // Thinking content - wrap in tags for renderer
+                  if (block.type === 'thinking' && block.thinking) {
+                    const thinkingText = `<thinking>${block.thinking}</thinking>\n`;
+                    displayedContent += thinkingText;
+                    fullContent = displayedContent;
+                    typeText(thinkingText);
+                  }
                   // Text content
-                  if (block.type === 'text' && block.text) {
+                  else if (block.type === 'text' && block.text) {
                     // Only add if we haven't seen this exact text
                     if (!displayedContent.endsWith(block.text)) {
                       const newText = block.text;
@@ -227,12 +248,33 @@ export class ClaudeCodeProvider extends AgentProvider {
                 }
               }
             }
-            // Content block delta (streaming text)
-            else if (event.type === 'content_block_delta' && event.delta?.text) {
-              const deltaText = event.delta.text;
-              displayedContent += deltaText;
+            // Content block start - track thinking blocks
+            else if (event.type === 'content_block_start' && event.content_block?.type === 'thinking') {
+              const openTag = '<thinking>';
+              displayedContent += openTag;
               fullContent = displayedContent;
-              typeText(deltaText);
+              typeText(openTag);
+            }
+            // Content block stop - close thinking blocks
+            else if (event.type === 'content_block_stop' && displayedContent.includes('<thinking>') && !displayedContent.endsWith('</thinking>\n')) {
+              // Check if the last open thinking tag is unclosed
+              const lastOpen = displayedContent.lastIndexOf('<thinking>');
+              const lastClose = displayedContent.lastIndexOf('</thinking>');
+              if (lastOpen > lastClose) {
+                const closeTag = '</thinking>\n';
+                displayedContent += closeTag;
+                fullContent = displayedContent;
+                typeText(closeTag);
+              }
+            }
+            // Content block delta (streaming text or thinking)
+            else if (event.type === 'content_block_delta') {
+              const deltaText = event.delta?.text || event.delta?.thinking || '';
+              if (deltaText) {
+                displayedContent += deltaText;
+                fullContent = displayedContent;
+                typeText(deltaText);
+              }
             }
             // Tool result - just add a subtle indicator that tool completed
             else if (event.type === 'tool_result') {
@@ -261,16 +303,12 @@ export class ClaudeCodeProvider extends AgentProvider {
       proc.stderr.on('data', (data) => {
         stderr += data.toString();
         console.log('[ClaudeCode] stderr:', data.toString());
+        // Also reset activity time on stderr (it's still activity)
+        lastActivityTime = Date.now();
       });
 
-      const timeoutId = setTimeout(() => {
-        console.log('[ClaudeCode] TIMEOUT');
-        proc.kill();
-        reject(new Error('Claude Code timed out'));
-      }, this.timeout);
-
       proc.on('close', (code) => {
-        clearTimeout(timeoutId);
+        clearInterval(inactivityCheckInterval);
         this.currentProcess = null;
 
         // Check if cancelled
@@ -302,7 +340,7 @@ export class ClaudeCodeProvider extends AgentProvider {
       });
 
       proc.on('error', (error) => {
-        clearTimeout(timeoutId);
+        clearInterval(inactivityCheckInterval);
         this.currentProcess = null;
         console.log('[ClaudeCode] Error:', error);
         reject(error);

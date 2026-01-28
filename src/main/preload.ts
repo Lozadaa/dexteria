@@ -287,6 +287,7 @@ export interface DexteriaAPI {
     delete: (chatId: string) => Promise<boolean>;
     sendMessage: (chatId: string, content: string, mode?: 'planner' | 'agent', attachedFiles?: string[]) => Promise<Chat>;
     onStreamUpdate: (callback: (data: { chatId: string; content: string; done: boolean }) => void) => () => void;
+    onTaskRunRequested: (callback: (data: { taskId: string; taskTitle: string; reason: string }) => void) => () => void;
   };
   settings: {
     getProvider: () => Promise<ProviderInfo & { hasCompletedSetup: boolean }>;
@@ -626,6 +627,11 @@ const api: DexteriaAPI = {
       const handler = (_event: Electron.IpcRendererEvent, data: { chatId: string; content: string; done: boolean }) => callback(data);
       ipcRenderer.on('chat:stream-update', handler);
       return () => ipcRenderer.removeListener('chat:stream-update', handler);
+    },
+    onTaskRunRequested: (callback: (data: { taskId: string; taskTitle: string; reason: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { taskId: string; taskTitle: string; reason: string }) => callback(data);
+      ipcRenderer.on('chat:task-run-requested', handler);
+      return () => ipcRenderer.removeListener('chat:task-run-requested', handler);
     },
   },
   settings: {

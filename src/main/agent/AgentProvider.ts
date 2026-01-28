@@ -450,6 +450,24 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
       required: [],
     },
   },
+  {
+    name: 'invoke_task_run',
+    description: 'Request the application to execute a task via the TaskRunner. IMPORTANT: Use this tool when you need code to be executed - never execute code directly from chat. This will prompt the user to confirm and run the task in the TaskRunner panel.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskId: {
+          type: 'string',
+          description: 'ID of the task to execute (must be a real task ID from create_task or list_tasks)',
+        },
+        reason: {
+          type: 'string',
+          description: 'Explanation of why this task should be executed now',
+        },
+      },
+      required: ['taskId'],
+    },
+  },
 ];
 
 // ============================================
