@@ -1,6 +1,6 @@
 {
   "name": "dexteria",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Dexteria — AI Project Executor: An AI-driven desktop app for project planning and execution",
   "main": "dist/main/main.js",
   "author": "Dexteria Team <rlozada808@gmail.com>",

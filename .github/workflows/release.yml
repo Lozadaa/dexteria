@@ -9,28 +9,9 @@ on:
         default: '0.1.0'
 
 jobs:
-  build:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: win
-            artifacts: |
-              release/Dexteria-Setup.exe
-              release/Dexteria-Portable.exe
-          - os: macos-latest
-            platform: mac
-            artifacts: |
-              release/Dexteria-macOS.dmg
-              release/Dexteria-macOS.zip
-          - os: ubuntu-latest
-            platform: linux
-            artifacts: |
-              release/Dexteria-Linux.AppImage
-              release/Dexteria-Linux.deb
-
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,19 +29,93 @@ jobs:
         run: npm run build
 
       - name: Package application
-        run: npm run package:${{ matrix.platform }}
+        run: npm run package:win
+
+      - name: List release directory
+        run: dir release
+        shell: cmd
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-build
-          path: |
-            ${{ matrix.artifacts }}
+          name: windows-build
+          path: release/*.exe
           retention-days: 1
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Package application
+        run: npm run package:mac
+
+      - name: List release directory
+        run: ls -la release/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: |
+            release/*.dmg
+            release/*.zip
+          retention-days: 1
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Package application
+        run: npm run package:linux
+
+      - name: List release directory
+        run: ls -la release/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            release/*.AppImage
+            release/*.deb
+          retention-days: 1
+          if-no-files-found: error
 
   release:
     name: Create GitHub Release
-    needs: build
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -69,19 +124,41 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release-artifacts
+          name: windows-build
+          path: artifacts/windows
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: artifacts/macos
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: artifacts/linux
 
       - name: Display structure
-        run: ls -R release-artifacts
+        run: |
+          echo "=== All artifacts ==="
+          find artifacts -type f -name "*"
+          echo ""
+          echo "=== Directory tree ==="
+          ls -laR artifacts/
 
       - name: Delete existing release if exists
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release delete v${{ github.event.inputs.version }} --yes
+
+      - name: Delete existing tag if exists
+        continue-on-error: true
+        run: git push origin :refs/tags/v${{ github.event.inputs.version }}
 
       - name: Create GitHub Release
         env:
@@ -90,6 +167,6 @@ jobs:
           gh release create v${{ github.event.inputs.version }} \
             --title "Dexteria v${{ github.event.inputs.version }}" \
             --generate-notes \
-            release-artifacts/win-build/* \
-            release-artifacts/mac-build/* \
-            release-artifacts/linux-build/*
+            artifacts/windows/* \
+            artifacts/macos/* \
+            artifacts/linux/*
