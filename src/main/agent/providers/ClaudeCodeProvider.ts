@@ -361,13 +361,10 @@ export class ClaudeCodeProvider extends AgentProvider {
    * Get system prompt based on mode.
    * Uses the centralized PromptBuilder for consistent prompts.
    */
-  private getSystemPrompt(mode: 'planner' | 'agent'): string {
-    // Map mode to PromptMode type
-    const promptMode = mode === 'planner' ? 'planner' : 'agent';
-
+  private getSystemPrompt(mode: 'planner' | 'agent' | 'execution'): string {
     // Build system prompt using centralized PromptBuilder
     return PromptBuilder.buildSystemPrompt({
-      mode: promptMode,
+      mode: mode,
       projectContext: this.projectContext ? {
         name: this.projectContext.name,
         description: this.projectContext.description,
@@ -381,19 +378,22 @@ export class ClaudeCodeProvider extends AgentProvider {
 
   /**
    * Build a prompt from messages for Claude Code.
-   * Note: Project context is now included via PromptBuilder.buildSystemPrompt()
+   * If messages contain a system message, use that instead of generating a default.
+   * This allows AgentRuntime to pass 'execution' mode prompts.
    */
-  private buildPrompt(messages: AgentMessage[], tools?: AgentToolDefinition[], mode: 'planner' | 'agent' = 'planner'): string {
+  private buildPrompt(messages: AgentMessage[], tools?: AgentToolDefinition[], mode: 'planner' | 'agent' | 'execution' = 'planner'): string {
     let prompt = '';
 
-    // Add default system prompt based on mode (includes project context)
-    prompt += this.getSystemPrompt(mode);
-    prompt += '\n\n---\n\n';
-
-    // Add any additional system messages
+    // Check if caller provided system messages (e.g., AgentRuntime with execution mode)
     const systemMessages = messages.filter(m => m.role === 'system');
+
     if (systemMessages.length > 0) {
+      // Use the provided system messages (from AgentRuntime/execution mode)
       prompt += systemMessages.map(m => m.content).join('\n\n');
+      prompt += '\n\n---\n\n';
+    } else {
+      // No system messages provided - generate default based on mode (for chat)
+      prompt += this.getSystemPrompt(mode);
       prompt += '\n\n---\n\n';
     }
 
