@@ -535,7 +535,7 @@ export class ClaudeCodeProvider extends AgentProvider {
     messages: AgentMessage[],
     tools?: AgentToolDefinition[],
     onChunk?: (chunk: string) => void,
-    mode: 'planner' | 'agent' = 'planner'
+    mode: 'planner' | 'agent' | 'execution' = 'planner'
   ): Promise<AgentResponse> {
     if (!this.ready) {
       // Try to check again

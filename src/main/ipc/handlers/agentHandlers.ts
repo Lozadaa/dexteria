@@ -77,12 +77,12 @@ Please complete this task. When done, summarize what you accomplished.
       sendUpdate(accumulated, false);
     };
 
-    // Call complete with streaming (same pattern as chat)
+    // Call complete with streaming - use 'execution' mode for TaskRunner
     const response = await provider.complete(
       [{ role: 'user', content: taskPrompt }],
       undefined,
       onChunk,
-      'agent'
+      'execution'
     );
 
     // Use accumulated content or response content
