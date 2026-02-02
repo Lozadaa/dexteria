@@ -37,7 +37,8 @@ export abstract class AgentProvider {
   abstract complete(
     messages: AgentMessage[],
     tools?: AgentToolDefinition[],
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    mode?: 'planner' | 'agent' | 'execution'
   ): Promise<AgentResponse>;
 
   /**

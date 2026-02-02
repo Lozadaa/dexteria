@@ -265,7 +265,8 @@
       "planner": "Planificador",
       "agent": "Agente",
       "running": "Ejecutando",
-      "building": "Compilando"
+      "building": "Compilando",
+      "ralphNoTasks": "No hay tareas en la columna Por Hacer. Mueve tareas a \"Por Hacer\" para que Ralph las ejecute."
     },
     "chat": {
       "title": "Chat",

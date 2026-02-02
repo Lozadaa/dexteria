@@ -265,7 +265,8 @@
       "planner": "Planner",
       "agent": "Agent",
       "running": "Running",
-      "building": "Building"
+      "building": "Building",
+      "ralphNoTasks": "No tasks in To Do column. Move tasks to \"To Do\" for Ralph to execute them."
     },
     "chat": {
       "title": "Chat",

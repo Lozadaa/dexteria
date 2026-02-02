@@ -478,7 +478,7 @@ export class OpenCodeProvider extends AgentProvider {
    * OpenCode has its own tools (Read, Write, Bash, etc.) so we don't add our own tool definitions.
    * We just pass the conversation with minimal context.
    */
-  private buildPrompt(messages: AgentMessage[], _tools?: AgentToolDefinition[], mode: 'planner' | 'agent' = 'planner'): string {
+  private buildPrompt(messages: AgentMessage[], _tools?: AgentToolDefinition[], mode: 'planner' | 'agent' | 'execution' = 'planner'): string {
     // Get the last user message - this is what we send to OpenCode
     const userMessages = messages.filter(m => m.role === 'user');
     const lastUserMessage = userMessages[userMessages.length - 1]?.content || '';
@@ -637,7 +637,7 @@ Execute the requested changes.\n\n`;
     messages: AgentMessage[],
     tools?: AgentToolDefinition[],
     onChunk?: (chunk: string) => void,
-    mode: 'planner' | 'agent' = 'planner'
+    mode: 'planner' | 'agent' | 'execution' = 'planner'
   ): Promise<AgentResponse> {
     if (!this.ready) {
       // Try to check again

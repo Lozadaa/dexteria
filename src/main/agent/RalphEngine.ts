@@ -34,6 +34,7 @@ import { OpenCodeProvider } from './providers/OpenCodeProvider';
 import { CodexProvider } from './providers/CodexProvider';
 import { notifyRalphTaskComplete } from '../services/NotificationService';
 import { PromptBuilder } from './prompts';
+import { analyzeProject } from '../services/ProjectAnalyzer';
 import type { Task, RalphModeOptions } from '../../shared/types';
 
 // Type for providers that support Ralph mode (have setWorkingDirectory and setProjectContext)
@@ -378,6 +379,9 @@ export class RalphEngine {
       }
     };
 
+    // Ensure project context exists before running task
+    await this.ensureProjectContext();
+
     // Build task prompt with context using centralized PromptBuilder
     const failureContext = this.getFailureContext(task);
     const instructionContext = this.getInstructionContext(task);
@@ -434,7 +438,7 @@ This helps if the task is interrupted - you can resume from where you left off.`
         [{ role: 'user', content: taskPrompt }],
         undefined,
         onChunk,
-        'agent'
+        'execution'
       );
 
       const finalContent = accumulated || response.content;
@@ -573,6 +577,50 @@ This helps if the task is interrupted - you can resume from where you left off.`
    */
   setWindowGetter(getter: () => BrowserWindow | null): void {
     this.getWindow = getter;
+  }
+
+  // ============================================
+  // Project Context Management
+  // ============================================
+
+  /**
+   * Ensure project context files exist and are up-to-date (<24h).
+   * If missing or stale, generates them using the store's context service.
+   */
+  private async ensureProjectContext(): Promise<void> {
+    const contextDir = path.join(this.projectRoot, '.local-kanban', 'context');
+    const projectContextPath = path.join(contextDir, 'project_context.json');
+    const repoIndexPath = path.join(contextDir, 'repo_index.json');
+
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const now = Date.now();
+
+    let needsUpdate = false;
+
+    try {
+      if (!fs.existsSync(projectContextPath) || !fs.existsSync(repoIndexPath)) {
+        needsUpdate = true;
+      } else {
+        const contextStat = fs.statSync(projectContextPath);
+        const indexStat = fs.statSync(repoIndexPath);
+        if (now - contextStat.mtimeMs > MAX_AGE_MS || now - indexStat.mtimeMs > MAX_AGE_MS) {
+          needsUpdate = true;
+        }
+      }
+    } catch {
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      console.log('[Ralph] Project context missing or stale, regenerating...');
+      try {
+        const context = await analyzeProject(this.projectRoot);
+        this.store.saveProjectContext(context);
+        console.log('[Ralph] Project context regenerated successfully');
+      } catch (e) {
+        console.error('[Ralph] Failed to regenerate project context:', e);
+      }
+    }
   }
 
   // ============================================

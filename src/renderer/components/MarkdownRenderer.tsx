@@ -619,6 +619,96 @@ export const ThinkingBlock: React.FC<{ content: string; isComplete: boolean }> =
 };
 
 /**
+ * Detect lines that are tool/agent action indicators (not real content).
+ */
+const TOOL_ACTION_PATTERNS = [
+    /^📖\s*Reading:/,
+    /^📝\s*Editing:/,
+    /^💻\s*Running:/,
+    /^🔍\s*Searching:/,
+    /^📋\s*(Updating task|Creating task|Listing task)/,
+    /^Spawning agent/,
+    /^⏱\s/,
+    /^✓\s/,
+    /^✗\s/,
+    /^→\s/,
+];
+
+function isToolActionLine(line: string): boolean {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    return TOOL_ACTION_PATTERNS.some(p => p.test(trimmed));
+}
+
+/**
+ * Shorten file paths to just the filename for display.
+ * e.g. `/Users/foo/project/src/components/App.tsx` -> `App.tsx`
+ */
+function shortenFilePath(text: string): string {
+    // Match paths like `path/to/file.ext` inside backticks or after colons
+    return text.replace(/(?:[A-Za-z]:)?(?:[\/\\][\w.\-@]+){2,}[\/\\]([\w.\-@]+)/g, (_match, filename) => filename);
+}
+
+/**
+ * Tool actions accordion - collapsible block like ThinkingBlock
+ */
+const ToolActionsBlock: React.FC<{ lines: string[] }> = ({ lines }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const count = lines.length;
+
+    return (
+        <div className="my-1.5">
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className={cn(
+                    "group flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] transition-all duration-300 ease-out",
+                    "bg-gradient-to-r from-cyan-500/5 to-blue-500/5 hover:from-cyan-500/10 hover:to-blue-500/10",
+                    "border border-cyan-500/10 hover:border-cyan-500/20",
+                    "text-muted-foreground/50 hover:text-muted-foreground/70",
+                    isExpanded && "from-cyan-500/10 to-blue-500/10 border-cyan-500/20"
+                )}
+            >
+                <LucideIcons.Wrench
+                    size={10}
+                    className={cn(
+                        "transition-all duration-300",
+                        isExpanded ? "text-cyan-400/60" : "text-cyan-400/30 group-hover:text-cyan-400/50"
+                    )}
+                />
+                <span className="font-medium tracking-wide">{count} action{count !== 1 ? 's' : ''}</span>
+                <ChevronDown
+                    size={10}
+                    className={cn(
+                        "transition-transform duration-300 ease-out ml-0.5",
+                        isExpanded ? "rotate-180" : "rotate-0"
+                    )}
+                />
+            </button>
+
+            <div
+                className={cn(
+                    "overflow-hidden transition-all duration-300 ease-out",
+                    isExpanded ? "max-h-96 opacity-100 mt-2" : "max-h-0 opacity-0 mt-0"
+                )}
+            >
+                <div className={cn(
+                    "px-3 py-2 text-[11px] leading-relaxed",
+                    "text-muted-foreground/40",
+                    "bg-gradient-to-br from-cyan-500/[0.02] to-blue-500/[0.02]",
+                    "rounded-lg border border-cyan-500/5",
+                    "max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10",
+                    "space-y-0.5 font-mono"
+                )}>
+                    {lines.map((al, idx) => (
+                        <div key={idx} className="truncate">{shortenFilePath(al.trim())}</div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/**
  * Simple Markdown renderer for chat messages.
  * Supports: code blocks, inline code, bold, italic, lists, links, tables, thinking blocks
  * Handles incomplete/streaming content gracefully
@@ -681,15 +771,16 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
                 // Check if code block is complete
                 const isComplete = i < lines.length && lines[i].startsWith('```');
                 elements.push(
-                    <div key={key++} className="my-2 rounded-lg overflow-hidden">
+                    <div key={key++} className="my-2 rounded-lg overflow-hidden border border-zinc-700/50 max-w-full">
                         {lang && (
-                            <div className="bg-zinc-800 text-zinc-400 text-xs px-3 py-1 border-b border-zinc-700">
+                            <div className="bg-zinc-800/80 text-zinc-400 text-[10px] font-mono px-3 py-1.5 border-b border-zinc-700/50 flex items-center gap-1.5">
+                                <LucideIcons.FileCode size={10} className="text-zinc-500" />
                                 {lang}
                             </div>
                         )}
-                        <pre className="bg-zinc-900 text-zinc-100 p-3 overflow-x-auto text-xs leading-relaxed">
-                            <code>{codeLines.join('\n')}</code>
-                            {!isComplete && <span className="text-zinc-500">...</span>}
+                        <pre className="bg-gradient-to-br from-zinc-900 to-zinc-900/95 text-zinc-200 p-3 overflow-x-auto text-xs leading-relaxed max-w-full [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+                            <code className="break-all whitespace-pre-wrap">{codeLines.join('\n')}</code>
+                            {!isComplete && <span className="text-zinc-600 animate-pulse">...</span>}
                         </pre>
                     </div>
                 );
@@ -876,6 +967,18 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
                 continue;
             }
 
+            // Tool action lines - render as collapsible accordion
+            if (isToolActionLine(line)) {
+                const actionLines: string[] = [line];
+                i++;
+                while (i < lines.length && (isToolActionLine(lines[i]) || lines[i].trim() === '')) {
+                    if (lines[i].trim() !== '') actionLines.push(lines[i]);
+                    i++;
+                }
+                elements.push(<ToolActionsBlock key={key++} lines={actionLines} />);
+                continue;
+            }
+
             // Regular paragraph
             elements.push(
                 <p key={key++} className="text-sm leading-relaxed">
@@ -890,7 +993,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
     }, [content]);
 
     return (
-        <div className={cn("markdown-content", className)}>
+        <div className={cn("markdown-content min-w-0 overflow-hidden", className)}>
             {rendered}
         </div>
     );
@@ -962,8 +1065,8 @@ function parseInline(text: string): React.ReactNode {
         const codeMatch = remaining.match(/^`([^`]+)`/);
         if (codeMatch) {
             parts.push(
-                <code key={key++} className="bg-zinc-800 text-emerald-400 px-1.5 py-0.5 rounded text-xs font-mono">
-                    {codeMatch[1]}
+                <code key={key++} className="bg-zinc-800 text-emerald-400 px-1.5 py-0.5 rounded text-xs font-mono break-all">
+                    {shortenFilePath(codeMatch[1])}
                 </code>
             );
             remaining = remaining.slice(codeMatch[0].length);

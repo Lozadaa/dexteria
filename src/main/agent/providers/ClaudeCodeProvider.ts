@@ -8,6 +8,7 @@
 import { spawn, spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { AgentProvider, AgentProviderConfig } from '../AgentProvider';
 import type {
   AgentMessage,
@@ -39,12 +40,73 @@ export class ClaudeCodeProvider extends AgentProvider {
 
   constructor(config: ClaudeCodeProviderConfig = {}) {
     super(config);
-    this.claudePath = config.claudePath || 'claude';
+    this.claudePath = config.claudePath || this.findClaudePath();
     this.workingDirectory = config.workingDirectory || process.cwd();
     this.timeout = config.timeout || 1800000; // 30 minutes default (no rush)
 
     // Check if claude is available
     this.checkClaudeAvailable();
+  }
+
+  /**
+   * Find the claude CLI executable path.
+   * Electron doesn't always inherit the full user PATH, so we check common locations.
+   */
+  private findClaudePath(): string {
+    // First try the plain command (works if PATH is correct)
+    try {
+      const result = spawnSync('claude', ['--version'], { shell: true, timeout: 5000, encoding: 'utf-8' });
+      if (result.status === 0) return 'claude';
+    } catch { /* continue */ }
+
+    // Check common npm global paths
+    const candidates: string[] = [];
+
+    if (process.platform === 'win32') {
+      const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+      candidates.push(
+        path.join(appData, 'npm', 'claude.cmd'),
+        path.join(os.homedir(), '.npm-global', 'claude.cmd'),
+      );
+      // Also check nvm paths
+      const nvmDir = process.env.NVM_HOME || path.join(appData, 'nvm');
+      if (fs.existsSync(nvmDir)) {
+        try {
+          const versions = fs.readdirSync(nvmDir).filter(d => d.startsWith('v'));
+          for (const v of versions) {
+            candidates.push(path.join(nvmDir, v, 'claude.cmd'));
+          }
+        } catch { /* ignore */ }
+      }
+    } else {
+      // macOS / Linux
+      candidates.push(
+        '/usr/local/bin/claude',
+        path.join(os.homedir(), '.npm-global', 'bin', 'claude'),
+        path.join(os.homedir(), '.nvm', 'versions', 'node'),  // handled below
+      );
+      // Check nvm versions
+      const nvmDir = path.join(os.homedir(), '.nvm', 'versions', 'node');
+      if (fs.existsSync(nvmDir)) {
+        try {
+          const versions = fs.readdirSync(nvmDir);
+          for (const v of versions) {
+            candidates.push(path.join(nvmDir, v, 'bin', 'claude'));
+          }
+        } catch { /* ignore */ }
+      }
+    }
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        console.log(`[ClaudeCode] Found claude at: ${candidate}`);
+        return candidate;
+      }
+    }
+
+    // Fallback to plain command
+    console.warn('[ClaudeCode] Could not find claude in common paths, falling back to "claude"');
+    return 'claude';
   }
 
   getName(): string {

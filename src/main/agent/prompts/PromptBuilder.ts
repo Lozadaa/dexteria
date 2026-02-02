@@ -137,6 +137,8 @@ ${skillBlocks}`;
   ): string {
     return `## Project Context (Level 3)
 
+**IMPORTANT:** The project has already been analyzed. Use the context below instead of exploring basic project structure (no need to run ls, find, or read package.json/tsconfig for general understanding). Jump directly to the task-specific files.
+
 **Name:** ${context.name}
 **Description:** ${context.description}
 **Purpose:** ${context.purpose}

@@ -252,7 +252,7 @@ export class CodexProvider extends AgentProvider {
    * Get system prompt based on mode.
    * Uses the centralized PromptBuilder for consistent prompts.
    */
-  private getSystemPrompt(mode: 'planner' | 'agent'): string {
+  private getSystemPrompt(mode: 'planner' | 'agent' | 'execution'): string {
     // Map mode to PromptMode type
     const promptMode = mode === 'planner' ? 'planner' : 'agent';
 
@@ -274,7 +274,7 @@ export class CodexProvider extends AgentProvider {
    * Build a prompt from messages for Codex.
    * Note: Project context is now included via PromptBuilder.buildSystemPrompt()
    */
-  private buildPrompt(messages: AgentMessage[], tools?: AgentToolDefinition[], mode: 'planner' | 'agent' = 'planner'): string {
+  private buildPrompt(messages: AgentMessage[], tools?: AgentToolDefinition[], mode: 'planner' | 'agent' | 'execution' = 'planner'): string {
     let prompt = '';
 
     // Add default system prompt based on mode (includes project context)
@@ -426,7 +426,7 @@ export class CodexProvider extends AgentProvider {
     messages: AgentMessage[],
     tools?: AgentToolDefinition[],
     onChunk?: (chunk: string) => void,
-    mode: 'planner' | 'agent' = 'planner'
+    mode: 'planner' | 'agent' | 'execution' = 'planner'
   ): Promise<AgentResponse> {
     if (!this.ready) {
       // Try to check again

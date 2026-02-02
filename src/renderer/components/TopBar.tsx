@@ -11,6 +11,7 @@ import { Slot } from './extension/Slot';
 import { useLayoutStore } from '../docking';
 
 import { useTranslation } from '../i18n/useTranslation';
+import { useToast } from '../contexts/ToastContext';
   interface RalphProgress {
       total: number;
       completed: number;
@@ -29,6 +30,7 @@ import { useTranslation } from '../i18n/useTranslation';
 
   export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings, onNewProject }) => {
       const { t } = useTranslation();
+      const toast = useToast();
       const { state, refresh } = useAgentState();
       const { mode, setMode, triggerPlannerBlock } = useMode();
       const [isMaximized, setIsMaximized] = useState(false);
@@ -214,7 +216,10 @@ import { useTranslation } from '../i18n/useTranslation';
           }
           try {
               setRalphRunning(true);
-              await window.dexteria.ralph.start();
+              const result = await window.dexteria.ralph.start();
+              if (result && result.processed === 0) {
+                  toast.info(t('views.topbar.ralphNoTasks'));
+              }
               refresh();
           } catch (err) {
               console.error('Failed to start Ralph:', err);
