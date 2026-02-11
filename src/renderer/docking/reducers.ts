@@ -11,7 +11,6 @@ import type {
   DropTarget,
   OpenTarget,
   TreePath,
-  DropZone,
 } from './types';
 import { generateId, arraysEqual, clamp } from './utils';
 import { generateViewKey, findExistingView } from './registry';
@@ -394,13 +393,30 @@ export function reorderTabInGroup(
 // ============================================================================
 
 /**
+ * Find the group containing the board view (the "main" panel)
+ * Falls back to the first group if board is not found
+ */
+function findMainGroupId(state: LayoutState): string {
+  // Look for the group containing the 'board' view
+  for (const view of Object.values(state.views)) {
+    if (view.viewType === 'board') {
+      const groupId = findGroupContainingView(state.groups, view.id);
+      if (groupId) return groupId;
+    }
+  }
+  // Fallback to active group if no board found
+  return state.activeGroupId;
+}
+
+/**
  * Open a view (or activate an existing one if deduplication applies)
+ * Default target is 'main' - opens in the main panel where board is located
  */
 export function computeOpenView(
   state: LayoutState,
   viewType: ViewType,
   params: Record<string, unknown> = {},
-  target: OpenTarget = { type: 'active' }
+  target: OpenTarget = { type: 'main' }
 ): LayoutState {
   const existingView = findExistingView(state.views, viewType, params);
   if (existingView) {
@@ -429,6 +445,10 @@ export function computeOpenView(
   switch (target.type) {
     case 'active':
       targetGroupId = state.activeGroupId;
+      break;
+
+    case 'main':
+      targetGroupId = findMainGroupId(state);
       break;
 
     case 'group':

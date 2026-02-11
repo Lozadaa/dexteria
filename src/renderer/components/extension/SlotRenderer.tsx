@@ -5,7 +5,7 @@
  * Handles loading the plugin's renderer component and passing context.
  */
 
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState } from 'react';
 import type { SlotContribution } from '../../contexts/ExtensionPointsContext';
 import { PluginComponentLoader } from '../../plugins/PluginComponentLoader';
 import { Loader2, AlertCircle } from 'lucide-react';

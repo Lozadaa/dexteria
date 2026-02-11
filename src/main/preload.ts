@@ -35,6 +35,8 @@ import type {
   AppUpdateProgress,
   UpdatePreferences,
   Skill,
+  TaskTemplate,
+  ActivityEntry,
 } from '../shared/types';
 
 /** Clarification request from a task */
@@ -253,6 +255,10 @@ export interface DexteriaAPI {
   };
   policy: {
     get: () => Promise<Policy>;
+    update: (policy: Policy) => Promise<{ success: boolean; error?: string }>;
+  };
+  activity: {
+    getRecent: (limit?: number) => Promise<ActivityEntry[]>;
   };
   agent: {
     runTask: (taskId: string, options?: { mode?: 'manual' | 'dexter'; maxSteps?: number }) => Promise<AgentRunResult>;
@@ -273,6 +279,8 @@ export interface DexteriaAPI {
     getLog: (taskId: string, runId: string) => Promise<string | null>;
     tailLog: (taskId: string, runId: string, lines?: number) => Promise<string | null>;
     getMetadata: (taskId: string, runId: string) => Promise<AgentRun | null>;
+    list: (taskId: string) => Promise<AgentRun[]>;
+    listAll: () => Promise<{ taskId: string; runs: AgentRun[] }[]>;
   };
   context: {
     getProject: () => Promise<ProjectContext>;
@@ -535,6 +543,17 @@ export interface DexteriaAPI {
     isActive: () => Promise<boolean>;
     onStreamUpdate: (callback: (data: { type: string; content: string; done: boolean }) => void) => () => void;
   };
+  template: {
+    init: (projectRoot: string) => Promise<boolean>;
+    getAll: () => Promise<TaskTemplate[]>;
+    getById: (id: string) => Promise<TaskTemplate | null>;
+    getByCategory: (category: string) => Promise<TaskTemplate[]>;
+    getCategories: () => Promise<string[]>;
+    create: (input: unknown) => Promise<TaskTemplate | null>;
+    update: (id: string, input: unknown) => Promise<TaskTemplate | null>;
+    delete: (id: string) => Promise<boolean>;
+    apply: (templateId: string, variables: Record<string, string>) => Promise<Partial<TaskTemplate> | null>;
+  };
 }
 
 // ============================================
@@ -586,6 +605,10 @@ const api: DexteriaAPI = {
   },
   policy: {
     get: () => ipcRenderer.invoke('policy:get'),
+    update: (policy) => ipcRenderer.invoke('policy:update', policy),
+  },
+  activity: {
+    getRecent: (limit) => ipcRenderer.invoke('activity:getRecent', limit),
   },
   agent: {
     runTask: (taskId, options) => ipcRenderer.invoke('agent:runTask', taskId, options),
@@ -610,6 +633,8 @@ const api: DexteriaAPI = {
     getLog: (taskId, runId) => ipcRenderer.invoke('runs:getLog', taskId, runId),
     tailLog: (taskId, runId, lines) => ipcRenderer.invoke('runs:tailLog', taskId, runId, lines),
     getMetadata: (taskId, runId) => ipcRenderer.invoke('runs:getMetadata', taskId, runId),
+    list: (taskId) => ipcRenderer.invoke('runs:list', taskId),
+    listAll: () => ipcRenderer.invoke('runs:listAll'),
   },
   context: {
     getProject: () => ipcRenderer.invoke('context:getProject'),
@@ -911,6 +936,17 @@ const api: DexteriaAPI = {
       ipcRenderer.on('interview:stream-update', handler);
       return () => ipcRenderer.removeListener('interview:stream-update', handler);
     },
+  },
+  template: {
+    init: (projectRoot: string) => ipcRenderer.invoke('template:init', projectRoot),
+    getAll: () => ipcRenderer.invoke('template:getAll'),
+    getById: (id: string) => ipcRenderer.invoke('template:getById', id),
+    getByCategory: (category: string) => ipcRenderer.invoke('template:getByCategory', category),
+    getCategories: () => ipcRenderer.invoke('template:getCategories'),
+    create: (input: unknown) => ipcRenderer.invoke('template:create', input),
+    update: (id: string, input: unknown) => ipcRenderer.invoke('template:update', id, input),
+    delete: (id: string) => ipcRenderer.invoke('template:delete', id),
+    apply: (templateId: string, variables: Record<string, string>) => ipcRenderer.invoke('template:apply', templateId, variables),
   },
 };
 

@@ -504,6 +504,8 @@ window.dexteria = {
 | `ThemeEditor` | Theme customization |
 | `SettingsPanel` | Project settings |
 | `DockingLayout` | VSCode-style panel system |
+| `RunHistoryPanel` | Agent execution history browser |
+| `PolicyEditorPanel` | Security policy visual editor |
 
 #### State Management
 
@@ -685,14 +687,55 @@ See `docs/PLUGIN_DEVELOPMENT_GUIDE.md` for full documentation.
 
 ---
 
+## Recently Implemented Features
+
+1. **Run History Browser** - View past agent executions (Window > Run History)
+   - Lists all runs grouped by task
+   - Shows status, steps, files modified, summary/error
+   - Expandable task groups with run details
+   - Statistics for completed/failed runs
+
+2. **Policy Editor UI** - Visual security policy configuration (Window > Security Policy)
+   - Edit allowed/blocked paths and globs
+   - Configure shell command restrictions
+   - Set execution limits (max steps, files, runtime)
+   - Manage content patterns and operations
+
+---
+
+3. **Multi-provider Support** - Select AI provider from ChatPanel dropdown
+   - Available providers: Claude Code, Anthropic API, OpenCode, Codex
+   - Configure API keys in settings
+   - Switch providers without restart
+
+---
+
+4. **Task State Analysis** - AI-powered verification of acceptance criteria (TaskDetail > Analyze State)
+   - Verifies each acceptance criterion against task context
+   - Suggests appropriate task status based on analysis
+   - Shows pass/fail for each criterion with evidence
+
+5. **Task Templates** - Reusable task structures (Window > Templates)
+   - Create templates with predefined fields
+   - Apply templates when creating new tasks
+   - Manage and organize templates
+
+6. **Keyboard Shortcuts** - Global shortcuts for power users (press ?)
+   - Create task, switch modes, navigate panels
+   - Customizable keybindings
+   - Help modal with all shortcuts
+
+7. **Task Tags & Search** - Categorization and quick filtering
+   - Add/remove tags on tasks
+   - Search tasks by title
+   - Filter by priority and tags
+
+---
+
 ## Future Improvements
 
-1. **Acceptance Criteria Verification** - Automated testing of criteria
-2. **Policy Editor UI** - Visual policy configuration
-3. **Run History Browser** - View past executions
-4. **Multi-provider Support** - OpenAI, local LLMs
-5. **Collaborative Features** - Team task assignment
-6. **Webhooks/Integrations** - GitHub, Jira (via plugin)
+1. **Collaborative Features** - Team task assignment (requires backend)
+2. **GitHub Integration** - Direct GitHub issues sync (plugin opportunity)
 
 ---
 

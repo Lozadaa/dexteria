@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface GitBranchBadgeProps {
   branchName: string;
@@ -21,6 +22,8 @@ export const GitBranchBadge: React.FC<GitBranchBadgeProps> = ({
   onClick,
   className = '',
 }) => {
+  const { t } = useTranslation();
+
   // Truncate branch name if too long
   const displayName = branchName.length > 25
     ? `${branchName.substring(0, 22)}...`
@@ -67,7 +70,7 @@ export const GitBranchBadge: React.FC<GitBranchBadgeProps> = ({
         ${onClick ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}
         ${className}
       `}
-      title={`Branch: ${branchName}${isCheckedOut ? ' (checked out)' : ''}${isMerged ? ' (merged)' : ''}`}
+      title={`${t('git.branchTooltip', { name: branchName })}${isCheckedOut ? ` ${t('git.checkedOut')}` : ''}${isMerged ? ` ${t('git.merged')}` : ''}`}
     >
       {/* Git branch icon */}
       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">

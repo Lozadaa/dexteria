@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { useGitStatus, useGitConfig } from '../../hooks/useGit';
+import { useTranslation } from 'react-i18next';
 
 interface GitStatusBarProps {
   className?: string;
@@ -16,6 +17,7 @@ export const GitStatusBar: React.FC<GitStatusBarProps> = ({
   className = '',
   onBranchClick,
 }) => {
+  const { t } = useTranslation();
   const { status, loading } = useGitStatus();
   const { config } = useGitConfig();
 
@@ -51,7 +53,7 @@ export const GitStatusBar: React.FC<GitStatusBarProps> = ({
         type="button"
         onClick={onBranchClick}
         className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 transition-colors"
-        title={`Current branch: ${status.currentBranch || 'unknown'}`}
+        title={t('git.currentBranch', { branch: status.currentBranch || 'unknown' })}
       >
         {/* Git branch icon */}
         <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -63,7 +65,7 @@ export const GitStatusBar: React.FC<GitStatusBarProps> = ({
           />
         </svg>
         <span className="text-gray-300 font-medium">
-          {status.currentBranch || 'detached'}
+          {status.currentBranch || t('git.detached')}
         </span>
       </button>
 
@@ -71,7 +73,7 @@ export const GitStatusBar: React.FC<GitStatusBarProps> = ({
       {hasChanges && (
         <span
           className="flex items-center gap-1 text-yellow-400"
-          title={`${status.stagedCount} staged, ${status.modifiedCount} modified, ${status.untrackedCount} untracked`}
+          title={t('git.stagedModifiedUntracked', { staged: status.stagedCount, modified: status.modifiedCount, untracked: status.untrackedCount })}
         >
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="6" />
@@ -88,7 +90,7 @@ export const GitStatusBar: React.FC<GitStatusBarProps> = ({
       {hasRemoteStatus && (
         <span
           className="flex items-center gap-1 text-gray-400"
-          title={`${status.ahead} ahead, ${status.behind} behind`}
+          title={t('git.aheadBehind', { ahead: status.ahead, behind: status.behind })}
         >
           {status.ahead > 0 && (
             <span className="flex items-center text-green-400">
@@ -111,12 +113,12 @@ export const GitStatusBar: React.FC<GitStatusBarProps> = ({
 
       {/* Merge/Rebase indicator */}
       {isConflicting && (
-        <span className="flex items-center gap-1 text-red-400" title={status.isMerging ? 'Merge in progress' : 'Rebase in progress'}>
+        <span className="flex items-center gap-1 text-red-400" title={status.isMerging ? t('git.mergeInProgress') : t('git.rebaseInProgress')}>
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <span className="font-medium">
-            {status.isMerging ? 'MERGING' : 'REBASING'}
+            {status.isMerging ? t('git.merging') : t('git.rebasing')}
           </span>
         </span>
       )}

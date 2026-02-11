@@ -8,6 +8,7 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 import { RotateCw, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
 import { IconButton } from 'adnia-ui';
+import { useTranslation } from '../../i18n/useTranslation';
 import type { AnalysisResult } from './constants';
 
 interface TaskAnalysisProps {
@@ -24,6 +25,8 @@ export const TaskAnalysis: React.FC<TaskAnalysisProps> = ({
   currentStatus,
   onClose,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div
       className={cn(
@@ -44,16 +47,16 @@ export const TaskAnalysis: React.FC<TaskAnalysisProps> = ({
           {analysis.status === 'error' && (
             <XCircle className="w-3 h-3 text-red-500" />
           )}
-          State Analysis
+          {t('views.taskDetail.stateAnalysis')}
         </h3>
-        <IconButton variant="ghost" size="xs" onClick={onClose}>
+        <IconButton variant="ghost" size="xs" onClick={onClose} aria-label={t('actions.close')}>
           <X size={14} />
         </IconButton>
       </div>
 
       {analysis.status === 'analyzing' && (
         <div className="text-sm text-muted-foreground">
-          Analyzing task against current codebase...
+          {t('views.taskDetail.analyzingTask')}
         </div>
       )}
 
@@ -69,9 +72,9 @@ export const TaskAnalysis: React.FC<TaskAnalysisProps> = ({
             <div className="flex items-center gap-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/20">
               <AlertCircle size={14} className="text-yellow-500 shrink-0" />
               <span className="text-sm">
-                Suggested status:{' '}
+                {t('views.taskDetail.suggestedStatus')}{' '}
                 <strong className="capitalize">{analysis.suggestedStatus}</strong>{' '}
-                (current: <span className="capitalize">{currentStatus}</span>)
+                ({t('views.taskDetail.currentStatus')} <span className="capitalize">{currentStatus}</span>)
               </span>
             </div>
           )}
@@ -79,7 +82,7 @@ export const TaskAnalysis: React.FC<TaskAnalysisProps> = ({
           {analysis.criteria && analysis.criteria.length > 0 && (
             <div className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground">
-                Acceptance Criteria Check:
+                {t('views.taskDetail.acceptanceCriteriaCheck')}
               </div>
               {analysis.criteria.map((c, i) => (
                 <div

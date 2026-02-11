@@ -253,6 +253,39 @@ export class LocalKanbanStore {
     this.appendActivity(createActivityEntry(type, data, ids));
   }
 
+  /**
+   * Get recent activity entries from the log.
+   * @param limit Maximum number of entries to return (default: 50)
+   * @returns Array of recent activity entries, newest first
+   */
+  getRecentActivity(limit: number = 50): ActivityEntry[] {
+    const fullPath = this.getPath(LOCAL_KANBAN_PATHS.activity);
+    if (!fs.existsSync(fullPath)) {
+      return [];
+    }
+
+    try {
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      const lines = content.trim().split('\n').filter((line) => line.trim());
+
+      // Parse all lines, newest first (reverse order)
+      const entries: ActivityEntry[] = [];
+      for (let i = lines.length - 1; i >= 0 && entries.length < limit; i--) {
+        try {
+          const entry = JSON.parse(lines[i]) as ActivityEntry;
+          entries.push(entry);
+        } catch {
+          // Skip malformed lines
+        }
+      }
+
+      return entries;
+    } catch (error) {
+      console.error('Failed to read activity log:', error);
+      return [];
+    }
+  }
+
   // ============================================
   // Board Operations
   // ============================================
@@ -621,6 +654,22 @@ export class LocalKanbanStore {
     }
 
     return result.data;
+  }
+
+  /**
+   * Save/update the policy configuration.
+   */
+  savePolicy(policy: Policy): { success: boolean; error?: string } {
+    try {
+      const result = PolicySchema.safeParse(policy);
+      if (!result.success) {
+        return { success: false, error: `Invalid policy: ${result.error.message}` };
+      }
+      this.atomicWriteJSON(LOCAL_KANBAN_PATHS.policy, result.data);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
   }
 
   // ============================================

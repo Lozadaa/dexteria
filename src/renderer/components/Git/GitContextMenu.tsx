@@ -6,6 +6,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import type { Task, TaskBranchMapping } from '../../../shared/types';
+import { useTranslation } from 'react-i18next';
 
 interface GitContextMenuProps {
   task: Task;
@@ -30,6 +31,7 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
   onDeleteBranch,
   onViewDetails,
 }) => {
+  const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close on click outside
@@ -108,7 +110,7 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
     >
       {/* Header */}
       <div className="px-3 py-2 border-b border-gray-700">
-        <div className="text-xs text-gray-400">Git Actions</div>
+        <div className="text-xs text-gray-400">{t('git.gitActions')}</div>
         <div className="text-sm text-white truncate">{task.title}</div>
         {hasBranch && (
           <div className="text-xs text-blue-400 font-mono truncate mt-1">
@@ -127,7 +129,7 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             }
-            label="Create Branch"
+            label={t('git.createBranch')}
             onClick={onCreateBranch}
           />
         ) : (
@@ -139,7 +141,7 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
-              label={isCheckedOut ? 'Branch Active' : 'Checkout Branch'}
+              label={isCheckedOut ? t('git.branchActive') : t('git.checkoutBranch')}
               onClick={onCheckoutBranch}
               disabled={isCheckedOut}
             />
@@ -151,7 +153,7 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
               }
-              label="View Details"
+              label={t('git.viewDetails')}
               onClick={onViewDetails}
             />
 
@@ -163,7 +165,7 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                 </svg>
               }
-              label="Detach Branch"
+              label={t('git.detachBranch')}
               onClick={onDetachBranch}
               disabled={isCheckedOut}
             />
@@ -174,7 +176,7 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               }
-              label="Delete Branch"
+              label={t('git.deleteBranch')}
               onClick={onDeleteBranch}
               disabled={isCheckedOut || !isMerged}
               danger
@@ -186,9 +188,9 @@ export const GitContextMenu: React.FC<GitContextMenuProps> = ({
       {/* Status footer */}
       {hasBranch && (
         <div className="px-3 py-2 border-t border-gray-700 text-xs text-gray-500">
-          {isMerged && <span className="text-green-400">Merged</span>}
-          {isCheckedOut && !isMerged && <span className="text-blue-400">Active</span>}
-          {!isCheckedOut && !isMerged && <span>Not checked out</span>}
+          {isMerged && <span className="text-green-400">{t('git.statusMerged')}</span>}
+          {isCheckedOut && !isMerged && <span className="text-blue-400">{t('git.statusActive')}</span>}
+          {!isCheckedOut && !isMerged && <span>{t('git.statusNotCheckedOut')}</span>}
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@
  * Final screen showing project brief and backlog preview before creation.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Badge, ScrollArea, Card } from 'adnia-ui';
 import {
@@ -19,7 +19,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import LogoIcon from '../../../../assets/logoicon.png';
-import type { InterviewState, BacklogEpic, ProjectBrief } from '../../../shared/types';
+import type { InterviewState, BacklogEpic } from '../../../shared/types';
 
 interface FinalizeScreenProps {
   interview: InterviewState;
@@ -35,7 +35,7 @@ interface FinalizeScreenProps {
 type GenerationStep = 'idle' | 'brief' | 'backlog' | 'done';
 
 // Step progress component
-function GenerationProgress({ step, t }: { step: GenerationStep; t: (key: string, fallback?: string) => string }) {
+function GenerationProgress({ step, t }: { step: GenerationStep; t: ReturnType<typeof useTranslation>['t'] }) {
   const steps = [
     { id: 'brief', label: t('interview.finalize.stepBrief', 'Generating project brief') },
     { id: 'backlog', label: t('interview.finalize.stepBacklog', 'Creating initial backlog') },
@@ -90,7 +90,7 @@ function GenerationProgress({ step, t }: { step: GenerationStep; t: (key: string
 
 export function FinalizeScreen({
   interview,
-  isLoading,
+  isLoading: _isLoading,
   onGenerateBrief,
   onGenerateBacklog,
   onCreateTasks,
@@ -113,10 +113,8 @@ export function FinalizeScreen({
   const generateBacklogWithRetry = async () => {
     setBacklogError(null);
     setCurrentStep('backlog');
-    console.log('[FinalizeScreen] Generating backlog...');
     try {
       await onGenerateBacklog();
-      console.log('[FinalizeScreen] Backlog generated');
       setCurrentStep('done');
     } catch (err) {
       console.error('[FinalizeScreen] Backlog generation error:', err);
@@ -137,9 +135,7 @@ export function FinalizeScreen({
       try {
         if (!interview.projectBrief) {
           setCurrentStep('brief');
-          console.log('[FinalizeScreen] Generating brief...');
           await onGenerateBrief();
-          console.log('[FinalizeScreen] Brief generated');
         }
         if (!interview.backlogDraft || interview.backlogDraft.length === 0) {
           await generateBacklogWithRetry();
@@ -193,10 +189,8 @@ export function FinalizeScreen({
   const handleCreate = async () => {
     setCreating(true);
     setError(null);
-    console.log('[FinalizeScreen] Creating tasks...');
     try {
       const result = await onCreateTasks();
-      console.log('[FinalizeScreen] Create tasks result:', result);
       if (!result.success) {
         setError('Failed to create tasks');
       }
@@ -478,7 +472,7 @@ interface EpicCardProps {
   epic: BacklogEpic;
   isExpanded: boolean;
   onToggle: () => void;
-  t: (key: string, fallback?: string, options?: object) => string;
+  t: ReturnType<typeof useTranslation>['t'];
 }
 
 function EpicCard({ epic, isExpanded, onToggle, t }: EpicCardProps) {

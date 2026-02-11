@@ -110,7 +110,11 @@ export class AgentRuntime {
 
     // Validate task has acceptance criteria
     if (task.acceptanceCriteria.length === 0) {
-      throw new Error('Task MUST have at least one acceptance criterion');
+      throw new Error(
+        'This task has no acceptance criteria defined. ' +
+        'Please add at least one acceptance criterion in the Task Details panel ' +
+        'so the AI knows what to verify when the task is complete.'
+      );
     }
 
     // Start recording
@@ -699,6 +703,9 @@ export class AgentRuntime {
     }
 
     this.store.addTypedComment(task.id, 'failure', 'dexter', comment, finalRun.id);
+
+    // Update task runtime status to 'failed' to prevent false completion
+    this.store.updateTaskRuntime(task.id, { status: 'failed' });
 
     const updatedTask = this.store.getTask(task.id)!;
 

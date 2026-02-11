@@ -10,11 +10,14 @@ import {
   FileText,
   Settings,
   Palette,
-  Terminal,
-  Play,
   Puzzle,
   Home,
   Wrench,
+  History,
+  Shield,
+  Files,
+  Calendar,
+  LayoutDashboard,
 } from 'lucide-react';
 import type { ViewTypeDefinition, ViewComponentProps } from '../ComponentRegistry';
 
@@ -40,6 +43,21 @@ const BottomPanelLazy = React.lazy(() =>
 const PluginsPanelLazy = React.lazy(() =>
   import('../../components/PluginsPanel').then((m) => ({ default: m.PluginsPanel }))
 );
+const RunHistoryPanelLazy = React.lazy(() =>
+  import('../../components/RunHistoryPanel').then((m) => ({ default: m.RunHistoryPanel }))
+);
+const PolicyEditorPanelLazy = React.lazy(() =>
+  import('../../components/PolicyEditorPanel').then((m) => ({ default: m.PolicyEditorPanel }))
+);
+const TemplatesPanelLazy = React.lazy(() =>
+  import('../../components/TemplatesPanel').then((m) => ({ default: m.TemplatesPanel }))
+);
+const RoadmapPanelLazy = React.lazy(() =>
+  import('../../components/RoadmapPanel').then((m) => ({ default: m.RoadmapPanel }))
+);
+const DashboardPanelLazy = React.lazy(() =>
+  import('../../components/DashboardPanel').then((m) => ({ default: m.DashboardPanel }))
+);
 
 // ============================================================================
 // View Wrappers
@@ -51,7 +69,7 @@ const ChatView: React.FC<ViewComponentProps> = () => (
   </React.Suspense>
 );
 
-const BoardView: React.FC<ViewComponentProps> = ({ params }) => {
+const BoardView: React.FC<ViewComponentProps> = ({ params: _params }) => {
   const { openView } = useLayoutStoreActions();
 
   const handleTaskSelect = React.useCallback(
@@ -128,6 +146,24 @@ const PluginsView: React.FC<ViewComponentProps> = () => (
   </React.Suspense>
 );
 
+const RunHistoryView: React.FC<ViewComponentProps> = () => (
+  <React.Suspense fallback={<ViewLoading />}>
+    <RunHistoryPanelLazy />
+  </React.Suspense>
+);
+
+const PolicyEditorView: React.FC<ViewComponentProps> = () => (
+  <React.Suspense fallback={<ViewLoading />}>
+    <PolicyEditorPanelLazy />
+  </React.Suspense>
+);
+
+const TemplatesView: React.FC<ViewComponentProps> = () => (
+  <React.Suspense fallback={<ViewLoading />}>
+    <TemplatesPanelLazy />
+  </React.Suspense>
+);
+
 const WelcomeView: React.FC<ViewComponentProps> = () => {
   const { t } = useTranslation();
   return (
@@ -140,6 +176,18 @@ const WelcomeView: React.FC<ViewComponentProps> = () => {
     </div>
   );
 };
+
+const RoadmapView: React.FC<ViewComponentProps> = () => (
+  <React.Suspense fallback={<ViewLoading />}>
+    <RoadmapPanelLazy />
+  </React.Suspense>
+);
+
+const DashboardView: React.FC<ViewComponentProps> = () => (
+  <React.Suspense fallback={<ViewLoading />}>
+    <DashboardPanelLazy />
+  </React.Suspense>
+);
 
 // ============================================================================
 // Loading Component
@@ -225,24 +273,38 @@ export const viewDefinitions: ViewTypeDefinition[] = [
     closable: true,
   },
   {
-    viewType: 'logs',
-    component: WelcomeView, // Placeholder
-    title: 'Logs',
-    icon: Terminal,
+    viewType: 'runHistory',
+    component: RunHistoryView,
+    title: 'Run History',
+    icon: History,
     closable: true,
   },
   {
-    viewType: 'terminal',
-    component: WelcomeView, // Placeholder
-    title: 'Terminal',
-    icon: Terminal,
+    viewType: 'policyEditor',
+    component: PolicyEditorView,
+    title: 'Security Policy',
+    icon: Shield,
     closable: true,
   },
   {
-    viewType: 'jsonEditor',
-    component: WelcomeView, // Placeholder
-    title: 'JSON Editor',
-    icon: FileText,
+    viewType: 'templates',
+    component: TemplatesView,
+    title: 'Templates',
+    icon: Files,
+    closable: true,
+  },
+  {
+    viewType: 'roadmap',
+    component: RoadmapView,
+    title: 'Roadmap',
+    icon: Calendar,
+    closable: true,
+  },
+  {
+    viewType: 'dashboard',
+    component: DashboardView,
+    title: 'Dashboard',
+    icon: LayoutDashboard,
     closable: true,
   },
 ];

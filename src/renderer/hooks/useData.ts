@@ -3,12 +3,6 @@ import type { Board, Task, AgentState, Chat } from '../../shared/types';
 
 const POLL_INTERVAL = 2000;
 
-interface DataState<T> {
-  data: T;
-  loading: boolean;
-  error: Error | null;
-}
-
 export function useBoard() {
   const [board, setBoard] = useState<Board | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);

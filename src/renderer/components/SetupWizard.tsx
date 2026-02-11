@@ -83,7 +83,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [checkingOpenCode, setCheckingOpenCode] = useState(true);
     const [installingOpenCode, setInstallingOpenCode] = useState(false);
     const [openCodeInstallProgress, setOpenCodeInstallProgress] = useState<OpenCodeInstallProgress | null>(null);
-    const [openCodeError, setOpenCodeError] = useState<string | null>(null);
+    const [_openCodeError, setOpenCodeError] = useState<string | null>(null);
 
     // Codex state
     const [codexAvailable, setCodexAvailable] = useState<boolean | null>(null);
@@ -97,7 +97,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [vscodeInstalled, setVscodeInstalled] = useState<boolean | null>(null);
     const [checkingVscode, setCheckingVscode] = useState(true);
     const [wantsCodeViewing, setWantsCodeViewing] = useState<boolean | null>(null);
-    const [vscodeDownloadUrl, setVscodeDownloadUrl] = useState<string>('');
+    const [_vscodeDownloadUrl, setVscodeDownloadUrl] = useState<string>('');
 
     // Helper function to reset OpenCode state on error or cancel
     const resetOpenCodeState = () => {
@@ -572,13 +572,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 className="h-16 w-auto mx-auto"
                             />
                         </div>
-                        <h1 className="text-2xl font-bold mb-2">Welcome to Dexteria</h1>
+                        <h1 className="text-2xl font-bold mb-2">{t('setup.welcome')}</h1>
                         <p className="text-muted-foreground">
                             {step === 'theme'
-                                ? 'Choose a theme for your workspace'
+                                ? t('setup.chooseTheme')
                                 : step === 'codeViewing'
-                                    ? 'Would you like to view code in VSCode?'
-                                    : "Let's configure your AI provider to get started"
+                                    ? t('setup.codeViewing')
+                                    : t('setup.configureProvider')
                             }
                         </p>
                     </div>
@@ -606,12 +606,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     {step === 'select' && (
                         <div className="space-y-4">
                             <h2 className="text-lg font-semibold text-center mb-4">
-                                Choose your AI Provider
+                                {t('setup.chooseProvider')}
                             </h2>
 
                             {(checkingOpenCode || checkingCodex || checkingClaudeCode) ? (
                                 <div className="flex items-center justify-center py-8">
-                                    <Spinner size="md" label="Checking available providers..." />
+                                    <Spinner size="md" label={t('setup.checkingProviders')} />
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -642,11 +642,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         </span>
                                                     )}
                                                     <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                                                        Recommended
+                                                        {t('setup.recommended')}
                                                     </span>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
-                                                    Open-source AI coding assistant. Auto-installs on first use.
+                                                    {t('setup.opencode.description')}
                                                 </p>
                                             </div>
                                             <ArrowRight size={20} className="text-muted-foreground mt-3" />
@@ -676,13 +676,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <span className="font-semibold">Codex CLI</span>
                                                     {codexAvailable && (
                                                         <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
-                                                            Detected
+                                                            {t('setup.detected')}
                                                         </span>
                                                     )}
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
-                                                    OpenAI's coding agent.
-                                                    {!codexAvailable && " Requires manual installation."}
+                                                    {t('setup.codex.description')}
+                                                    {!codexAvailable && ` ${t('setup.claudeCode.requiresInstall')}`}
                                                 </p>
                                             </div>
                                             <ArrowRight size={20} className="text-muted-foreground mt-3" />
@@ -712,13 +712,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <span className="font-semibold">Claude Code CLI</span>
                                                     {claudeCodeAvailable && (
                                                         <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
-                                                            Detected
+                                                            {t('setup.detected')}
                                                         </span>
                                                     )}
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
-                                                    Uses the Claude Code CLI for powerful agentic capabilities.
-                                                    {!claudeCodeAvailable && " Requires manual installation."}
+                                                    {t('setup.claudeCode.description')}
+                                                    {!claudeCodeAvailable && ` ${t('setup.claudeCode.requiresInstall')}`}
                                                 </p>
                                             </div>
                                             <ArrowRight size={20} className="text-muted-foreground mt-3" />
@@ -739,7 +739,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <span className="font-semibold">{t('views.chat.anthropicApi')}</span>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
-                                                    Direct API access. Requires an API key from Anthropic.
+                                                    {t('setup.anthropic.description')}
                                                 </p>
                                             </div>
                                             <ArrowRight size={20} className="text-muted-foreground mt-3" />
@@ -755,12 +755,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                         <div className="space-y-4">
                             <h2 className="text-lg font-semibold text-center mb-4">
                                 {selectedProvider === 'opencode'
-                                    ? 'Install OpenCode'
+                                    ? t('setup.opencode.installTitle')
                                     : selectedProvider === 'codex'
-                                        ? 'Install Codex CLI'
+                                        ? t('setup.codex.installTitle')
                                         : selectedProvider === 'claude-code'
-                                            ? 'Install Claude Code CLI'
-                                            : 'Enter your API Key'
+                                            ? t('setup.claudeCode.installTitle')
+                                            : t('setup.anthropic.enterApiKey')
                                 }
                             </h2>
 
@@ -773,18 +773,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 <div className="w-16 h-16 rounded-full bg-green-500/20 text-green-500 mx-auto mb-4 flex items-center justify-center">
                                                     <CheckCircle size={32} />
                                                 </div>
-                                                <p className="font-medium text-green-500">OpenCode is already installed!</p>
+                                                <p className="font-medium text-green-500">{t('setup.opencode.installed')}</p>
                                                 <p className="text-sm text-muted-foreground mt-2">
-                                                    You can continue to the next step.
+                                                    {t('setup.opencode.continueHint')}
                                                 </p>
                                             </div>
 
                                             <div className="flex gap-2">
                                                 <Button variant="ghost" onClick={handleBack}>
-                                                    Back
+                                                    {t('setup.buttons.back')}
                                                 </Button>
                                                 <Button onClick={() => setStep('test')} className="flex-1">
-                                                    Continue
+                                                    {t('setup.buttons.continue')}
                                                     <ArrowRight size={16} className="ml-2" />
                                                 </Button>
                                             </div>
@@ -796,8 +796,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <Zap size={32} />
                                                 </div>
                                                 <p className="text-sm text-muted-foreground">
-                                                    OpenCode will be downloaded and installed automatically.
-                                                    This only needs to happen once.
+                                                    {t('setup.opencode.installDesc')}
                                                 </p>
                                             </div>
 
@@ -811,14 +810,14 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
                                             <div className="flex gap-2">
                                                 <Button variant="ghost" onClick={handleBack}>
-                                                    Back
+                                                    {t('setup.buttons.back')}
                                                 </Button>
                                                 <Button
                                                     onClick={handleInstallOpenCode}
                                                     className="flex-1"
                                                 >
                                                     <Zap size={16} className="mr-2" />
-                                                    Install OpenCode
+                                                    {t('setup.opencode.installButton')}
                                                 </Button>
                                             </div>
                                         </>
@@ -860,18 +859,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 <div className="w-16 h-16 rounded-full bg-green-500/20 text-green-500 mx-auto mb-4 flex items-center justify-center">
                                                     <CheckCircle size={32} />
                                                 </div>
-                                                <p className="font-medium text-green-500">Codex CLI is already installed!</p>
+                                                <p className="font-medium text-green-500">{t('setup.codex.installed')}</p>
                                                 <p className="text-sm text-muted-foreground mt-2">
-                                                    You can continue to the next step.
+                                                    {t('setup.codex.continueHint')}
                                                 </p>
                                             </div>
 
                                             <div className="flex gap-2">
                                                 <Button variant="ghost" onClick={handleBack}>
-                                                    Back
+                                                    {t('setup.buttons.back')}
                                                 </Button>
                                                 <Button onClick={() => setStep('test')} className="flex-1">
-                                                    Continue
+                                                    {t('setup.buttons.continue')}
                                                     <ArrowRight size={16} className="ml-2" />
                                                 </Button>
                                             </div>
@@ -881,7 +880,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             {codexError && (
                                                 <AlertBanner
                                                     variant="destructive"
-                                                    title="Installation Error"
+                                                    title={t('errors.installationError')}
                                                     description={codexError}
                                                 />
                                             )}
@@ -890,17 +889,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 <>
                                                     <AlertBanner
                                                         variant="warning"
-                                                        title="npm not found"
-                                                        description="Node.js and npm are required to install Codex CLI."
+                                                        title={t('setup.codex.npmNotFound')}
+                                                        description={t('setup.codex.npmNotFoundDesc')}
                                                     />
 
                                                     <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                                                        <p className="text-sm font-medium">To install Node.js:</p>
+                                                        <p className="text-sm font-medium">{t('setup.codex.installNodeSteps')}</p>
                                                         <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                                                            <li>Visit <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">nodejs.org</a></li>
-                                                            <li>Download and install the LTS version</li>
-                                                            <li>Restart your terminal/computer</li>
-                                                            <li>Click "Check Again" below</li>
+                                                            <li>{t('setup.codex.installNodeStep1')}</li>
+                                                            <li>{t('setup.codex.installNodeStep2')}</li>
+                                                            <li>{t('setup.codex.installNodeStep3')}</li>
+                                                            <li>{t('setup.codex.installNodeStep4')}</li>
                                                         </ol>
                                                     </div>
 
@@ -929,23 +928,23 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                             <Download size={32} />
                                                         </div>
                                                         <div>
-                                                            <p className="font-medium">Install Codex CLI</p>
+                                                            <p className="font-medium">{t('setup.codex.installTitle')}</p>
                                                             <p className="text-sm text-muted-foreground mt-2">
-                                                                Codex CLI will be installed via npm. This only needs to happen once.
+                                                                {t('setup.codex.installDesc')}
                                                             </p>
                                                         </div>
                                                     </div>
 
                                                     <div className="flex gap-2">
                                                         <Button variant="ghost" onClick={handleBack}>
-                                                            Back
+                                                            {t('setup.buttons.back')}
                                                         </Button>
                                                         <Button
                                                             onClick={handleInstallCodex}
                                                             className="flex-1 gap-2"
                                                         >
                                                             <Zap size={16} className="mr-2" />
-                                                            Install Codex CLI
+                                                            {t('setup.codex.installButton')}
                                                         </Button>
                                                     </div>
                                                 </>
@@ -959,7 +958,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                                 <div>
                                                     <p className="font-medium">
-                                                        {codexInstallProgress?.message || 'Installing Codex CLI...'}
+                                                        {codexInstallProgress?.message || t('setup.codex.installing')}
                                                     </p>
                                                     {codexInstallProgress && (
                                                         <div className="mt-4">
@@ -989,18 +988,18 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 <div className="w-16 h-16 rounded-full bg-green-500/20 text-green-500 mx-auto mb-4 flex items-center justify-center">
                                                     <CheckCircle size={32} />
                                                 </div>
-                                                <p className="font-medium text-green-500">Claude Code CLI is already installed!</p>
+                                                <p className="font-medium text-green-500">{t('setup.claudeCode.installed')}</p>
                                                 <p className="text-sm text-muted-foreground mt-2">
-                                                    You can continue to the next step.
+                                                    {t('setup.claudeCode.continueHint')}
                                                 </p>
                                             </div>
 
                                             <div className="flex gap-2">
                                                 <Button variant="ghost" onClick={handleBack}>
-                                                    Back
+                                                    {t('setup.buttons.back')}
                                                 </Button>
                                                 <Button onClick={() => setStep('test')} className="flex-1">
-                                                    Continue
+                                                    {t('setup.buttons.continue')}
                                                     <ArrowRight size={16} className="ml-2" />
                                                 </Button>
                                             </div>
@@ -1009,23 +1008,23 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         <>
                                             <AlertBanner
                                                 variant="warning"
-                                                title="Claude Code CLI not found"
-                                                description="Install the CLI to use Claude Code with Dexteria."
+                                                title={t('setup.claudeCode.notFound')}
+                                                description={t('setup.claudeCode.notFoundDesc')}
                                             />
 
                                             <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                                                <p className="text-sm font-medium">Installation steps:</p>
+                                                <p className="text-sm font-medium">{t('setup.claudeCode.installSteps')}</p>
                                                 <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                                                    <li>Open a terminal</li>
-                                                    <li>Run: <code className="bg-background px-1.5 py-0.5 rounded text-foreground">npm install -g @anthropic-ai/claude-code</code></li>
-                                                    <li>Verify: <code className="bg-background px-1.5 py-0.5 rounded text-foreground">claude --version</code></li>
-                                                    <li>Click "Check Again" below</li>
+                                                    <li>{t('setup.claudeCode.step1')}</li>
+                                                    <li>{t('setup.claudeCode.step2')} <code className="bg-background px-1.5 py-0.5 rounded text-foreground">npm install -g @anthropic-ai/claude-code</code></li>
+                                                    <li>{t('setup.claudeCode.step3')} <code className="bg-background px-1.5 py-0.5 rounded text-foreground">claude --version</code></li>
+                                                    <li>{t('setup.claudeCode.step4')}</li>
                                                 </ol>
                                             </div>
 
                                             <div className="flex gap-2">
                                                 <Button variant="ghost" onClick={handleBack}>
-                                                    Back
+                                                    {t('setup.buttons.back')}
                                                 </Button>
                                                 <Button
                                                     onClick={checkClaudeCodeAvailability}
@@ -1049,7 +1048,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 <div className="space-y-4">
                                     <div className="p-4 bg-muted/50 rounded-lg">
                                         <p className="text-sm text-muted-foreground mb-3">
-                                            Get your API key from the Anthropic Console:
+                                            {t('setup.anthropic.getApiKey')}
                                         </p>
                                         <a
                                             href="https://console.anthropic.com/settings/keys"
@@ -1064,7 +1063,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
                                     <div>
                                         <label className="block text-sm font-medium mb-2">
-                                            API Key
+                                            {t('setup.anthropic.apiKeyLabel')}
                                         </label>
                                         <Input
                                             type="password"
@@ -1096,7 +1095,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 <Spinner size="xs" />
                                             ) : (
                                                 <>
-                                                    Continue
+                                                    {t('setup.buttons.continue')}
                                                     <ArrowRight size={16} className="ml-2" />
                                                 </>
                                             )}
@@ -1111,7 +1110,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     {step === 'test' && (
                         <div className="space-y-4">
                             <h2 className="text-lg font-semibold text-center mb-4">
-                                Test Connection
+                                {t('setup.test.title')}
                             </h2>
 
                             <div className="p-6 bg-muted/50 rounded-lg text-center space-y-4">
@@ -1146,12 +1145,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         {isTesting
-                                            ? 'Testing connection...'
+                                            ? t('setup.test.testing')
                                             : testResult?.success
-                                                ? 'Connection successful!'
+                                                ? t('setup.test.success')
                                                 : testResult
-                                                    ? 'Connection failed'
-                                                    : 'Click below to test the connection'
+                                                    ? t('setup.test.failed')
+                                                    : t('setup.test.clickToTest')
                                         }
                                     </p>
                                 </div>
@@ -1168,7 +1167,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
                             <div className="flex gap-2">
                                 <Button variant="ghost" onClick={handleBack}>
-                                    Back
+                                    {t('setup.buttons.back')}
                                 </Button>
                                 {!testResult?.success ? (
                                     <Button
@@ -1181,7 +1180,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         ) : (
                                             <>
                                                 <Cpu size={16} className="mr-2" />
-                                                Test Connection
+                                                {t('setup.test.testButton')}
                                             </>
                                         )}
                                     </Button>
@@ -1202,17 +1201,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     {step === 'theme' && (
                         <div className="space-y-4">
                             <h2 className="text-lg font-semibold text-center mb-4">
-                                Choose a Theme
+                                {t('setup.chooseTheme')}
                             </h2>
 
                             {loadingThemes ? (
                                 <div className="flex items-center justify-center py-8">
-                                    <Spinner size="md" label="Loading themes..." />
+                                    <Spinner size="md" label={t('setup.loadingThemes')} />
                                 </div>
                             ) : presetThemes.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
-                                    <p>No preset themes found.</p>
-                                    <p className="text-sm mt-2">Add theme files to assets/themes/</p>
+                                    <p>{t('setup.theme.noThemes')}</p>
+                                    <p className="text-sm mt-2">{t('setup.theme.addThemes')}</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-3">
@@ -1280,19 +1279,19 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                             )}
 
                             <p className="text-xs text-muted-foreground text-center">
-                                You can change your theme later in Settings
+                                {t('setup.theme.changeLater')}
                             </p>
 
                             <div className="flex gap-2">
                                 <Button variant="ghost" onClick={handleBack}>
-                                    Back
+                                    {t('setup.buttons.back')}
                                 </Button>
                                 <Button
                                     onClick={handleThemeComplete}
                                     className="flex-1"
                                     disabled={loadingThemes}
                                 >
-                                    Continue
+                                    {t('setup.buttons.continue')}
                                     <ArrowRight size={16} className="ml-2" />
                                 </Button>
                             </div>
@@ -1303,16 +1302,16 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     {step === 'codeViewing' && (
                         <div className="space-y-4">
                             <h2 className="text-lg font-semibold text-center mb-4">
-                                Code Viewing Integration
+                                {t('setup.vscode.title')}
                             </h2>
 
                             <p className="text-sm text-muted-foreground text-center mb-6">
-                                Enable VSCode integration to quickly open project files in your editor.
+                                {t('setup.vscode.desc')}
                             </p>
 
                             {checkingVscode ? (
                                 <div className="flex items-center justify-center py-8">
-                                    <Spinner size="md" label="Checking for VSCode..." />
+                                    <Spinner size="md" label={t('setup.checkingVscode')} />
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -1338,15 +1337,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-semibold">Yes, enable VSCode integration</span>
+                                                    <span className="font-semibold">{t('setup.vscode.yesEnable')}</span>
                                                     {vscodeInstalled && (
                                                         <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
-                                                            VSCode Detected
+                                                            {t('setup.vscode.detected')}
                                                         </span>
                                                     )}
                                                 </div>
                                                 <p className="text-sm text-muted-foreground mt-1">
-                                                    Add "Open in VSCode" button to quickly view project files.
+                                                    {t('setup.vscode.yesDesc')}
                                                 </p>
                                             </div>
                                             {wantsCodeViewing === true && (
@@ -1367,7 +1366,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         {t('views.settings.integrations.vscodeNotDetected')}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground mt-1">
-                                                        You can still enable this feature and install VSCode later.
+                                                        {t('setup.vscode.installLater')}
                                                     </p>
                                                     <button
                                                         onClick={handleOpenDownloadPage}
@@ -1402,9 +1401,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 <XCircle size={24} />
                                             </div>
                                             <div className="flex-1">
-                                                <span className="font-semibold">No, skip this feature</span>
+                                                <span className="font-semibold">{t('setup.vscode.noSkip')}</span>
                                                 <p className="text-sm text-muted-foreground mt-1">
-                                                    You can enable this later in Settings.
+                                                    {t('setup.vscode.noDesc')}
                                                 </p>
                                             </div>
                                             {wantsCodeViewing === false && (
@@ -1418,12 +1417,12 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                             )}
 
                             <p className="text-xs text-muted-foreground text-center">
-                                You can change this later in Settings
+                                {t('setup.vscode.changeLater')}
                             </p>
 
                             <div className="flex gap-2">
                                 <Button variant="ghost" onClick={handleBack}>
-                                    Back
+                                    {t('setup.buttons.back')}
                                 </Button>
                                 <Button
                                     onClick={handleComplete}
@@ -1431,7 +1430,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     disabled={wantsCodeViewing === null}
                                 >
                                     <Palette size={16} className="mr-2" />
-                                    Get Started
+                                    {t('setup.buttons.getStarted')}
                                 </Button>
                             </div>
                         </div>

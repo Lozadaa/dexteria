@@ -17,6 +17,8 @@ export type {
   AIReviewResult,
   Task,
   TasksFile,
+  TaskTemplate,
+  TemplatesFile,
   TaskPatch,
   TaskCreateInput,
 } from './task';

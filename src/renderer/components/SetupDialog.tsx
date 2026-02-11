@@ -5,7 +5,7 @@
  * Displays progress during download and installation.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface InstallProgress {
   phase: 'checking' | 'downloading' | 'extracting' | 'verifying' | 'complete' | 'error';

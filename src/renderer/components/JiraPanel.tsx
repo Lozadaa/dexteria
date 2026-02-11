@@ -14,6 +14,7 @@ import {
 } from 'adnia-ui';
 import { cn } from '../lib/utils';
 import { t } from '../i18n/t';
+import { useConfirm } from '../contexts/ConfirmContext';
 import {
   Link2,
   Unlink,
@@ -84,6 +85,7 @@ interface SyncHistoryEntry {
 type JiraTab = 'connection' | 'project' | 'import' | 'sync' | 'history';
 
 export const JiraPanel: React.FC = () => {
+  const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState<JiraTab>('connection');
   const [loading, setLoading] = useState(true);
   const [pluginActive, setPluginActive] = useState(false);
@@ -321,7 +323,14 @@ export const JiraPanel: React.FC = () => {
   };
 
   const handleClearHistory = async () => {
-    if (!confirm('Clear all sync history?')) return;
+    const confirmed = await confirm({
+      title: t('views.jira.clearHistory'),
+      message: t('views.jira.clearHistoryConfirm'),
+      confirmText: t('actions.clear'),
+      cancelText: t('actions.cancel'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await callApi('sync.clearHistory');
       setSyncHistory([]);
@@ -341,7 +350,7 @@ export const JiraPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Spinner size="md" label="Loading Jira settings..." />
+        <Spinner size="md" label={t('views.jira.loadingSettings')} />
       </div>
     );
   }
@@ -352,7 +361,7 @@ export const JiraPanel: React.FC = () => {
         <AlertBanner
           variant="warning"
           icon={<AlertTriangle size={16} />}
-          description="The Jira plugin is not active. Enable it in the Plugins tab to use Jira integration."
+          description={t('views.jira.pluginNotActive')}
         />
         <Button
           variant="secondary"
@@ -376,11 +385,11 @@ export const JiraPanel: React.FC = () => {
             alt="Jira"
             className="w-5 h-5"
           />
-          <h3 className="font-semibold">Jira Integration</h3>
+          <h3 className="font-semibold">{t('views.jira.integration')}</h3>
           {isConnected && (
             <span className="text-xs text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
               <CheckCircle2 size={10} />
-              Connected
+              {t('views.jira.connected')}
             </span>
           )}
         </div>
@@ -436,12 +445,12 @@ export const JiraPanel: React.FC = () => {
                 <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle2 size={16} className="text-green-500" />
-                    <span className="font-medium text-green-500">Connected to Jira</span>
+                    <span className="font-medium text-green-500">{t('views.jira.connectedToJira')}</span>
                   </div>
                   <div className="space-y-1 text-sm">
-                    <p><span className="text-muted-foreground">Site:</span> {connection.siteName}</p>
-                    <p><span className="text-muted-foreground">URL:</span> {connection.siteUrl}</p>
-                    <p><span className="text-muted-foreground">Connected:</span> {new Date(connection.connectedAt).toLocaleDateString()}</p>
+                    <p><span className="text-muted-foreground">{t('views.jira.site')}</span> {connection.siteName}</p>
+                    <p><span className="text-muted-foreground">{t('views.jira.url')}</span> {connection.siteUrl}</p>
+                    <p><span className="text-muted-foreground">{t('views.jira.connectedDate')}</span> {new Date(connection.connectedAt).toLocaleDateString()}</p>
                   </div>
                   <Button
                     variant="secondary"
@@ -450,7 +459,7 @@ export const JiraPanel: React.FC = () => {
                     className="mt-3"
                   >
                     <ExternalLink size={14} className="mr-1" />
-                    Open Jira
+                    {t('views.jira.openJira')}
                   </Button>
                 </div>
                 <Button
@@ -459,7 +468,7 @@ export const JiraPanel: React.FC = () => {
                   className="w-full"
                 >
                   <Unlink size={14} className="mr-1" />
-                  Disconnect from Jira
+                  {t('views.jira.disconnectFromJira')}
                 </Button>
               </div>
             ) : (
@@ -467,7 +476,7 @@ export const JiraPanel: React.FC = () => {
                 <div className="p-4 bg-muted/50 rounded-lg border border-border">
                   <h4 className="font-medium mb-2 flex items-center gap-2">
                     <Settings2 size={14} />
-                    OAuth 2.0 Configuration
+                    {t('views.jira.oauthConfiguration')}
                   </h4>
                   <p className="text-sm text-muted-foreground mb-4">
                     Create an OAuth 2.0 app in the{' '}
@@ -483,24 +492,24 @@ export const JiraPanel: React.FC = () => {
                   </p>
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium block mb-1">Client ID</label>
+                      <label className="text-sm font-medium block mb-1">{t('views.settings.jira.clientId')}</label>
                       <Input
                         value={oauthSettings.clientId}
                         onChange={(e) => setOauthSettings({ ...oauthSettings, clientId: e.target.value })}
-                        placeholder="Enter your OAuth Client ID"
+                        placeholder={t('views.settings.jira.clientIdPlaceholder')}
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium block mb-1">Client Secret</label>
+                      <label className="text-sm font-medium block mb-1">{t('views.settings.jira.clientSecret')}</label>
                       <Input
                         type="password"
                         value={oauthSettings.clientSecret}
                         onChange={(e) => setOauthSettings({ ...oauthSettings, clientSecret: e.target.value })}
-                        placeholder={oauthSettings.hasSecret ? '••••••••' : 'Enter your OAuth Client Secret'}
+                        placeholder={oauthSettings.hasSecret ? t('views.settings.jira.clientSecretHidden') : t('views.settings.jira.clientSecretPlaceholder')}
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium block mb-1">Redirect URI</label>
+                      <label className="text-sm font-medium block mb-1">{t('views.settings.jira.redirectUri')}</label>
                       <Input
                         value={oauthSettings.redirectUri}
                         onChange={(e) => setOauthSettings({ ...oauthSettings, redirectUri: e.target.value })}
@@ -541,13 +550,13 @@ export const JiraPanel: React.FC = () => {
             {!isConnected ? (
               <AlertBanner
                 variant="info"
-                description="Connect to Jira first to select a project."
+                description={t('views.jira.connectFirst')}
               />
             ) : (
               <>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Select Project</h4>
+                    <h4 className="font-medium">{t('views.jira.selectProject')}</h4>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -558,9 +567,9 @@ export const JiraPanel: React.FC = () => {
                     </Button>
                   </div>
                   {loadingProjects ? (
-                    <Spinner size="sm" label="Loading projects..." />
+                    <Spinner size="sm" label={t('views.jira.loadingProjects')} />
                   ) : projects.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No projects found</p>
+                    <p className="text-sm text-muted-foreground">{t('views.jira.noProjectsFound')}</p>
                   ) : (
                     <div className="space-y-2">
                       {projects.map((project) => (
@@ -602,10 +611,10 @@ export const JiraPanel: React.FC = () => {
                     </div>
 
                     <div className="space-y-3">
-                      <h4 className="font-medium">Sync Options</h4>
+                      <h4 className="font-medium">{t('views.jira.syncOptions')}</h4>
                       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div>
-                          <div className="font-medium text-sm">Enable Sync</div>
+                          <div className="font-medium text-sm">{t('views.jira.enableSync')}</div>
                           <div className="text-xs text-muted-foreground">
                             Sync task status changes to Jira
                           </div>
@@ -617,7 +626,7 @@ export const JiraPanel: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div>
-                          <div className="font-medium text-sm">Auto-Sync from Jira</div>
+                          <div className="font-medium text-sm">{t('views.jira.autoSyncFromJira')}</div>
                           <div className="text-xs text-muted-foreground">
                             Check for updates every {config.syncInterval} minutes
                           </div>
@@ -650,12 +659,12 @@ export const JiraPanel: React.FC = () => {
             {!isConnected ? (
               <AlertBanner
                 variant="info"
-                description="Connect to Jira first to import issues."
+                description={t('views.jira.importConnectFirst')}
               />
             ) : !config.projectKey ? (
               <AlertBanner
                 variant="info"
-                description="Select a Jira project first to import issues."
+                description={t('views.jira.selectProjectFirst')}
               />
             ) : (
               <>
@@ -681,15 +690,15 @@ export const JiraPanel: React.FC = () => {
                     <div className="grid grid-cols-3 gap-3">
                       <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-center">
                         <div className="text-2xl font-bold text-blue-500">{importPreview.total}</div>
-                        <div className="text-xs text-muted-foreground">Total Issues</div>
+                        <div className="text-xs text-muted-foreground">{t('views.jira.totalIssues')}</div>
                       </div>
                       <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
                         <div className="text-2xl font-bold text-green-500">{importPreview.new.length}</div>
-                        <div className="text-xs text-muted-foreground">New</div>
+                        <div className="text-xs text-muted-foreground">{t('views.jira.new')}</div>
                       </div>
                       <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-center">
                         <div className="text-2xl font-bold text-yellow-500">{importPreview.existing.length}</div>
-                        <div className="text-xs text-muted-foreground">Already Imported</div>
+                        <div className="text-xs text-muted-foreground">{t('views.jira.alreadyImported')}</div>
                       </div>
                     </div>
 
@@ -750,12 +759,12 @@ export const JiraPanel: React.FC = () => {
             {!isConnected ? (
               <AlertBanner
                 variant="info"
-                description="Connect to Jira first to configure sync."
+                description={t('views.jira.syncConnectFirst')}
               />
             ) : (
               <>
                 <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
-                  <h4 className="font-medium">Status Mapping</h4>
+                  <h4 className="font-medium">{t('views.jira.statusMapping')}</h4>
                   <p className="text-sm text-muted-foreground">
                     Configure how Jira statuses map to Dexteria columns.
                   </p>
@@ -783,7 +792,7 @@ export const JiraPanel: React.FC = () => {
                           >
                             <option value="backlog">{t('views.kanban.backlog')}</option>
                             <option value="todo">{t('views.kanban.todo')}</option>
-                            <option value="doing">Doing</option>
+                            <option value="doing">{t('views.jira.doing')}</option>
                             <option value="review">{t('views.kanban.review')}</option>
                             <option value="done">{t('views.kanban.done')}</option>
                           </select>
@@ -809,7 +818,7 @@ export const JiraPanel: React.FC = () => {
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium">Sync History</h4>
+              <h4 className="font-medium">{t('views.jira.syncHistory')}</h4>
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -831,9 +840,9 @@ export const JiraPanel: React.FC = () => {
             </div>
 
             {loadingHistory ? (
-              <Spinner size="sm" label="Loading history..." />
+              <Spinner size="sm" label={t('views.jira.loadingHistory')} />
             ) : syncHistory.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No sync history yet.</p>
+              <p className="text-sm text-muted-foreground">{t('views.jira.noSyncHistoryYet')}</p>
             ) : (
               <div className="space-y-2">
                 {syncHistory.map((entry) => (

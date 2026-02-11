@@ -104,7 +104,12 @@ export type ViewType =
   | 'logs'
   | 'terminal'
   | 'themeEditor'
-  | 'welcome';
+  | 'welcome'
+  | 'runHistory'
+  | 'policyEditor'
+  | 'templates'
+  | 'roadmap'
+  | 'dashboard';
 
 /**
  * Instance creation mode for view types
@@ -142,6 +147,7 @@ export interface DropTarget {
  */
 export type OpenTarget =
   | { readonly type: 'active' }
+  | { readonly type: 'main' } // Opens in the main panel (where board is)
   | { readonly type: 'group'; readonly groupId: string }
   | {
       readonly type: 'newSplit';

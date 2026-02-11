@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Pause, Square, Terminal, AlertCircle, CheckCircle, XCircle, Loader2, ListTodo, Clock } from 'lucide-react';
+import { Play, Pause, Square, AlertCircle, CheckCircle, XCircle, Loader2, ListTodo, Clock } from 'lucide-react';
 import { useRunner } from '../../hooks/useRunner';
 import { useBoard } from '../../hooks/useData';
 import { useMode } from '../../contexts/ModeContext';
 import { cn, formatRelativeTime } from '../../lib/utils';
-import { Button, IconButton, ProgressBar, AlertBanner } from 'adnia-ui';
+import { IconButton, ProgressBar, AlertBanner } from 'adnia-ui';
 import type { Task } from '../../../shared/types';
 
 import { t } from '../../i18n/t';
@@ -31,7 +31,7 @@ export const TaskRunner: React.FC = () => {
     const displayContent = streamingContent || log;
 
     // Use streaming task info or fall back to currentTask
-    const displayTaskTitle = streamingTaskTitle || currentTask?.title || 'Task';
+    const displayTaskTitle = streamingTaskTitle || currentTask?.title || t('labels.task');
     const displayTaskId = streamingTaskId || currentTask?.id;
     const { tasks, refresh } = useBoard();
     const { mode, triggerPlannerBlock } = useMode();
@@ -87,7 +87,7 @@ export const TaskRunner: React.FC = () => {
                                 <div>
                                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
                                         <ListTodo size={12} />
-                                        Ready to Run ({pendingTasks.length})
+                                        {t('views.taskRunner.readyToRun')} ({pendingTasks.length})
                                     </h3>
                                     <div className="space-y-2">
                                         {pendingTasks.slice(0, 5).map(task => (
@@ -112,7 +112,7 @@ export const TaskRunner: React.FC = () => {
                                                     onClick={() => handleRunTask(task)}
                                                     disabled={runningTaskId === task.id}
                                                     className="opacity-0 group-hover:opacity-100 bg-green-500/10"
-                                                    title="Run task"
+                                                    title={t('views.taskRunner.runTask')}
                                                 >
                                                     {runningTaskId === task.id ? (
                                                         <Loader2 size={14} className="animate-spin" />
@@ -124,7 +124,7 @@ export const TaskRunner: React.FC = () => {
                                         ))}
                                         {pendingTasks.length > 5 && (
                                             <p className="text-xs text-muted-foreground text-center">
-                                                +{pendingTasks.length - 5} more tasks
+                                                {t('views.taskRunner.moreTasks', { count: pendingTasks.length - 5 })}
                                             </p>
                                         )}
                                     </div>
@@ -136,7 +136,7 @@ export const TaskRunner: React.FC = () => {
                                 <div>
                                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
                                         <Clock size={12} />
-                                        Recently Completed
+                                        {t('views.taskRunner.recentlyCompleted')}
                                     </h3>
                                     <div className="space-y-1">
                                         {recentlyDone.map(task => (
@@ -212,7 +212,8 @@ export const TaskRunner: React.FC = () => {
                                 size="md"
                                 onClick={handlePlay}
                                 disabled={!canPlay}
-                                title="Run task"
+                                title={t('views.taskRunner.runTask')}
+                                aria-label={t('views.taskRunner.runTask')}
                             >
                                 <Play size={16} />
                             </IconButton>
@@ -222,7 +223,8 @@ export const TaskRunner: React.FC = () => {
                                 size="md"
                                 onClick={handlePause}
                                 disabled={!canPause}
-                                title="Pause execution"
+                                title={t('views.taskRunner.pauseExecution')}
+                                aria-label={t('views.taskRunner.pauseExecution')}
                             >
                                 <Pause size={16} />
                             </IconButton>
@@ -232,7 +234,8 @@ export const TaskRunner: React.FC = () => {
                                 size="md"
                                 onClick={handleStop}
                                 disabled={!canStop}
-                                title="Stop execution"
+                                title={t('views.taskRunner.stopExecution')}
+                                aria-label={t('views.taskRunner.stopExecution')}
                             >
                                 <Square size={16} />
                             </IconButton>
@@ -257,7 +260,7 @@ export const TaskRunner: React.FC = () => {
                         <AlertBanner
                             variant="error"
                             icon={<AlertCircle size={16} />}
-                            title="Execution Error"
+                            title={t('labels.executionError')}
                             description={error}
                         />
                     </div>

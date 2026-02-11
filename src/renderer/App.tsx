@@ -9,6 +9,8 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ExtensionPointsProvider } from './contexts/ExtensionPointsContext';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { useSystemTheme } from './hooks/useTheme';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { AlertTriangle, X } from 'lucide-react';
 import { UpdateNotificationToast } from './components/UpdateNotificationToast';
 import { UpdateProgressDialog } from './components/UpdateProgressDialog';
@@ -21,7 +23,7 @@ import {
   useLayoutStore,
   DockingLayout,
   ComponentRegistryProvider,
-  loadLayout,
+  loadLayoutWithInfo,
   saveLayout,
   createDefaultLayout,
 } from './docking';
@@ -147,19 +149,28 @@ function useLayoutPersistence(enabled: boolean) {
 
 // Layout initializer component
 const LayoutInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { t } = useTranslation();
+  const toast = useToast();
   const setState = useLayoutStore((s) => s.setState);
   const [initialized, setInitialized] = useState(false);
 
   // Initialize layout once on mount
   useEffect(() => {
-    const savedLayout = loadLayout();
-    if (savedLayout) {
-      setState(savedLayout);
+    const result = loadLayoutWithInfo();
+    if (result.state) {
+      setState(result.state);
     } else {
       setState(createDefaultLayout());
+      // Show toast if layout was recovered from corruption
+      if (result.recovered) {
+        // Delay toast slightly so it appears after UI renders
+        setTimeout(() => {
+          toast.warning(t('views.docking.layoutRecovered'));
+        }, 500);
+      }
     }
     setInitialized(true);
-  }, [setState]);
+  }, [setState, toast, t]);
 
   // Enable persistence only after initialization
   useLayoutPersistence(initialized);
@@ -178,6 +189,12 @@ const LayoutInitializer: React.FC<{ children: React.ReactNode }> = ({ children }
 // Main docking content
 const DockingContent: React.FC<{ onNewProject: () => void }> = ({ onNewProject }) => {
   const openView = useLayoutStore((s) => s.openView);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({
+    onShowHelp: () => setShowShortcutsHelp(true),
+  });
 
   const handleOpenSettings = () => {
     openView('settings');
@@ -189,10 +206,14 @@ const DockingContent: React.FC<{ onNewProject: () => void }> = ({ onNewProject }
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
-      <TopBar onOpenSettings={handleOpenSettings} onOpenThemeEditor={handleOpenThemeEditor} onNewProject={onNewProject} />
+      <TopBar onOpenSettings={handleOpenSettings} onOpenThemeEditor={handleOpenThemeEditor} onNewProject={onNewProject} onShowHelp={() => setShowShortcutsHelp(true)} />
       <div className="flex-1 overflow-hidden">
         <DockingLayout />
       </div>
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+      />
     </div>
   );
 };

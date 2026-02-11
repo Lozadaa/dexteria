@@ -305,6 +305,8 @@ export const ViewGroupPanel: React.FC<ViewGroupPanelProps> = ({
       {/* Tab Bar */}
       <div
         ref={tabBarRef}
+        role="tablist"
+        aria-label="Panel tabs"
         className="flex items-center border-b border-border bg-muted/30 min-h-[36px] overflow-x-auto"
         style={{ height: ZONE_CONFIG.tabBarHeight }}
       >
@@ -315,6 +317,10 @@ export const ViewGroupPanel: React.FC<ViewGroupPanelProps> = ({
               if (el) tabRefs.current.set(view.id, el);
               else tabRefs.current.delete(view.id);
             }}
+            role="tab"
+            aria-selected={view.id === group.activeViewId}
+            aria-controls={`tabpanel-${view.id}`}
+            id={`tab-${view.id}`}
             draggable
             onDragStart={(e) => handleDragStart(e, view.id)}
             onDragEnd={handleDragEnd}
@@ -338,6 +344,7 @@ export const ViewGroupPanel: React.FC<ViewGroupPanelProps> = ({
             <button
               onClick={(e) => handleTabClose(e, view.id)}
               className="ml-1 p-0.5 hover:bg-muted rounded opacity-60 hover:opacity-100"
+              aria-label={`Close ${getViewTitle(view)}`}
             >
               <X size={12} />
             </button>
@@ -349,7 +356,12 @@ export const ViewGroupPanel: React.FC<ViewGroupPanelProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden relative">
+      <div
+        className="flex-1 overflow-hidden relative"
+        role="tabpanel"
+        id={activeView ? `tabpanel-${activeView.id}` : undefined}
+        aria-labelledby={activeView ? `tab-${activeView.id}` : undefined}
+      >
         {activeView && renderView(activeView, true)}
 
         {/* Drop Zone Overlay - Minimal DOM, no transitions during drag */}

@@ -20,6 +20,11 @@ export const VIEW_TYPE_REGISTRY: Record<ViewType, ViewTypeConfig> = {
   taskRunner: { mode: 'singleton' },
   logs: { mode: 'singleton' },
   welcome: { mode: 'singleton' },
+  runHistory: { mode: 'singleton' },
+  policyEditor: { mode: 'singleton' },
+  templates: { mode: 'singleton' },
+  roadmap: { mode: 'singleton' },
+  dashboard: { mode: 'singleton' },
 
   // Dedupe by key - reuse if same key exists
   board: {

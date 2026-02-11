@@ -4,7 +4,7 @@ import { Terminal, Play, Hammer, Puzzle } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { TaskRunner } from './Runner';
 import { ProcessOutput } from './ProcessOutput';
-import { useSlotContributions, type SlotContribution } from '../contexts/ExtensionPointsContext';
+import { useSlotContributions } from '../contexts/ExtensionPointsContext';
 import { PluginComponentLoader } from '../plugins/PluginComponentLoader';
 
 import { useTranslation } from '../i18n/useTranslation';
@@ -32,9 +32,9 @@ export const BottomPanel: React.FC = () => {
     // Build tabs array with built-in and plugin tabs
     const tabs = useMemo(() => {
         const builtInTabs = [
-            { id: 'runner', label: 'Task Runner', icon: <Terminal size={14} /> },
-            { id: 'run', label: 'Run Output', icon: <Play size={14} /> },
-            { id: 'build', label: 'Build Output', icon: <Hammer size={14} /> },
+            { id: 'runner', label: t('views.bottomPanel.taskRunner'), icon: <Terminal size={14} /> },
+            { id: 'run', label: t('views.bottomPanel.runOutput'), icon: <Play size={14} /> },
+            { id: 'build', label: t('views.bottomPanel.buildOutput'), icon: <Hammer size={14} /> },
         ];
 
         const pluginTabs = pluginContributions.map((contribution) => ({
@@ -44,7 +44,7 @@ export const BottomPanel: React.FC = () => {
         }));
 
         return [...builtInTabs, ...pluginTabs];
-    }, [pluginContributions]);
+    }, [pluginContributions, t]);
 
     // Find the active plugin contribution if a plugin tab is selected
     const activePluginContribution = useMemo(() => {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Play, Square, Loader2 } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { Button, IconButton } from 'adnia-ui';
+import { IconButton } from 'adnia-ui';
 
 import { t } from '../i18n/t';
 interface ProcessOutputProps {
@@ -18,7 +17,7 @@ interface ProcessStatus {
     command?: string;
 }
 
-export const ProcessOutput: React.FC<ProcessOutputProps> = ({ type, title }) => {
+export const ProcessOutput: React.FC<ProcessOutputProps> = ({ type }) => {
     const [output, setOutput] = useState<string>('');
     const [isRunning, setIsRunning] = useState(false);
     const [status, setStatus] = useState<ProcessStatus | null>(null);
@@ -97,7 +96,8 @@ export const ProcessOutput: React.FC<ProcessOutputProps> = ({ type, title }) => 
                         size="sm"
                         onClick={handleStart}
                         disabled={isRunning}
-                        title={`Start ${type}`}
+                        title={type === 'build' ? t('tooltips.buildProject') : t('tooltips.startDevServer')}
+                        aria-label={type === 'build' ? t('tooltips.buildProject') : t('tooltips.startDevServer')}
                     >
                         <Play size={14} />
                     </IconButton>
@@ -106,7 +106,8 @@ export const ProcessOutput: React.FC<ProcessOutputProps> = ({ type, title }) => 
                         size="sm"
                         onClick={handleStop}
                         disabled={!isRunning}
-                        title={`Stop ${type}`}
+                        title={type === 'build' ? t('tooltips.stopBuild') : t('tooltips.stopDevServer')}
+                        aria-label={type === 'build' ? t('tooltips.stopBuild') : t('tooltips.stopDevServer')}
                     >
                         <Square size={14} />
                     </IconButton>

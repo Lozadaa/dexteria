@@ -30,7 +30,6 @@ export function formatDoneTime(
   // Calculate difference in milliseconds
   const diffMs = now - completedTimestamp;
   const diffMinutes = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
 
   // < 1 min ago
   if (diffMinutes < 1) {
@@ -87,4 +86,56 @@ export function formatDoneTime(
   const timePart = timeFormatter.format(completedDate);
 
   return `${datePart}, ${timePart}`;
+}
+
+/**
+ * Format a timestamp as a relative time string.
+ * Uses simpler format for recent activity display.
+ *
+ * @param timestamp - ISO timestamp string
+ * @returns Formatted relative time string
+ *
+ * @example
+ * formatRelativeTime("2024-01-15T14:30:00Z") // "2m ago"
+ */
+export function formatRelativeTime(timestamp: string): string {
+  const now = Date.now();
+  const time = new Date(timestamp).getTime();
+  const diffMs = now - time;
+
+  // Negative diff means future time
+  if (diffMs < 0) {
+    return 'now';
+  }
+
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  // Just now (< 1 min)
+  if (diffMinutes < 1) {
+    return 'now';
+  }
+
+  // Minutes ago (< 60 min)
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m`;
+  }
+
+  // Hours ago (< 24 hours)
+  if (diffHours < 24) {
+    return `${diffHours}h`;
+  }
+
+  // Days ago (< 7 days)
+  if (diffDays < 7) {
+    return `${diffDays}d`;
+  }
+
+  // Older: show date
+  const date = new Date(time);
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.getDate();
+  return `${month} ${day}`;
 }

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { PluginInfo } from '../../shared/types';
 import { useConfirm } from '../contexts/ConfirmContext';
+import { useToast } from '../contexts/ToastContext';
 
 import { t } from '../i18n/t';
 export const PluginsPanel: React.FC = () => {
@@ -28,6 +29,7 @@ export const PluginsPanel: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [deletingPlugin, setDeletingPlugin] = useState<string | null>(null);
   const { confirm } = useConfirm();
+  const { error: showError, success } = useToast();
 
   useEffect(() => {
     loadPlugins();
@@ -40,6 +42,7 @@ export const PluginsPanel: React.FC = () => {
       setPlugins((pluginList as PluginInfo[]) || []);
     } catch (error) {
       console.error('Failed to load plugins:', error);
+      showError(t('toasts.pluginsLoadFailed'));
     }
     setLoading(false);
   };
@@ -53,8 +56,10 @@ export const PluginsPanel: React.FC = () => {
         await window.dexteria?.plugin?.enable?.(pluginId);
       }
       await loadPlugins();
+      success(t('toasts.pluginToggled'));
     } catch (error) {
       console.error('Failed to toggle plugin:', error);
+      showError(t('toasts.pluginToggleFailed'));
     }
     setTogglingPlugin(null);
   };
@@ -66,21 +71,31 @@ export const PluginsPanel: React.FC = () => {
       if (result?.success) {
         await loadPlugins();
       } else if (result?.error && result.error !== 'No file selected') {
-        alert(`Failed to import plugin: ${result.error}`);
+        await confirm({
+          title: t('labels.error'),
+          message: t('views.settings.plugins.importFailedWithError', { error: result.error }),
+          confirmText: t('actions.close'),
+          variant: 'danger',
+        });
       }
     } catch (error) {
       console.error('Failed to import plugin:', error);
-      alert('Failed to import plugin');
+      await confirm({
+        title: t('labels.error'),
+        message: t('views.settings.plugins.importFailed'),
+        confirmText: t('actions.close'),
+        variant: 'danger',
+      });
     }
     setImporting(false);
   };
 
   const handleDelete = async (plugin: PluginInfo) => {
     const confirmed = await confirm({
-      title: 'Delete Plugin',
-      message: `Are you sure you want to delete "${plugin.manifest.name}"? This action cannot be undone.`,
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
+      title: t('views.settings.plugins.deletePlugin'),
+      message: t('views.settings.plugins.deleteConfirm', { name: plugin.manifest.name }),
+      confirmText: t('actions.delete'),
+      cancelText: t('actions.cancel'),
       variant: 'danger',
     });
 
@@ -92,11 +107,21 @@ export const PluginsPanel: React.FC = () => {
       if (result?.success) {
         await loadPlugins();
       } else if (result?.error) {
-        alert(`Failed to delete plugin: ${result.error}`);
+        await confirm({
+          title: t('labels.error'),
+          message: t('views.settings.plugins.deleteFailedWithError', { error: result.error }),
+          confirmText: t('actions.close'),
+          variant: 'danger',
+        });
       }
     } catch (error) {
       console.error('Failed to delete plugin:', error);
-      alert('Failed to delete plugin');
+      await confirm({
+        title: t('labels.error'),
+        message: t('views.settings.plugins.deleteFailed'),
+        confirmText: t('actions.close'),
+        variant: 'danger',
+      });
     }
     setDeletingPlugin(null);
   };
@@ -124,7 +149,7 @@ export const PluginsPanel: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="primary"
+            variant="default"
             size="sm"
             onClick={handleImport}
             disabled={importing}
@@ -156,7 +181,7 @@ export const PluginsPanel: React.FC = () => {
               <Puzzle size={32} className="mx-auto mb-2 opacity-50" />
               <p>{t('views.settings.plugins.noPlugins')}</p>
               <p className="text-sm mt-1">
-                Plugins extend Dexteria&apos;s functionality.
+                {t('views.settings.plugins.pluginsExtendShort')}
               </p>
             </div>
           ) : (
@@ -252,7 +277,7 @@ export const PluginsPanel: React.FC = () => {
                           size="sm"
                           onClick={() => handleDelete(plugin)}
                           disabled={deletingPlugin === plugin.manifest.id}
-                          title="Delete plugin"
+                          title={t('views.settings.plugins.deletePluginTooltip')}
                         >
                           {deletingPlugin === plugin.manifest.id ? (
                             <Spinner size="xs" />

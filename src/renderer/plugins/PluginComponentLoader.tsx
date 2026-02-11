@@ -86,10 +86,6 @@ const IframeSandboxLoader: React.FC<PluginComponentLoaderProps> = ({
     // Normalize the path for file:// protocol
     const normalizedPath = pluginPath.replace(/\\/g, '/');
 
-    // Try slot-specific entry first, then fall back to generic
-    // Plugins can provide: renderer/task-card-badge.html, renderer/settings-tab.html, etc.
-    const slotFileName = slotId.replace(':', '-').replace(/_/g, '-');
-
     // For local file access in Electron
     return `file://${normalizedPath}/renderer/index.html?slot=${encodeURIComponent(slotId)}`;
   }, [pluginPath, slotId]);

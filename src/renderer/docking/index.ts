@@ -107,9 +107,11 @@ export {
   saveLayout,
   debouncedSaveLayout,
   loadLayout,
+  loadLayoutWithInfo,
   loadLayoutOrDefault,
   clearLayout,
 } from './persistence';
+export type { LoadLayoutResult } from './persistence';
 
 // Utils
 export { generateId, arraysEqual, clamp } from './utils';

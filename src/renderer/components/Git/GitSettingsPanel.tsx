@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGitInstalled, useGitConfig, useGitStatus } from '../../hooks/useGit';
 import type { GitConfig, GitMode, CodeVisibilityMode, ConflictResolutionMode } from '../../../shared/types';
+import { useTranslation } from 'react-i18next';
 
 interface GitSettingsPanelProps {
   onSave?: (config: GitConfig) => Promise<void>;
@@ -17,6 +18,7 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
   onSave,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const { isInstalled, version, installInstructions, loading: checkingInstall } = useGitInstalled();
   const { config, loading: loadingConfig } = useGitConfig();
   const { status } = useGitStatus();
@@ -73,7 +75,7 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save settings');
+      setError(err instanceof Error ? err.message : t('git.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -100,10 +102,10 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            Git Not Installed
+            {t('git.notInstalled')}
           </h3>
           <p className="text-gray-300 mt-2 text-sm">
-            Git is required for branch orchestration features.
+            {t('git.required')}
           </p>
           <p className="text-gray-400 mt-2 text-sm font-mono">
             {installInstructions}
@@ -118,14 +120,14 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white">Git Orchestration</h3>
+          <h3 className="text-lg font-semibold text-white">{t('git.orchestration')}</h3>
           <p className="text-sm text-gray-400 mt-1">
-            Configure how tasks interact with Git branches
+            {t('git.configureDescription')}
           </p>
         </div>
         {version && (
           <span className="text-xs text-gray-500 font-mono">
-            Git {version}
+            {t('git.version', { version })}
           </span>
         )}
       </div>
@@ -135,11 +137,11 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
         <div className={`p-3 rounded-lg border ${status.isRepo ? 'bg-green-500/10 border-green-500/30' : 'bg-gray-500/10 border-gray-500/30'}`}>
           <div className="flex items-center gap-2">
             <span className={status.isRepo ? 'text-green-400' : 'text-gray-400'}>
-              {status.isRepo ? 'Repository detected' : 'Not a Git repository'}
+              {status.isRepo ? t('git.repoDetected') : t('git.notARepo')}
             </span>
             {status.isRepo && status.currentBranch && (
               <span className="text-gray-400 text-sm">
-                on <span className="font-mono text-gray-300">{status.currentBranch}</span>
+                {t('git.onBranch')} <span className="font-mono text-gray-300">{status.currentBranch}</span>
               </span>
             )}
           </div>
@@ -155,7 +157,7 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
             onChange={(e) => handleChange('gitEnabled', e.target.checked)}
             className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
           />
-          <span className="text-white">Enable Git orchestration</span>
+          <span className="text-white">{t('git.enableOrchestration')}</span>
         </label>
 
         {formData.gitEnabled && (
@@ -163,27 +165,27 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
             {/* Git Mode */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Operation Mode
+                {t('git.operationMode')}
               </label>
               <select
                 value={formData.gitMode}
                 onChange={(e) => handleChange('gitMode', e.target.value as GitMode)}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="none">None - No automatic branch operations</option>
-                <option value="basic">Basic - Manual branch creation, tracking only</option>
-                <option value="advanced">Advanced - Full task-branch lifecycle</option>
+                <option value="none">{t('git.modeNone')}</option>
+                <option value="basic">{t('git.modeBasic')}</option>
+                <option value="advanced">{t('git.modeAdvanced')}</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                {formData.gitMode === 'basic' && 'Branches are tracked but not automatically created or merged'}
-                {formData.gitMode === 'advanced' && 'Branches are automatically created when tasks start and merged when completed'}
+                {formData.gitMode === 'basic' && t('git.modeBasicDesc')}
+                {formData.gitMode === 'advanced' && t('git.modeAdvancedDesc')}
               </p>
             </div>
 
             {/* Main Branch */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Main Branch
+                {t('git.mainBranch')}
               </label>
               <input
                 type="text"
@@ -197,7 +199,7 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
             {/* Review Branch (optional) */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Review Branch (optional)
+                {t('git.reviewBranch')}
               </label>
               <input
                 type="text"
@@ -207,14 +209,14 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Optional staging branch for code review before merging to main
+                {t('git.reviewBranchDesc')}
               </p>
             </div>
 
             {/* Branch Convention */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Branch Naming Convention
+                {t('git.branchConvention')}
               </label>
               <input
                 type="text"
@@ -224,7 +226,7 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Use {'{taskId}'} for task ID and {'{slug}'} for title slug
+                {t('git.branchConventionDesc')}
               </p>
             </div>
 
@@ -236,37 +238,37 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
                 {/* Code Visibility Mode */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Code Visibility Mode
+                    {t('git.codeVisibility')}
                   </label>
                   <select
                     value={formData.codeVisibilityMode}
                     onChange={(e) => handleChange('codeVisibilityMode', e.target.value as CodeVisibilityMode)}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="enabled">Enabled - Show code changes during conflicts</option>
-                    <option value="disabled">Disabled - AI resolves autonomously</option>
+                    <option value="enabled">{t('git.codeVisibilityEnabled')}</option>
+                    <option value="disabled">{t('git.codeVisibilityDisabled')}</option>
                   </select>
                 </div>
 
                 {/* Conflict Resolution Mode */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Conflict Resolution
+                    {t('git.conflictResolution')}
                   </label>
                   <select
                     value={formData.conflictResolutionMode}
                     onChange={(e) => handleChange('conflictResolutionMode', e.target.value as ConflictResolutionMode)}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="manual">Manual - User resolves all conflicts</option>
-                    <option value="assisted">Assisted - AI suggests, user approves</option>
+                    <option value="manual">{t('git.conflictManual')}</option>
+                    <option value="assisted">{t('git.conflictAssisted')}</option>
                     <option value="autonomous" disabled={formData.codeVisibilityMode === 'enabled'}>
-                      Autonomous - AI resolves automatically
+                      {t('git.conflictAutonomous')}
                     </option>
                   </select>
                   {formData.conflictResolutionMode === 'autonomous' && (
                     <p className="text-xs text-yellow-400 mt-1">
-                      Warning: Autonomous mode requires code visibility to be disabled
+                      {t('git.autonomousModeWarning')}
                     </p>
                   )}
                 </div>
@@ -274,7 +276,7 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
                 {/* Protected Branches */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Protected Branches
+                    {t('git.protectedBranches')}
                   </label>
                   <input
                     type="text"
@@ -284,7 +286,7 @@ export const GitSettingsPanel: React.FC<GitSettingsPanelProps> = ({
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Comma-separated list of branches that cannot be force-pushed or deleted
+                    {t('git.protectedBranchesDesc')}
                   </p>
                 </div>
               </>

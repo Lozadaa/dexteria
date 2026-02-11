@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { cn } from '../lib/utils';
+import { useTranslation } from '../i18n/useTranslation';
 import * as LucideIcons from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // Destructure commonly used icons
 const {
     ChevronDown,
-    ChevronRight,
 } = LucideIcons;
 
 /**
@@ -557,6 +557,7 @@ interface MarkdownRendererProps {
  * Designed to appear above the message bubble with a subtle, elegant appearance
  */
 export const ThinkingBlock: React.FC<{ content: string; isComplete: boolean }> = ({ content, isComplete }) => {
+    const { t } = useTranslation();
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
@@ -579,7 +580,7 @@ export const ThinkingBlock: React.FC<{ content: string; isComplete: boolean }> =
                         isExpanded ? "text-violet-400/60" : "text-violet-400/30 group-hover:text-violet-400/50"
                     )}
                 />
-                <span className="font-medium tracking-wide">Reasoning</span>
+                <span className="font-medium tracking-wide">{t('views.chat.reasoning')}</span>
                 {!isComplete && (
                     <span className="flex gap-0.5 ml-0.5">
                         <span className="w-1 h-1 bg-violet-400/40 rounded-full animate-pulse" />
@@ -1189,9 +1190,10 @@ function parseInline(text: string): React.ReactNode {
  * Thinking/Loading indicator with animated dots
  */
 export const ThinkingIndicator: React.FC = () => {
+    const { t } = useTranslation();
     return (
         <div className="flex items-center gap-1 text-muted-foreground">
-            <span className="text-sm">Thinking</span>
+            <span className="text-sm">{t('views.chat.thinkingSimple')}</span>
             <span className="flex gap-0.5">
                 <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />

@@ -260,7 +260,7 @@ export class PluginBridge {
     }
 
     // Reject all pending requests
-    for (const [requestId, pending] of this.pendingRequests) {
+    for (const [_requestId, pending] of this.pendingRequests) {
       clearTimeout(pending.timeout);
       pending.reject(new Error('Plugin bridge destroyed'));
     }

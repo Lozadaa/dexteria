@@ -56,13 +56,26 @@ export function debouncedSaveLayout(state: LayoutState, delay = 500): void {
 // Load Layout
 // ============================================================================
 
+export type LoadLayoutResult = {
+  state: LayoutState | null;
+  recovered: boolean;
+  reason?: 'not_found' | 'version_mismatch' | 'validation_failed' | 'parse_error';
+};
+
 /**
  * Load layout from localStorage
  */
 export function loadLayout(): LayoutState | null {
+  return loadLayoutWithInfo().state;
+}
+
+/**
+ * Load layout from localStorage with recovery information
+ */
+export function loadLayoutWithInfo(): LoadLayoutResult {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
+    if (!stored) return { state: null, recovered: false, reason: 'not_found' };
 
     const parsed = JSON.parse(stored) as SerializedLayout;
 
@@ -71,7 +84,7 @@ export function loadLayout(): LayoutState | null {
       console.warn(
         `Layout version mismatch: expected ${CURRENT_VERSION}, got ${parsed.version}`
       );
-      return null;
+      return { state: null, recovered: true, reason: 'version_mismatch' };
     }
 
     const state: LayoutState = {
@@ -85,13 +98,13 @@ export function loadLayout(): LayoutState | null {
     const validation = validateInvariants(state, { strictEmptyGroups: false });
     if (!validation.valid) {
       console.warn('Loaded layout failed validation:', validation.errors);
-      return null;
+      return { state: null, recovered: true, reason: 'validation_failed' };
     }
 
-    return state;
+    return { state, recovered: false };
   } catch (error) {
     console.error('Failed to load layout:', error);
-    return null;
+    return { state: null, recovered: true, reason: 'parse_error' };
   }
 }
 

@@ -54,7 +54,7 @@ export const DockingLayout: React.FC = () => {
   );
 
   return (
-    <div className="h-full w-full overflow-hidden">
+    <div className="h-full w-full overflow-hidden" role="region" aria-label="Workspace panels">
       {renderNode(tree, [])}
     </div>
   );

@@ -69,7 +69,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <div className="animate-fade-in-up animate-fill-both animate-stagger-4">
                         <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
                             <Clock size={14} />
-                            Recent Projects
+                            {t('views.welcome.recentProjects')}
                         </h3>
                         <div className="space-y-1 bg-card rounded-lg border border-border overflow-hidden">
                             {recentProjects.map((project, idx) => (

@@ -15,7 +15,8 @@ import {
   X,
 } from 'lucide-react';
 import { Button, Textarea, IconButton } from 'adnia-ui';
-import type { TaskComment, Task } from '../../shared/types';
+import type { Task } from '../../shared/types';
+import { t } from '../i18n/t';
 
 interface TaskCommentsProps {
   task: Task;
@@ -27,35 +28,35 @@ interface TaskCommentsProps {
 const COMMENT_TYPE_CONFIG = {
   note: {
     icon: MessageSquare,
-    label: 'Note',
+    labelKey: 'labels.commentTypes.note',
     bgClass: 'bg-muted/10',
     borderClass: 'border-border',
     iconClass: 'text-muted-foreground',
   },
   instruction: {
     icon: Info,
-    label: 'Instruction',
+    labelKey: 'labels.commentTypes.instruction',
     bgClass: 'bg-blue-500/10',
     borderClass: 'border-blue-500/20',
     iconClass: 'text-blue-400',
   },
   failure: {
     icon: AlertTriangle,
-    label: 'Failure',
+    labelKey: 'labels.commentTypes.failure',
     bgClass: 'bg-red-500/10',
     borderClass: 'border-red-500/20',
     iconClass: 'text-red-400',
   },
   agent: {
     icon: Bot,
-    label: 'Agent',
+    labelKey: 'labels.commentTypes.agent',
     bgClass: 'bg-purple-500/10',
     borderClass: 'border-purple-500/20',
     iconClass: 'text-purple-400',
   },
   system: {
     icon: Info,
-    label: 'System',
+    labelKey: 'labels.commentTypes.system',
     bgClass: 'bg-yellow-500/10',
     borderClass: 'border-yellow-500/20',
     iconClass: 'text-yellow-400',
@@ -143,7 +144,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
           <div className="flex items-start gap-2">
             <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-red-300">Task Failed</div>
+              <div className="text-sm font-medium text-red-300">{t('common.taskFailed')}</div>
               <div className="text-xs text-red-300/80 mt-1 line-clamp-2">
                 {latestFailure.content.split('\n')[0].replace(/\*\*/g, '')}
               </div>
@@ -165,7 +166,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                 ) : (
                   <RotateCw size={12} />
                 )}
-                Retry
+                {t('actions.retry')}
               </Button>
             )}
           </div>
@@ -178,9 +179,9 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
           <div className="flex items-start gap-2">
             <HelpCircle size={16} className="text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <div className="text-sm font-medium text-amber-300">Clarification Needed</div>
+              <div className="text-sm font-medium text-amber-300">{t('common.clarificationNeeded')}</div>
               <div className="text-xs text-amber-300/80 mt-1">
-                The agent needs your input to proceed. Please add an instruction below.
+                {t('common.clarificationDesc')}
               </div>
             </div>
           </div>
@@ -195,7 +196,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
         <div className="flex items-center gap-2">
           <MessageSquare size={14} className="text-muted-foreground" />
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Comments & Activity
+            {t('common.commentsActivity')}
           </span>
           <span className="text-xs text-muted-foreground/60">
             ({comments.length})
@@ -214,7 +215,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {comments.length === 0 ? (
               <div className="text-sm text-muted-foreground text-center py-8">
-                No comments yet. Add notes or instructions for the agent.
+                {t('common.noCommentsYet')}
               </div>
             ) : (
               [...comments].reverse().map((comment) => {
@@ -253,7 +254,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                           )}
                         </span>
                         <span className="text-xs text-muted-foreground/50">
-                          {config.label}
+                          {t(config.labelKey)}
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground/50">
@@ -292,7 +293,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
               className="w-full justify-start text-muted-foreground hover:text-foreground"
             >
               <Plus size={14} />
-              Add instruction or note...
+              {t('common.addInstructionOrNote')}
             </Button>
 
             {/* Comment Popup */}
@@ -303,11 +304,12 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
               >
                 {/* Header */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Add Comment</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t('common.addComment')}</span>
                   <IconButton
                     variant="ghost"
                     size="xs"
                     onClick={() => setShowCommentPopup(false)}
+                    aria-label={t('actions.close')}
                   >
                     <X size={14} />
                   </IconButton>
@@ -321,7 +323,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                     onClick={() => setCommentType('instruction')}
                   >
                     <Info size={12} />
-                    Instruction
+                    {t('labels.commentTypes.instruction')}
                   </Button>
                   <Button
                     variant={commentType === 'note' ? "muted" : "ghost"}
@@ -330,7 +332,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                     className={commentType === 'note' ? "border border-border" : ""}
                   >
                     <MessageSquare size={12} />
-                    Note
+                    {t('labels.commentTypes.note')}
                   </Button>
                 </div>
 
@@ -342,8 +344,8 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={
                     commentType === 'instruction'
-                      ? "Add instructions for the agent..."
-                      : "Add a note..."
+                      ? t('common.addInstructionsPlaceholder')
+                      : t('common.addNotePlaceholder')
                   }
                   className="w-full resize-none h-24"
                 />
@@ -351,7 +353,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                 {/* Actions */}
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground/50">
-                    Cmd/Ctrl + Enter to send
+                    {t('common.shortcutHint')}
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -359,7 +361,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                       size="sm"
                       onClick={() => setShowCommentPopup(false)}
                     >
-                      Cancel
+                      {t('actions.cancel')}
                     </Button>
                     <Button
                       onClick={handleSubmit}
@@ -371,7 +373,7 @@ export const TaskComments: React.FC<TaskCommentsProps> = ({
                       ) : (
                         <Send size={14} />
                       )}
-                      Send
+                      {t('actions.send')}
                     </Button>
                   </div>
                 </div>

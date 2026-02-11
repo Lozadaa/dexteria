@@ -5,7 +5,7 @@
  * Works alongside the existing system dark/light mode detection.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { CustomTheme } from '../../shared/types';
 
 interface ThemeEntry {

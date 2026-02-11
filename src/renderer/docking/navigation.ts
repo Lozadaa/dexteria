@@ -3,7 +3,7 @@
  * Tree Navigation Functions
  */
 
-import type { LayoutNode, SplitNode, LeafNode, TreePath } from './types';
+import type { LayoutNode, TreePath } from './types';
 
 // ============================================================================
 // Path Finding

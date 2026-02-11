@@ -5,8 +5,9 @@
  * Manages stage transitions and renders appropriate screens.
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useInterviewStore } from '../../stores/interviewStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import { SeedNameScreen } from './SeedNameScreen';
 import { SeedIdeaScreen } from './SeedIdeaScreen';
 import { InterviewScreen } from './InterviewScreen';
@@ -27,6 +28,7 @@ export function ProjectInterviewWizard({
   onComplete,
   onCancel,
 }: ProjectInterviewWizardProps) {
+  const { t } = useTranslation();
   // Access store state directly with stable selectors
   const isActive = useInterviewStore((state) => state.isActive);
   const isLoading = useInterviewStore((state) => state.isLoading);
@@ -148,7 +150,6 @@ export function ProjectInterviewWizard({
 
   // Create project when moving from seed_name to seed_idea (if no path exists)
   const handleNameNext = useCallback(async (name: string) => {
-    console.log('[Wizard] handleNameNext called, name:', name, 'currentPath:', projectPath);
     if (!name) return;
 
     // If we don't have a project path yet, create the project now
@@ -157,12 +158,9 @@ export function ProjectInterviewWizard({
       setCreateError(null);
 
       try {
-        console.log('[Wizard] Creating project with name:', name);
         const result = await window.dexteria?.project?.createWithName?.(name);
-        console.log('[Wizard] createWithName result:', result);
 
         if (result?.success && result?.path) {
-          console.log('[Wizard] Project created at:', result.path);
           setProjectPath(result.path);
           setInterviewProjectPath(result.path);
           goNext();
@@ -177,7 +175,6 @@ export function ProjectInterviewWizard({
         setIsCreatingProject(false);
       }
     } else {
-      console.log('[Wizard] Project already exists, advancing');
       goNext();
     }
   }, [projectPath, goNext, setInterviewProjectPath]);
@@ -190,11 +187,8 @@ export function ProjectInterviewWizard({
     const storeName = storeState.interview?.projectName || interview?.projectName;
 
     if (!idea || !storePath || !storeName) {
-      console.log('[Wizard] handleIdeaNext - missing data, idea:', !!idea, 'path:', !!storePath, 'name:', storeName);
       return;
     }
-
-    console.log('[Wizard] handleIdeaNext - syncing with backend, name:', storeName, 'idea:', idea.substring(0, 30), 'path:', storePath);
 
     // Re-initialize the backend engine with current state including name and idea
     const locale = navigator.language.split('-')[0] || 'en';
@@ -213,7 +207,6 @@ export function ProjectInterviewWizard({
     try {
       // Call backend init to create/update engine state with full info
       const result = await window.dexteria?.interview?.init?.(config);
-      console.log('[Wizard] Backend init result:', result?.stage, 'state:', !!result);
 
       if (result) {
         // Backend now has valid engine with name and idea, advance to interview
@@ -256,7 +249,7 @@ export function ProjectInterviewWizard({
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-muted-foreground">Initializing interview...</p>
+          <p className="text-muted-foreground">{t('interview.initializingInterview')}</p>
         </div>
       </div>
     );
@@ -269,13 +262,13 @@ export function ProjectInterviewWizard({
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center max-w-md p-6">
           <div className="text-red-500 text-4xl mb-4">!</div>
-          <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
+          <h2 className="text-lg font-semibold mb-2">{t('interview.somethingWentWrong')}</h2>
           <p className="text-muted-foreground mb-4">{displayError}</p>
           <button
             onClick={handleCancel}
             className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
           >
-            Back to Projects
+            {t('interview.backToProjects')}
           </button>
         </div>
       </div>
@@ -288,7 +281,7 @@ export function ProjectInterviewWizard({
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-muted-foreground">Creating project folder...</p>
+          <p className="text-muted-foreground">{t('interview.creatingProjectFolder')}</p>
         </div>
       </div>
     );

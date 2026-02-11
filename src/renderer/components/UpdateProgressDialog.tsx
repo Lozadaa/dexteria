@@ -7,6 +7,7 @@
 import React from 'react';
 import { Download, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useTranslation } from '../i18n/useTranslation';
 import type { AppUpdateProgress } from '../../shared/types/update';
 
 interface UpdateProgressDialogProps {
@@ -26,6 +27,8 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
   onInstallAndRestart,
   onCancel,
 }) => {
+  const { t } = useTranslation();
+
   const getPhaseIcon = (phase: string) => {
     switch (phase) {
       case 'checking':
@@ -46,17 +49,17 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
   const getPhaseLabel = (phase: string) => {
     switch (phase) {
       case 'checking':
-        return 'Checking for updates...';
+        return t('views.updateProgress.checking');
       case 'downloading':
-        return 'Downloading update...';
+        return t('views.updateProgress.downloading');
       case 'installing':
-        return 'Installing...';
+        return t('views.updateProgress.installing');
       case 'ready':
-        return 'Ready to install';
+        return t('views.updateProgress.ready');
       case 'error':
-        return 'Error';
+        return t('labels.error');
       default:
-        return 'Processing...';
+        return t('views.updateProgress.processing');
     }
   };
 
@@ -70,9 +73,9 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
       >
         {/* Header */}
         <div className="p-6 pb-4">
-          <h2 className="text-xl font-semibold">Updating Dexteria</h2>
+          <h2 className="text-xl font-semibold">{t('views.updateProgress.title')}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {progress ? getPhaseLabel(progress.phase) : 'Preparing...'}
+            {progress ? getPhaseLabel(progress.phase) : t('views.updateProgress.preparing')}
           </p>
         </div>
 
@@ -99,7 +102,7 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{Math.round(progress.percent)}%</span>
-                <span>{progress.phase === 'downloading' ? 'Downloading...' : 'Processing...'}</span>
+                <span>{progress.phase === 'downloading' ? t('views.updateProgress.downloadingShort') : t('views.updateProgress.processing')}</span>
               </div>
             </div>
           )}
@@ -120,7 +123,7 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-green-600 dark:text-green-400">
-                  Update downloaded successfully. Click "Install and Restart" to complete the update.
+                  {t('views.updateProgress.downloadSuccess')}
                 </p>
               </div>
             </div>
@@ -140,7 +143,7 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
                   'text-sm text-muted-foreground hover:text-foreground'
                 )}
               >
-                Later
+                {t('actions.later')}
               </button>
               <button
                 onClick={onInstallAndRestart}
@@ -153,7 +156,7 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
                 )}
               >
                 <RefreshCw className="w-4 h-4" />
-                Install and Restart
+                {t('views.updateProgress.installAndRestart')}
               </button>
             </>
           ) : error ? (
@@ -166,7 +169,7 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
                 'text-sm'
               )}
             >
-              Close
+              {t('actions.close')}
             </button>
           ) : isDownloading ? (
             <button
@@ -178,7 +181,7 @@ export const UpdateProgressDialog: React.FC<UpdateProgressDialogProps> = ({
                 'text-sm text-muted-foreground hover:text-foreground'
               )}
             >
-              Cancel
+              {t('actions.cancel')}
             </button>
           ) : null}
         </div>

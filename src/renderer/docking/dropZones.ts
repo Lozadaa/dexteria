@@ -113,7 +113,7 @@ function calculateTabIndex(mouseX: number, tabRects: DOMRect[]): number {
  */
 export function getDropZoneOverlayStyle(
   zone: DropZone,
-  containerRect: DOMRect
+  _containerRect: DOMRect
 ): React.CSSProperties {
   const { edgeThreshold } = ZONE_CONFIG;
   const edgeSize = `${edgeThreshold * 100}%`;
@@ -169,7 +169,7 @@ export function getDropZonePreviewRect(
   zone: DropZone,
   containerRect: DOMRect
 ): { x: number; y: number; width: number; height: number } {
-  const { edgeThreshold } = ZONE_CONFIG;
+  const { edgeThreshold: _edgeThreshold } = ZONE_CONFIG;
 
   switch (zone) {
     case 'top':

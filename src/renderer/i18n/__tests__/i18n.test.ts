@@ -7,7 +7,7 @@
  * - Translation function
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock localStorage
 const localStorageMock = (() => {

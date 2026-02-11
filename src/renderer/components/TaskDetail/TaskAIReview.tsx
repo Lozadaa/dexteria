@@ -8,7 +8,8 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 import { CheckCircle, XCircle, X } from 'lucide-react';
 import { Button } from 'adnia-ui';
-import type { Task, AIReviewResult } from '../../../shared/types';
+import { useTranslation } from '../../i18n/useTranslation';
+import type { AIReviewResult } from '../../../shared/types';
 
 interface TaskAIReviewProps {
   aiReview: AIReviewResult;
@@ -21,9 +22,11 @@ interface TaskAIReviewProps {
  */
 export const TaskAIReview: React.FC<TaskAIReviewProps> = ({
   aiReview,
-  taskId,
+  taskId: _taskId,
   onClear,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div
       className={cn(
@@ -45,7 +48,7 @@ export const TaskAIReview: React.FC<TaskAIReviewProps> = ({
             aiReview.passed ? 'text-green-400' : 'text-red-400'
           )}
         >
-          AI Review: {aiReview.passed ? 'Passed' : 'Needs Attention'}
+          {aiReview.passed ? t('views.taskDetail.aiReviewPassed') : t('views.taskDetail.aiReviewNeedsAttention')}
         </span>
         <span className="text-xs text-muted-foreground ml-auto">
           {new Date(aiReview.reviewedAt).toLocaleString()}
@@ -79,7 +82,7 @@ export const TaskAIReview: React.FC<TaskAIReviewProps> = ({
         onClick={onClear}
       >
         <X size={12} />
-        Clear Review
+        {t('views.taskDetail.clearReview')}
       </Button>
     </div>
   );

@@ -4,7 +4,7 @@
  * Main interview conversation screen with Ralph.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -16,7 +16,7 @@ import {
 } from 'adnia-ui';
 import { Bot, User, Send, HelpCircle, SkipForward, Lightbulb, X, Save } from 'lucide-react';
 import { useInterviewStore } from '../../stores/interviewStore';
-import type { InterviewState, InterviewAnswer } from '../../../shared/types';
+import type { InterviewState } from '../../../shared/types';
 
 interface InterviewScreenProps {
   interview: InterviewState;
@@ -251,9 +251,9 @@ export function InterviewScreen({
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => onSaveAndExit()}>
             <Save className="w-4 h-4 mr-2" />
-            {t('interview.saveAndExit', 'Save & Exit')}
+            {t('interview.saveAndExit')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onCancel()} title="Cancel without saving">
+          <Button variant="ghost" size="sm" onClick={() => onCancel()} title={t('interview.cancelWithoutSaving')}>
             <X className="w-4 h-4" />
           </Button>
         </div>

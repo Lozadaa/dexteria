@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useTranslation } from '../i18n/useTranslation';
 
 const PLUGIN_ID = 'com.dexteria.jira';
 
@@ -51,6 +52,7 @@ interface JiraConnection {
 export const JiraTaskDetailSidebar: React.FC<JiraTaskDetailSidebarProps> = ({
   context = {},
 }) => {
+  const { t } = useTranslation();
   const { taskId, task } = context;
   const [mapping, setMapping] = useState<JiraMapping | null>(null);
   const [connection, setConnection] = useState<JiraConnection | null>(null);
@@ -159,17 +161,17 @@ export const JiraTaskDetailSidebar: React.FC<JiraTaskDetailSidebarProps> = ({
           </span>
         </div>
         <p className="text-xs text-muted-foreground mb-2">
-          This task is not linked to a Jira issue.
+          {t('views.jira.notLinked')}
         </p>
         <Button
           variant="ghost"
           size="xs"
           className="w-full text-xs"
           disabled={!connection}
-          title={!connection ? 'Connect to Jira first' : 'Link to Jira issue'}
+          title={!connection ? t('views.jira.connectFirstTooltip') : t('views.jira.linkToJiraTooltip')}
         >
           <Link2 size={12} className="mr-1" />
-          Link to Jira
+          {t('views.jira.linkToJira')}
         </Button>
       </div>
     );
@@ -191,7 +193,7 @@ export const JiraTaskDetailSidebar: React.FC<JiraTaskDetailSidebarProps> = ({
         </div>
         <span className="text-xs text-green-500 flex items-center gap-1">
           <CheckCircle2 size={10} />
-          Linked
+          {t('views.jira.linked')}
         </span>
       </div>
 
@@ -213,7 +215,7 @@ export const JiraTaskDetailSidebar: React.FC<JiraTaskDetailSidebarProps> = ({
         {/* Status */}
         {mapping.status && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Status:</span>
+            <span className="text-xs text-muted-foreground">{t('views.jira.status')}</span>
             <span
               className={cn(
                 'text-xs px-1.5 py-0.5 rounded',
@@ -230,7 +232,7 @@ export const JiraTaskDetailSidebar: React.FC<JiraTaskDetailSidebarProps> = ({
         {/* Last synced */}
         {mapping.lastSynced && (
           <div className="text-xs text-muted-foreground">
-            Last synced: {new Date(mapping.lastSynced).toLocaleString()}
+            {t('views.jira.lastSynced')} {new Date(mapping.lastSynced).toLocaleString()}
           </div>
         )}
 
@@ -244,7 +246,7 @@ export const JiraTaskDetailSidebar: React.FC<JiraTaskDetailSidebarProps> = ({
             className="flex-1 text-xs"
           >
             <RefreshCw size={12} className={cn('mr-1', syncing && 'animate-spin')} />
-            Sync
+            {t('views.jira.sync')}
           </Button>
           <Button
             variant="ghost"
@@ -253,7 +255,7 @@ export const JiraTaskDetailSidebar: React.FC<JiraTaskDetailSidebarProps> = ({
             className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
           >
             <Unlink size={12} className="mr-1" />
-            Unlink
+            {t('views.jira.unlink')}
           </Button>
         </div>
       </div>

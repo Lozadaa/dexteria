@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { ConflictInfo } from '../../../shared/types';
+import { useTranslation } from 'react-i18next';
 
 interface ConflictResolutionModalProps {
   conflicts: ConflictInfo[];
@@ -22,6 +23,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
   onComplete,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [resolving, setResolving] = useState(false);
   const [manualContent, setManualContent] = useState('');
@@ -60,10 +62,10 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
           setSelectedIndex(nextUnresolved);
         }
       } else {
-        setError('Failed to resolve conflict');
+        setError(t('git.failedToResolve'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to resolve conflict');
+      setError(err instanceof Error ? err.message : t('git.failedToResolve'));
     } finally {
       setResolving(false);
     }
@@ -76,10 +78,10 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
       if (success) {
         onClose();
       } else {
-        setError('Failed to abort merge');
+        setError(t('git.failedToAbort'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to abort merge');
+      setError(err instanceof Error ? err.message : t('git.failedToAbort'));
     } finally {
       setResolving(false);
     }
@@ -95,9 +97,9 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">Resolve Merge Conflicts</h2>
+            <h2 className="text-lg font-semibold text-white">{t('git.resolveConflicts')}</h2>
             <p className="text-sm text-gray-400 mt-1">
-              {resolvedCount} of {conflicts.length} conflicts resolved
+              {t('git.conflictsResolved', { resolved: resolvedCount, total: conflicts.length })}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -107,7 +109,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
               disabled={resolving}
               className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
             >
-              Abort Merge
+              {t('git.abortMerge')}
             </button>
             <button
               type="button"
@@ -115,7 +117,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
               disabled={!allResolved || resolving}
               className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
             >
-              Complete Merge
+              {t('git.completeMerge')}
             </button>
             <button
               type="button"
@@ -187,7 +189,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                     </span>
                   </div>
                   {selectedConflict.isBinary && (
-                    <span className="text-xs text-yellow-400">Binary file</span>
+                    <span className="text-xs text-yellow-400">{t('git.binaryFile')}</span>
                   )}
                 </div>
 
@@ -198,8 +200,8 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                       <svg className="w-12 h-12 mx-auto mb-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                       </svg>
-                      <p className="text-lg mb-2">Binary file conflict</p>
-                      <p className="text-sm">Choose which version to keep</p>
+                      <p className="text-lg mb-2">{t('git.binaryFileConflict')}</p>
+                      <p className="text-sm">{t('git.chooseVersion')}</p>
                     </div>
                   </div>
                 ) : showManualEditor ? (
@@ -218,10 +220,10 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                     {/* Ours */}
                     <div className="flex-1 flex flex-col border-r border-gray-700">
                       <div className="px-3 py-2 bg-blue-500/10 text-blue-400 text-xs font-medium">
-                        Ours (current branch)
+                        {t('git.ours')}
                       </div>
                       <pre className="flex-1 p-4 overflow-auto bg-gray-900 text-gray-300 font-mono text-xs">
-                        {selectedConflict.oursContent || '(empty)'}
+                        {selectedConflict.oursContent || t('git.empty')}
                       </pre>
                     </div>
 
@@ -229,7 +231,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                     {selectedConflict.baseContent && (
                       <div className="flex-1 flex flex-col border-r border-gray-700">
                         <div className="px-3 py-2 bg-gray-500/10 text-gray-400 text-xs font-medium">
-                          Base (common ancestor)
+                          {t('git.base')}
                         </div>
                         <pre className="flex-1 p-4 overflow-auto bg-gray-900 text-gray-300 font-mono text-xs">
                           {selectedConflict.baseContent}
@@ -240,10 +242,10 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                     {/* Theirs */}
                     <div className="flex-1 flex flex-col">
                       <div className="px-3 py-2 bg-purple-500/10 text-purple-400 text-xs font-medium">
-                        Theirs (incoming branch)
+                        {t('git.theirs')}
                       </div>
                       <pre className="flex-1 p-4 overflow-auto bg-gray-900 text-gray-300 font-mono text-xs">
-                        {selectedConflict.theirsContent || '(empty)'}
+                        {selectedConflict.theirsContent || t('git.empty')}
                       </pre>
                     </div>
                   </div>
@@ -259,7 +261,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                         disabled={resolving}
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
                       >
-                        Use Ours
+                        {t('git.useOurs')}
                       </button>
                       <button
                         type="button"
@@ -267,7 +269,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                         disabled={resolving}
                         className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
                       >
-                        Use Theirs
+                        {t('git.useTheirs')}
                       </button>
                       {!selectedConflict.isBinary && (
                         <button
@@ -275,7 +277,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                           onClick={() => setShowManualEditor(!showManualEditor)}
                           className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
                         >
-                          {showManualEditor ? 'View Diff' : 'Edit Manually'}
+                          {showManualEditor ? t('git.viewDiff') : t('git.editManually')}
                         </button>
                       )}
                     </div>
@@ -286,7 +288,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
                         disabled={resolving}
                         className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
                       >
-                        Save Manual Resolution
+                        {t('git.saveManualResolution')}
                       </button>
                     )}
                   </div>

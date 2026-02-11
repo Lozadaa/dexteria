@@ -31,6 +31,16 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     modulePreload: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate large vendor libraries
+          'lucide-react': ['lucide-react'],
+          'react-vendor': ['react', 'react-dom'],
+          'dnd-kit': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+        },
+      },
+    },
   },
   resolve: {
     alias: {

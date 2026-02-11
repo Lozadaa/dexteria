@@ -14,6 +14,8 @@ import {
   AlertBanner,
 } from 'adnia-ui';
 import { cn } from '../lib/utils';
+import { useConfirm } from '../contexts/ConfirmContext';
+import { useToast } from '../contexts/ToastContext';
 import {
   Volume2,
   VolumeX,
@@ -51,7 +53,6 @@ import {
   Zap,
   Eye,
   EyeOff,
-  Tag,
 } from 'lucide-react';
 import { GitSettingsPanel } from './Git/GitSettingsPanel';
 import { useThemeContext } from '../contexts/ThemeContext';
@@ -82,6 +83,8 @@ interface SettingsPanelProps {
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor }) => {
   const { t, locale, setLocale } = useTranslation();
+  const { confirm } = useConfirm();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<SettingsTab>('notifications');
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [detectedCommands, setDetectedCommands] = useState<DetectedCommands>({});
@@ -186,11 +189,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
     setLoadingPlugins(true);
     try {
       const pluginList = await window.dexteria?.plugin?.getAll?.();
-      console.log('[SettingsPanel] Loaded plugins:', pluginList?.map((p: PluginInfo) => ({
-        id: p.manifest?.id,
-        state: p.state,
-        error: p.error,
-      })));
       setPlugins((pluginList as PluginInfo[]) || []);
     } catch (error) {
       console.error('Failed to load plugins:', error);
@@ -237,6 +235,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       }
     } catch (error) {
       console.error('Failed to check for updates:', error);
+      toast.error(t('toasts.updateCheckFailed'));
       setUpdateCheckResult({ available: false });
     }
     setCheckingUpdate(false);
@@ -252,6 +251,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       await window.dexteria?.update?.setPreferences?.(newPrefs);
     } catch (error) {
       console.error('Failed to save update preferences:', error);
+      toast.error(t('toasts.updatePrefsSaveFailed'));
     }
   };
 
@@ -261,6 +261,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       setVscodeEnabled(enabled);
     } catch (error) {
       console.error('Failed to toggle VSCode integration:', error);
+      toast.error(t('toasts.vscodeToggleFailed'));
     }
   };
 
@@ -269,6 +270,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       await window.dexteria?.vscode?.openDownloadPage?.();
     } catch (error) {
       console.error('Failed to open download page:', error);
+      toast.error(t('toasts.vscodeDownloadFailed'));
     }
   };
 
@@ -280,6 +282,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
       setVscodeVersion(status?.version ?? null);
     } catch (error) {
       console.error('Failed to refresh VSCode status:', error);
+      toast.error(t('toasts.vscodeRefreshFailed'));
     }
     setCheckingVscode(false);
   };
@@ -287,20 +290,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
   const togglePlugin = async (pluginId: string, currentState: string) => {
     setTogglingPlugin(pluginId);
     setPluginError(null);
-    console.log(`[SettingsPanel] Toggling plugin ${pluginId}, current state: ${currentState}`);
 
     try {
       let result: { success: boolean; error?: string } | undefined;
 
       if (currentState === 'active' || currentState === 'enabled') {
-        console.log(`[SettingsPanel] Disabling plugin ${pluginId}...`);
         result = await window.dexteria?.plugin?.disable?.(pluginId);
       } else {
-        console.log(`[SettingsPanel] Enabling plugin ${pluginId}...`);
         result = await window.dexteria?.plugin?.enable?.(pluginId);
       }
-
-      console.log(`[SettingsPanel] Plugin toggle result:`, result);
 
       await loadPlugins();
 
@@ -486,7 +484,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
           disabled={!hasChanges || saving}
         >
           {saving ? <Spinner size="xs" className="mr-1" /> : <Check size={14} className="mr-1" />}
-          Save Changes
+          {t('actions.saveChanges')}
         </Button>
       </div>
 
@@ -580,7 +578,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                               e.stopPropagation();
                               window.dexteria.settings.testSound(preset.id as NotificationSound);
                             }}
-                            title="Test sound"
+                            title={t('tooltips.testSound')}
                             className="shrink-0 ml-2"
                           >
                             <Play size={12} />
@@ -1010,7 +1008,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                             e.stopPropagation();
                             onOpenThemeEditor?.(theme.id, theme.name);
                           }}
-                          title="Edit theme JSON"
+                          title={t('tooltips.editTheme')}
                         >
                           <Edit2 size={14} />
                           <span className="ml-1">{t('actions.edit')}</span>
@@ -1032,7 +1030,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                             URL.revokeObjectURL(url);
                           }
                         }}
-                        title="Export theme as JSON file"
+                        title={t('tooltips.exportTheme')}
                       >
                         <Download size={14} />
                         <span className="ml-1">{t('actions.export')}</span>
@@ -1043,11 +1041,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                           size="sm"
                           onClick={async (e) => {
                             e.stopPropagation();
-                            if (confirm(`Delete theme "${theme.name}"?`)) {
+                            const confirmed = await confirm({
+                              title: t('views.settings.themes.deleteTheme'),
+                              message: t('views.settings.themes.deleteThemeConfirm', { name: theme.name }),
+                              confirmText: t('actions.delete'),
+                              cancelText: t('actions.cancel'),
+                              variant: 'danger',
+                            });
+                            if (confirmed) {
                               await deleteTheme(theme.id);
                             }
                           }}
-                          title="Delete theme"
+                          title={t('tooltips.deleteTheme')}
                           className="text-red-400 hover:text-red-300"
                         >
                           <Trash2 size={14} />
@@ -1068,7 +1073,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   <Input
                     value={newThemeName}
                     onChange={(e) => setNewThemeName(e.target.value)}
-                    placeholder="Theme name..."
+                    placeholder={t('views.settings.themes.themeNamePlaceholder')}
                     autoFocus
                     onKeyDown={async (e) => {
                       if (e.key === 'Enter' && newThemeName.trim()) {
@@ -1164,7 +1169,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     onClick={async () => {
                       try {
@@ -1172,7 +1177,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         if (result?.success) {
                           loadPlugins();
                         } else if (result?.error && result.error !== 'No file selected') {
-                          alert(`Failed to import plugin: ${result.error}`);
+                          toast.error(t('views.settings.plugins.importFailedWithError', { error: result.error }));
                         }
                       } catch (err) {
                         console.error('Failed to import plugin:', err);
@@ -1324,7 +1329,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                           <button
                                             onClick={() => togglePluginErrorExpanded(plugin.manifest.id)}
                                             className="p-1 hover:bg-red-500/20 rounded text-red-400"
-                                            title={isExpanded ? "Collapse" : "Expand"}
+                                            title={isExpanded ? t('tooltips.collapse') : t('tooltips.expand')}
                                           >
                                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                           </button>
@@ -1332,7 +1337,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                         <button
                                           onClick={() => copyErrorToClipboard(errorText)}
                                           className="p-1 hover:bg-red-500/20 rounded text-red-400"
-                                          title="Copy error"
+                                          title={t('tooltips.copyError')}
                                         >
                                           <Copy size={14} />
                                         </button>
@@ -1340,7 +1345,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                           <button
                                             onClick={() => setPluginError(null)}
                                             className="p-1 hover:bg-red-500/20 rounded text-red-400"
-                                            title="Dismiss"
+                                            title={t('tooltips.dismiss')}
                                           >
                                             <X size={14} />
                                           </button>
@@ -1395,7 +1400,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                 variant="ghost"
                                 size="sm"
                                 onClick={async () => {
-                                  if (confirm(t('views.settings.plugins.deleteConfirm', { name: plugin.manifest.name }))) {
+                                  const confirmed = await confirm({
+                                    title: t('views.settings.plugins.deletePlugin'),
+                                    message: t('views.settings.plugins.deleteConfirm', { name: plugin.manifest.name }),
+                                    confirmText: t('actions.delete'),
+                                    cancelText: t('actions.cancel'),
+                                    variant: 'danger',
+                                  });
+                                  if (confirmed) {
                                     setDeletingPlugin(plugin.manifest.id);
                                     try {
                                       const result = await window.dexteria?.plugin?.delete?.(plugin.manifest.id);
@@ -1403,11 +1415,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                         await loadPlugins();
                                         setPendingRestart(true);
                                       } else if (result?.error) {
-                                        alert(`Failed to delete plugin: ${result.error}`);
+                                        toast.error(t('views.settings.plugins.deleteFailedWithError', { error: result.error }));
                                       }
                                     } catch (err) {
                                       console.error('Failed to delete plugin:', err);
-                                      alert('Failed to delete plugin');
+                                      toast.error(t('views.settings.plugins.deleteFailedWithError', { error: 'Unknown error' }));
                                     }
                                     setDeletingPlugin(null);
                                   }
@@ -1438,9 +1450,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
             <div className="space-y-6 max-w-2xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold mb-1">Skills</h3>
+                  <h3 className="text-lg font-semibold mb-1">{t('views.settings.skills.title')}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Domain expertise modules injected into the AI agent&apos;s prompt. Skills auto-activate based on task content.
+                    {t('views.settings.skills.description')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1450,15 +1462,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                     onClick={() => setShowImportSkill(true)}
                   >
                     <Upload size={14} className="mr-1" />
-                    Import
+                    {t('actions.import')}
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     onClick={() => setShowCreateSkill(true)}
                   >
                     <Plus size={14} className="mr-1" />
-                    Create
+                    {t('actions.create')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -1477,12 +1489,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <div className="p-4 bg-muted/30 rounded-lg space-y-3 border border-primary/30">
                   <div className="flex items-center gap-2">
                     <Upload size={16} className="text-primary" />
-                    <span className="font-medium">Import Skill (JSON)</span>
+                    <span className="font-medium">{t('views.settings.skills.importSkillJson')}</span>
                   </div>
                   <textarea
                     value={importSkillJson}
                     onChange={(e) => setImportSkillJson(e.target.value)}
-                    placeholder='Paste skill JSON here...'
+                    placeholder={t('views.settings.skills.pasteSkillJson')}
                     className="w-full h-32 bg-background border border-border rounded-md p-3 text-sm font-mono resize-none"
                   />
                   <div className="flex gap-2">
@@ -1496,16 +1508,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                             setShowImportSkill(false);
                             loadSkills();
                           } else {
-                            alert(`Failed to import: ${result?.error || 'Invalid JSON'}`);
+                            toast.error(t('views.settings.skills.importFailed', { error: result?.error || 'Invalid JSON' }));
                           }
                         }
                       }}
                       disabled={!importSkillJson.trim()}
                     >
-                      Import
+                      {t('actions.import')}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => { setImportSkillJson(''); setShowImportSkill(false); }}>
-                      Cancel
+                      {t('actions.cancel')}
                     </Button>
                   </div>
                 </div>
@@ -1516,7 +1528,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <div className="p-4 bg-muted/30 rounded-lg space-y-3 border border-primary/30">
                   <div className="flex items-center gap-2">
                     <Plus size={16} className="text-primary" />
-                    <span className="font-medium">Create Custom Skill</span>
+                    <span className="font-medium">{t('views.settings.skills.createCustomSkill')}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Input
@@ -1527,13 +1539,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                     <Input
                       value={newSkill.name}
                       onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
-                      placeholder="Display Name"
+                      placeholder={t('views.settings.skills.placeholders.displayName')}
                     />
                   </div>
                   <Input
                     value={newSkill.description}
                     onChange={(e) => setNewSkill({ ...newSkill, description: e.target.value })}
-                    placeholder="Short description..."
+                    placeholder={t('views.settings.skills.placeholders.shortDescription')}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <select
@@ -1541,22 +1553,22 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                       onChange={(e) => setNewSkill({ ...newSkill, category: e.target.value })}
                       className="px-3 py-1.5 rounded-md border border-border bg-background text-sm"
                     >
-                      <option value="frontend">Frontend</option>
-                      <option value="backend">Backend</option>
-                      <option value="testing">Testing</option>
-                      <option value="devops">DevOps</option>
-                      <option value="general">General</option>
+                      <option value="frontend">{t('views.settings.skills.categories.frontend')}</option>
+                      <option value="backend">{t('views.settings.skills.categories.backend')}</option>
+                      <option value="testing">{t('views.settings.skills.categories.testing')}</option>
+                      <option value="devops">{t('views.settings.skills.categories.devops')}</option>
+                      <option value="general">{t('views.settings.skills.categories.general')}</option>
                     </select>
                     <Input
                       value={newSkill.keywords}
                       onChange={(e) => setNewSkill({ ...newSkill, keywords: e.target.value })}
-                      placeholder="Keywords (comma-separated)"
+                      placeholder={t('views.settings.skills.placeholders.keywords')}
                     />
                   </div>
                   <textarea
                     value={newSkill.promptContent}
                     onChange={(e) => setNewSkill({ ...newSkill, promptContent: e.target.value })}
-                    placeholder="Prompt content (instructions injected into the agent's system prompt)..."
+                    placeholder={t('views.settings.skills.placeholders.promptContent')}
                     className="w-full h-40 bg-background border border-border rounded-md p-3 text-sm font-mono resize-none"
                   />
                   <div className="flex gap-2">
@@ -1599,13 +1611,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
               <div className="space-y-3">
                 {loadingSkills ? (
                   <div className="flex items-center justify-center py-8">
-                    <Spinner size="sm" label="Loading skills..." />
+                    <Spinner size="sm" label={t('views.settings.skills.loadingSkills')} />
                   </div>
                 ) : skills.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Zap size={32} className="mx-auto mb-2 opacity-50" />
-                    <p>No skills installed</p>
-                    <p className="text-sm mt-1">Skills add domain expertise to the AI agent.</p>
+                    <p>{t('views.settings.skills.noSkills')}</p>
+                    <p className="text-sm mt-1">{t('views.settings.skills.noSkillsDesc')}</p>
                   </div>
                 ) : (
                   skills.map((skill) => {
@@ -1671,7 +1683,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                               variant="ghost"
                               size="sm"
                               onClick={() => setExpandedSkillPrompt(isExpanded ? null : skill.id)}
-                              title="View prompt"
+                              title={t('tooltips.viewPrompt')}
                             >
                               {isExpanded ? <EyeOff size={14} /> : <Eye size={14} />}
                             </Button>
@@ -1690,7 +1702,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                   URL.revokeObjectURL(url);
                                 }
                               }}
-                              title="Export"
+                              title={t('actions.export')}
                             >
                               <Download size={14} />
                             </Button>
@@ -1710,13 +1722,20 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                                 variant="ghost"
                                 size="sm"
                                 onClick={async () => {
-                                  if (confirm(`Delete skill "${skill.name}"?`)) {
+                                  const confirmed = await confirm({
+                                    title: t('views.settings.skills.deleteSkill'),
+                                    message: t('views.settings.skills.deleteSkillConfirm', { name: skill.name }),
+                                    confirmText: t('actions.delete'),
+                                    cancelText: t('actions.cancel'),
+                                    variant: 'danger',
+                                  });
+                                  if (confirmed) {
                                     await window.dexteria?.skill?.remove?.(skill.id);
                                     loadSkills();
                                   }
                                 }}
                                 className="text-red-400 hover:text-red-300"
-                                title="Delete"
+                                title={t('actions.delete')}
                               >
                                 <Trash2 size={14} />
                               </Button>
@@ -1744,9 +1763,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
           {activeTab === 'updates' && (
             <div className="space-y-6 max-w-2xl">
               <div>
-                <h3 className="text-lg font-semibold mb-1">Updates</h3>
+                <h3 className="text-lg font-semibold mb-1">{t('views.settings.updates.title')}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Configure how Dexteria checks for and installs updates.
+                  {t('views.settings.updates.description')}
                 </p>
               </div>
 
@@ -1754,9 +1773,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
               <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">Check for Updates</div>
+                    <div className="font-medium">{t('views.settings.updates.checkForUpdates')}</div>
                     <div className="text-sm text-muted-foreground">
-                      Manually check if a new version is available
+                      {t('views.settings.updates.checkForUpdatesDesc')}
                     </div>
                   </div>
                   <Button
@@ -1768,12 +1787,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                     {checkingUpdate ? (
                       <>
                         <Spinner size="xs" className="mr-2" />
-                        Checking...
+                        {t('views.settings.updates.checking')}
                       </>
                     ) : (
                       <>
                         <RefreshCw size={14} className="mr-2" />
-                        Check Now
+                        {t('views.settings.updates.checkNow')}
                       </>
                     )}
                   </Button>
@@ -1819,9 +1838,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Auto-check on startup</div>
+                        <div className="font-medium">{t('views.settings.updates.autoCheckOnStartup')}</div>
                         <div className="text-sm text-muted-foreground">
-                          Automatically check for updates when Dexteria starts
+                          {t('views.settings.updates.autoCheckOnStartupDesc')}
                         </div>
                       </div>
                       <Switch
@@ -1834,9 +1853,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Auto-download updates</div>
+                        <div className="font-medium">{t('views.settings.updates.autoDownload')}</div>
                         <div className="text-sm text-muted-foreground">
-                          Download updates automatically in the background
+                          {t('views.settings.updates.autoDownloadDesc')}
                         </div>
                       </div>
                       <Switch
@@ -1849,9 +1868,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Update channel</div>
+                        <div className="font-medium">{t('views.settings.updates.channel')}</div>
                         <div className="text-sm text-muted-foreground">
-                          Choose which updates to receive
+                          {t('views.settings.updates.channelDesc')}
                         </div>
                       </div>
                       <select
@@ -1859,8 +1878,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         onChange={(e) => handleUpdatePreferenceChange('channel', e.target.value as 'stable' | 'beta')}
                         className="px-3 py-1.5 rounded-md border border-border bg-background text-sm"
                       >
-                        <option value="stable">Stable</option>
-                        <option value="beta">Beta</option>
+                        <option value="stable">{t('views.settings.updates.channels.stable')}</option>
+                        <option value="beta">{t('views.settings.updates.channels.beta')}</option>
                       </select>
                     </div>
                   </div>
@@ -1868,9 +1887,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                   <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Check interval</div>
+                        <div className="font-medium">{t('views.settings.updates.checkInterval')}</div>
                         <div className="text-sm text-muted-foreground">
-                          How often to check for updates
+                          {t('views.settings.updates.checkIntervalDesc')}
                         </div>
                       </div>
                       <select
@@ -1878,10 +1897,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                         onChange={(e) => handleUpdatePreferenceChange('checkIntervalHours', parseInt(e.target.value))}
                         className="px-3 py-1.5 rounded-md border border-border bg-background text-sm"
                       >
-                        <option value={6}>Every 6 hours</option>
-                        <option value={12}>Every 12 hours</option>
-                        <option value={24}>Daily</option>
-                        <option value={168}>Weekly</option>
+                        <option value={6}>{t('views.settings.updates.frequencies.every6hours')}</option>
+                        <option value={12}>{t('views.settings.updates.frequencies.every12hours')}</option>
+                        <option value={24}>{t('views.settings.updates.frequencies.daily')}</option>
+                        <option value={168}>{t('views.settings.updates.frequencies.weekly')}</option>
                       </select>
                     </div>
                   </div>
@@ -1912,7 +1931,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onOpenThemeEditor 
                 <Button
                   variant="danger"
                   onClick={async () => {
-                    if (confirm(t('views.settings.other.clearSettingsConfirm'))) {
+                    const confirmed = await confirm({
+                      title: t('views.settings.other.clearSettings'),
+                      message: t('views.settings.other.clearSettingsConfirm'),
+                      confirmText: t('actions.delete'),
+                      cancelText: t('actions.cancel'),
+                      variant: 'danger',
+                    });
+                    if (confirmed) {
                       await window.dexteria.settings.clearAllData();
                       localStorage.clear();
                       window.location.reload();

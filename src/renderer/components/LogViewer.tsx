@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Terminal, Maximize2, Minimize2 } from 'lucide-react';
+import { Terminal } from 'lucide-react';
 import { useAgentState } from '../hooks/useData';
 
 import { t } from '../i18n/t';
@@ -10,21 +10,21 @@ export const LogViewer: React.FC = () => {
 
     // Poll for logs of current task run
     useEffect(() => {
-        if (!state?.currentTaskId) return;
+        if (!state?.activeTaskId) return;
 
         // We'll just tail the log for now.
         // Ideally we need runId. If state has lastRunId use that.
         // Store's getPendingTasks returns tasks, but we need active run.
         // Let's assume we can get log by taskId for "latest run" or just mock it for now.
         // Or fetch `state.currentRunId` if available (it wasn't in AgentState interface I wrote).
-        // I added `activeChatId`, `currentTaskId`. 
-        // I should have added `currentRunId` to AgentState. However, I can fetch `tasks:get(currentTaskId)` to get `runtime.lastRunId`.
+        // I added `activeChatId`, `activeTaskId`. 
+        // I should have added `currentRunId` to AgentState. However, I can fetch `tasks:get(activeTaskId)` to get `runtime.lastRunId`.
 
         let interval: NodeJS.Timeout;
 
         const fetchLog = async () => {
             // simplified: get log for current task
-            if (state.currentTaskId) {
+            if (state.activeTaskId) {
                 // Try to get active run
                 try {
                     const run = await window.dexteria.agent.getCurrentRun();
@@ -39,7 +39,7 @@ export const LogViewer: React.FC = () => {
         interval = setInterval(fetchLog, 1000);
         return () => clearInterval(interval);
 
-    }, [state?.currentTaskId]);
+    }, [state?.activeTaskId]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

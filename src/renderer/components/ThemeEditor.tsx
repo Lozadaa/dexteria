@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button, Spinner, AlertBanner } from 'adnia-ui';
 import { useThemeContext } from '../contexts/ThemeContext';
+import { useToast } from '../contexts/ToastContext';
 import {
   Save,
   RotateCcw,
@@ -136,8 +137,9 @@ interface ThemeEditorProps {
   themeName?: string;
 }
 
-export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) => {
+export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName: _themeName }) => {
   const { t } = useTranslation();
+  const toast = useToast();
   const { saveTheme, setActiveTheme, activeThemeId } = useThemeContext();
   const [theme, setTheme] = useState<CustomTheme | null>(null);
   const [jsonContent, setJsonContent] = useState('');
@@ -166,11 +168,11 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
           setJsonContent(json);
           setOriginalJson(json);
         } else {
-          setError('Theme not found');
+          setError(t('views.themeEditor.themeNotFound'));
         }
       } catch (err) {
         console.error('Failed to load theme:', err);
-        setError('Failed to load theme');
+        setError(t('views.themeEditor.loadFailed'));
       } finally {
         setIsLoading(false);
       }
@@ -187,7 +189,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
   // Validate JSON on change
   useEffect(() => {
     if (!jsonContent.trim()) {
-      setValidationError('JSON cannot be empty');
+      setValidationError(t('views.themeEditor.jsonEmpty'));
       return;
     }
 
@@ -196,35 +198,35 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
 
       // Basic validation
       if (!parsed.id || typeof parsed.id !== 'string') {
-        setValidationError('Theme must have an "id" field');
+        setValidationError(t('views.themeEditor.missingId'));
         return;
       }
       if (!parsed.name || typeof parsed.name !== 'string') {
-        setValidationError('Theme must have a "name" field');
+        setValidationError(t('views.themeEditor.missingName'));
         return;
       }
       if (!parsed.colors || typeof parsed.colors !== 'object') {
-        setValidationError('Theme must have a "colors" object');
+        setValidationError(t('views.themeEditor.missingColors'));
         return;
       }
       if (!parsed.colors.core || typeof parsed.colors.core !== 'object') {
-        setValidationError('Theme colors must have a "core" object');
+        setValidationError(t('views.themeEditor.missingCore'));
         return;
       }
       if (!parsed.fonts || typeof parsed.fonts !== 'object') {
-        setValidationError('Theme must have a "fonts" object');
+        setValidationError(t('views.themeEditor.missingFonts'));
         return;
       }
 
       setValidationError(null);
     } catch (e) {
       if (e instanceof SyntaxError) {
-        setValidationError(`Invalid JSON: ${e.message}`);
+        setValidationError(t('views.themeEditor.invalidJsonWithError', { error: e.message }));
       } else {
-        setValidationError('Invalid JSON');
+        setValidationError(t('views.themeEditor.invalidJson'));
       }
     }
-  }, [jsonContent]);
+  }, [jsonContent, t]);
 
   // Sync scroll between textarea and highlight div
   const handleScroll = () => {
@@ -246,12 +248,13 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
         setTheme(parsed);
         setOriginalJson(jsonContent);
         setHasChanges(false);
+        toast.success(t('views.themeEditor.themeSaved'));
       } else {
-        setError('Failed to save theme');
+        toast.error(t('views.themeEditor.saveFailed'));
       }
     } catch (err) {
       console.error('Failed to save theme:', err);
-      setError('Failed to save theme');
+      toast.error(t('views.themeEditor.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -268,6 +271,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+      toast.error(t('toasts.copyFailed'));
     }
   };
 
@@ -295,8 +299,10 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
 
       // Then apply the theme
       await setActiveTheme(themeId);
+      toast.success(t('views.themeEditor.themeApplied'));
     } catch (err) {
       console.error('Failed to apply theme:', err);
+      toast.error(t('views.themeEditor.applyFailed'));
     }
   };
 
@@ -352,7 +358,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
             variant="ghost"
             size="xs"
             onClick={() => setShowPreview(!showPreview)}
-            title={showPreview ? 'Hide preview' : 'Show preview'}
+            title={showPreview ? t('tooltips.hidePreview') : t('tooltips.showPreview')}
           >
             {showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
           </Button>
@@ -360,7 +366,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
             variant="ghost"
             size="xs"
             onClick={handleCopy}
-            title="Copy JSON"
+            title={t('tooltips.copyJson')}
           >
             {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
           </Button>
@@ -368,7 +374,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
             variant="ghost"
             size="xs"
             onClick={handleExport}
-            title="Export theme"
+            title={t('tooltips.exportThemeFile')}
           >
             <Download size={14} />
           </Button>
@@ -377,7 +383,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
             size="xs"
             onClick={handleReset}
             disabled={!hasChanges}
-            title="Reset changes"
+            title={t('tooltips.resetChanges')}
           >
             <RotateCcw size={14} />
           </Button>
@@ -420,7 +426,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
                 caretColor: '#58a6ff',
               }}
               spellCheck={false}
-              placeholder="Theme JSON..."
+              placeholder={t('views.settings.themes.themeJsonPlaceholder')}
             />
           </div>
         </div>
@@ -462,7 +468,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
               onClick={handleApply}
               disabled={!!validationError}
             >
-              Apply Theme
+              {t('tooltips.applyTheme')}
             </Button>
           )}
           <Button
@@ -471,7 +477,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ themeId, themeName }) 
             disabled={!hasChanges || !!validationError || isSaving}
           >
             {isSaving ? <Spinner size="xs" className="mr-1" /> : <Save size={14} className="mr-1" />}
-            Save
+            {t('actions.save')}
           </Button>
         </div>
       </div>

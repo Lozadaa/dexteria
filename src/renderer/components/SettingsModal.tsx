@@ -7,7 +7,6 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Dialog,
   DialogRoot,
   DialogContent,
   DialogHeader,
@@ -33,7 +32,6 @@ import {
   AlertTriangle,
   Settings,
   Music,
-  X,
   Palette,
   Edit2,
   Trash2,
@@ -48,6 +46,9 @@ import { useThemeContext } from '../contexts/ThemeContext';
 import type { ProjectSettings, DetectedCommands, NotificationSound, PluginInfo } from '../../shared/types';
 
 import { useTranslation } from '../i18n/useTranslation';
+import { useConfirm } from '../contexts/ConfirmContext';
+import { useToast } from '../contexts/ToastContext';
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -56,6 +57,8 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenThemeEditor }) => {
   const { t } = useTranslation();
+  const { confirm } = useConfirm();
+  const { error: showError } = useToast();
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [detectedCommands, setDetectedCommands] = useState<DetectedCommands>({});
   const [soundPresets, setSoundPresets] = useState<Array<{ id: string; name: string; description: string }>>([]);
@@ -131,6 +134,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       await loadPlugins();
     } catch (error) {
       console.error('Failed to toggle plugin:', error);
+      showError(t('toasts.pluginToggleFailed'));
     }
     setTogglingPlugin(null);
   };
@@ -143,6 +147,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       onClose();
     } catch (error) {
       console.error('Failed to save settings:', error);
+      showError(t('toasts.settingsSaveFailed'));
     }
     setSaving(false);
   };
@@ -226,7 +231,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         <DialogHeader className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Settings size={18} className="text-primary" />
-            <DialogTitle>Project Settings</DialogTitle>
+            <DialogTitle>{t('views.settings.projectSettings')}</DialogTitle>
           </div>
         </DialogHeader>
 
@@ -298,7 +303,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 e.stopPropagation();
                                 window.dexteria.settings.testSound(preset.id as NotificationSound);
                               }}
-                              title="Test sound"
+                              title={t('tooltips.testSound')}
                               className="shrink-0 ml-2"
                             >
                               <Play size={12} />
@@ -480,7 +485,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               {/* Runner Section */}
               <section>
                 <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
-                  Runner
+                  {t('views.settings.runner.title')}
                 </h3>
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -558,7 +563,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 onOpenThemeEditor?.(theme.id, theme.name);
                                 onClose();
                               }}
-                              title="Edit theme JSON"
+                              title={t('tooltips.editTheme')}
                             >
                               <Edit2 size={12} />
                               <span className="ml-1">{t('actions.edit')}</span>
@@ -580,7 +585,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 URL.revokeObjectURL(url);
                               }
                             }}
-                            title="Export theme as JSON file"
+                            title={t('tooltips.exportTheme')}
                           >
                             <Download size={12} />
                             <span className="ml-1">{t('actions.export')}</span>
@@ -591,11 +596,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                               size="xs"
                               onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm(`Delete theme "${theme.name}"?`)) {
+                                const confirmed = await confirm({
+                                  title: t('views.settings.themes.deleteTheme'),
+                                  message: t('views.settings.themes.deleteThemeConfirm', { name: theme.name }),
+                                  confirmText: t('actions.delete'),
+                                  cancelText: t('actions.cancel'),
+                                  variant: 'danger',
+                                });
+                                if (confirmed) {
                                   await deleteTheme(theme.id);
                                 }
                               }}
-                              title="Delete theme"
+                              title={t('tooltips.deleteTheme')}
                               className="text-red-400 hover:text-red-300"
                             >
                               <Trash2 size={12} />
@@ -616,7 +628,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                       <Input
                         value={newThemeName}
                         onChange={(e) => setNewThemeName(e.target.value)}
-                        placeholder="Theme name..."
+                        placeholder={t('views.settings.themes.themeNamePlaceholder')}
                         className="h-8"
                         autoFocus
                         onKeyDown={async (e) => {
@@ -731,10 +743,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   ) : plugins.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <Puzzle size={24} className="mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No plugins installed</p>
-                      <p className="text-xs mt-1">
-                        Add plugins to <code className="bg-muted px-1 rounded">.local-kanban/plugins/</code>
-                      </p>
+                      <p className="text-sm">{t('views.settings.plugins.noPlugins')}</p>
+                      <p className="text-xs mt-1">{t('views.settings.plugins.noPluginsDesc')}</p>
                     </div>
                   ) : (
                     plugins.map((plugin) => {
@@ -831,7 +841,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-3">
-                  Plugins extend Dexteria&apos;s functionality. Place plugin folders in the plugins directory to install them.
+                  {t('views.settings.plugins.installHint')}
                 </p>
               </section>
             </>
@@ -849,7 +859,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           </Button>
           <Button onClick={handleSave} disabled={saving || !settings}>
             {saving && <Spinner size="xs" className="mr-2" />}
-            Save Changes
+            {t('actions.saveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>

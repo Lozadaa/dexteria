@@ -38,9 +38,6 @@ export const SplitContainer: React.FC<SplitContainerProps> = ({
       e.preventDefault();
       setIsResizing(true);
 
-      const startPos = isHorizontal ? e.clientX : e.clientY;
-      const startRatio = node.ratio;
-
       const handleMouseMove = (moveEvent: MouseEvent) => {
         if (!containerRef.current) return;
 

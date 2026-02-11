@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChats } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
+import { useToast } from '../contexts/ToastContext';
 import { cn } from '../lib/utils';
-import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, FileText, AlertTriangle, Trash2, Cpu, ChevronDown, Paperclip, File, Play } from 'lucide-react';
+import { Send, Plus, MessageSquare, Bot, User, History, X, Check, StopCircle, AlertTriangle, Trash2, Cpu, ChevronDown, Paperclip, File, Play, Eye, Lightbulb, Code, Bug, FileSearch } from 'lucide-react';
 import { MarkdownRenderer, ThinkingIndicator, ThinkingBlock, extractThinking } from './MarkdownRenderer';
 import {
     Button,
@@ -26,29 +27,6 @@ import {
 import type { Chat, ChatMessage } from '../../shared/types';
 
 import { useTranslation } from '../i18n/useTranslation';
-// Creative placeholders for the chat input
-const CHAT_PLACEHOLDERS = [
-    "Ask me to build something amazing...",
-    "What shall we create today?",
-    "Describe your next feature...",
-    "Tell me about that bug you're hunting...",
-    "What code needs my attention?",
-    "Ready to ship something cool?",
-    "Let's turn your idea into code...",
-    "What's on your dev wishlist?",
-    "Paint me a picture of your next feature...",
-    "Got a challenge for me?",
-    "What should we refactor today?",
-    "Bring me your wildest requirements...",
-    "Let's squash some bugs together...",
-    "What's blocking your progress?",
-    "Describe the dream feature...",
-    "What would make your life easier?",
-    "Got an idea brewing?",
-    "Let's architect something great...",
-    "What needs fixing?",
-    "How can I help ship faster?",
-];
 
 interface ChatPanelProps {
     className?: string;
@@ -56,6 +34,7 @@ interface ChatPanelProps {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     const { t } = useTranslation();
+    const { error: showError, success } = useToast();
     const { chats, refresh } = useChats();
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -126,9 +105,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                 setProviderName(result.provider);
             } else {
                 console.error('Failed to change provider:', result?.error);
+                showError(t('views.chat.providerChangeFailed'));
             }
         } catch (err) {
             console.error('Failed to change provider:', err);
+            showError(t('views.chat.providerChangeFailed'));
         } finally {
             setChangingProvider(false);
         }
@@ -186,10 +167,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     const abortControllerRef = useRef<AbortController | null>(null);
     const userScrolledUpRef = useRef(false);
 
-    // Random placeholder that changes when chat changes
+    // Random placeholder that changes when chat changes (from i18n)
     const randomPlaceholder = useMemo(() => {
-        return CHAT_PLACEHOLDERS[Math.floor(Math.random() * CHAT_PLACEHOLDERS.length)];
-    }, [activeChatId]);
+        const placeholders = t('chatPlaceholders', { returnObjects: true }) as string[];
+        if (Array.isArray(placeholders) && placeholders.length > 0) {
+            return placeholders[Math.floor(Math.random() * placeholders.length)];
+        }
+        return t('placeholders.typeMessage');
+    }, [activeChatId, t]);
 
     // Filter chats to only show ones with messages (non-empty)
     const chatsWithMessages = chats.filter(c => c.messages && c.messages.length > 0);
@@ -265,7 +250,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     // Listen for streaming updates
     useEffect(() => {
         const cleanup = window.dexteria?.chat?.onStreamUpdate?.((data) => {
-            console.log('Stream update:', data.chatId, 'active:', activeChatId, 'done:', data.done, 'isNewMessage:', data.isNewMessage);
             if (data.chatId === activeChatId) {
                 if (data.done) {
                     // Reset streaming content when done
@@ -294,7 +278,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
     // Listen for task run requests from AI
     useEffect(() => {
         const cleanup = window.dexteria?.chat?.onTaskRunRequested?.((data) => {
-            console.log('Task run requested:', data);
             setTaskRunRequest(data);
         });
 
@@ -377,8 +360,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                 return;
             }
             console.error(err);
-            // Add error message
-            const errorContent = `Error: ${err instanceof Error ? err.message : 'Failed to get response'}. Please try again.`;
+            // Add error message with specific timeout handling
+            const isTimeout = err instanceof Error && err.message === 'Request timeout';
+            const errorContent = isTimeout
+                ? t('views.chat.requestTimeout')
+                : `${t('views.chat.errorPrefix')}: ${err instanceof Error ? err.message : 'Failed to get response'}. ${t('views.chat.tryAgainSuffix')}`;
             setStreamingContent(errorContent);
             await new Promise(r => setTimeout(r, 50));
             setMessages(prev => [...prev, {
@@ -396,7 +382,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
 
     const handleCreateChat = async () => {
         try {
-            const newChat = await window.dexteria.chat.create("New Conversation") as unknown as Chat;
+            const newChat = await window.dexteria.chat.create(t('views.chat.newConversation')) as unknown as Chat;
             setActiveChatId(newChat.id);
             setActiveChat(newChat);
             setMessages([]);
@@ -404,6 +390,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
             refresh();
         } catch (err) {
             console.error(err);
+            showError(t('toasts.chatCreateFailed'));
         }
     };
 
@@ -421,8 +408,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                 handleCreateChat();
             }
             refresh();
+            success(t('toasts.chatDeleted'));
         } catch (err) {
             console.error('Failed to delete chat:', err);
+            showError(t('toasts.chatDeleteFailed'));
         }
     };
 
@@ -493,7 +482,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                             variant={showHistory ? "secondary" : "ghost"}
                             size="sm"
                             onClick={() => setShowHistory(!showHistory)}
-                            title="Chat History"
+                            title={t('views.chat.chatHistory')}
+                            aria-label={t('views.chat.chatHistory')}
                         >
                             <History size={16} />
                         </IconButton>
@@ -503,12 +493,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                             <div className="absolute left-0 top-full mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden animate-scale-in origin-top-left">
                                 <div className="p-2 border-b border-border flex items-center justify-between">
                                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                        History
+                                        {t('views.chat.history')}
                                     </span>
                                     <IconButton
                                         variant="ghost"
                                         size="xs"
                                         onClick={() => setShowHistory(false)}
+                                        aria-label={t('actions.close')}
                                     >
                                         <X size={12} />
                                     </IconButton>
@@ -516,7 +507,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                 <div className="max-h-64 overflow-y-auto">
                                     {chatsWithMessages.length === 0 ? (
                                         <div className="p-4 text-center text-muted-foreground text-xs">
-                                            No conversations yet
+                                            {t('views.chat.noConversations')}
                                         </div>
                                     ) : (
                                         chatsWithMessages.map(chat => (
@@ -531,10 +522,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                                 <MessageSquare size={14} className="text-muted-foreground shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-sm truncate">
-                                                        {chat.title || "Untitled"}
+                                                        {chat.title || t('views.chat.untitled')}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
-                                                        {chat.messages?.length || 0} messages
+                                                        {t('views.chat.messagesCount', { count: chat.messages?.length || 0 })}
                                                     </div>
                                                 </div>
                                                 <IconButton
@@ -542,7 +533,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                                     size="xs"
                                                     onClick={(e) => handleDeleteChat(chat.id, e)}
                                                     className="opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-muted-foreground hover:text-red-500"
-                                                    title="Delete conversation"
+                                                    title={t('views.chat.deleteConversation')}
+                                                    aria-label={t('views.chat.deleteConversation')}
                                                 >
                                                     <Trash2 size={12} />
                                                 </IconButton>
@@ -560,7 +552,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                         size="sm"
                                     >
                                         <Plus size={14} />
-                                        New Conversation
+                                        {t('views.chat.newConversation')}
                                     </Button>
                                 </div>
                             </div>
@@ -578,6 +570,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     size="sm"
                     onClick={handleCreateChat}
                     title={t('views.chat.newChat')}
+                    aria-label={t('views.chat.newChat')}
                 >
                     <Plus size={16} />
                 </IconButton>
@@ -590,11 +583,48 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                 className="flex-1 p-4 space-y-4"
             >
                 {messages.length === 0 && !isSending ? (
-                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground animate-fade-in">
-                        <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 border border-border/30 animate-scale-in">
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground animate-fade-in px-4">
+                        <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 border border-border/30 animate-scale-in max-w-md w-full">
                             <MessageSquare size={40} className="text-primary/40 mb-3 mx-auto" />
-                            <p className="text-sm text-center opacity-70">{t('views.chat.startConversation')}</p>
-                            <p className="text-xs text-center opacity-40 mt-1">{t('views.chat.askAnything')}</p>
+                            <p className="text-sm text-center opacity-70 mb-1">{t('views.chat.startConversation')}</p>
+                            <p className="text-xs text-center opacity-40 mb-4">{t('views.chat.askAnything')}</p>
+
+                            {/* Suggested prompts */}
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground/70 mb-2">{t('views.chat.suggestions')}</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputValue(t('views.chat.suggestPlan'))}
+                                    className="w-full text-left px-3 py-2 rounded-lg bg-background/50 border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all text-xs flex items-center gap-2 group"
+                                >
+                                    <Lightbulb size={14} className="text-yellow-500/70 group-hover:text-yellow-500" />
+                                    <span className="text-muted-foreground group-hover:text-foreground">{t('views.chat.suggestPlan')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputValue(t('views.chat.suggestAnalyze'))}
+                                    className="w-full text-left px-3 py-2 rounded-lg bg-background/50 border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all text-xs flex items-center gap-2 group"
+                                >
+                                    <FileSearch size={14} className="text-blue-500/70 group-hover:text-blue-500" />
+                                    <span className="text-muted-foreground group-hover:text-foreground">{t('views.chat.suggestAnalyze')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputValue(t('views.chat.suggestFix'))}
+                                    className="w-full text-left px-3 py-2 rounded-lg bg-background/50 border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all text-xs flex items-center gap-2 group"
+                                >
+                                    <Bug size={14} className="text-red-500/70 group-hover:text-red-500" />
+                                    <span className="text-muted-foreground group-hover:text-foreground">{t('views.chat.suggestFix')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputValue(t('views.chat.suggestCreate'))}
+                                    className="w-full text-left px-3 py-2 rounded-lg bg-background/50 border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all text-xs flex items-center gap-2 group"
+                                >
+                                    <Code size={14} className="text-green-500/70 group-hover:text-green-500" />
+                                    <span className="text-muted-foreground group-hover:text-foreground">{t('views.chat.suggestCreate')}</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ) : (
@@ -723,7 +753,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                             ) : thinking ? (
                                                 // If only thinking, show minimal indicator
                                                 <div className="flex items-center gap-1 text-muted-foreground/50 text-xs">
-                                                    <span>Formulating response</span>
+                                                    <span>{t('views.chat.formulatingResponse')}</span>
                                                     <span className="flex gap-0.5">
                                                         <span className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                                                         <span className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -778,6 +808,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                     <button
                                         onClick={() => handleRemoveFile(filePath)}
                                         className="ml-0.5 p-0.5 rounded-full hover:bg-primary/30 transition-colors"
+                                        aria-label={t('actions.remove')}
                                     >
                                         <X size={10} />
                                     </button>
@@ -792,22 +823,30 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm rounded-lg border-2 border-dashed border-primary/40 pointer-events-none z-10">
                         <div className="flex flex-col items-center gap-2 text-primary">
                             <Paperclip size={24} />
-                            <span className="text-sm font-medium">Drop files to attach</span>
+                            <span className="text-sm font-medium">{t('views.chat.dropFilesToAttach')}</span>
                         </div>
                     </div>
                 )}
 
                 {/* Mode and Provider indicator */}
                 <div className="flex items-center justify-between gap-2 mb-2 text-xs">
-                    <div className={cn(
-                        "flex items-center gap-2",
-                        mode === 'planner' ? "text-yellow-500/80" : "text-green-500/80"
-                    )}>
-                        <FileText size={12} />
+                    <div
+                        className={cn(
+                            "flex items-center gap-1.5 px-2 py-1 rounded-md font-medium transition-colors",
+                            mode === 'planner'
+                                ? "bg-yellow-500/15 text-yellow-500 border border-yellow-500/30"
+                                : "bg-green-500/15 text-green-500 border border-green-500/30"
+                        )}
+                        title={mode === 'planner'
+                            ? t('views.chat.plannerModeTooltip')
+                            : t('views.chat.agentModeTooltip')
+                        }
+                    >
+                        {mode === 'planner' ? <Eye size={14} /> : <Bot size={14} />}
                         <span>
                             {mode === 'planner'
-                                ? "Planner Mode: analyze & plan"
-                                : "Agent Mode: create tasks"
+                                ? t('views.chat.plannerModeLabel')
+                                : t('views.chat.agentModeLabel')
                             }
                         </span>
                     </div>
@@ -854,7 +893,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                         onClick={handleFileSelect}
                         disabled={!activeChatId}
                         className="shrink-0 h-10 w-10 p-0"
-                        title="Attach files"
+                        title={t('tooltips.attachFiles')}
                     >
                         <Paperclip size={18} className={attachedFiles.length > 0 ? "text-primary" : ""} />
                     </Button>
@@ -868,7 +907,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                 handleSendMessage();
                             }
                         }}
-                        placeholder={isSending ? "Waiting for response..." : (activeChatId ? randomPlaceholder : "Creating chat...")}
+                        placeholder={isSending ? t('placeholders.waitingForResponse') : (activeChatId ? randomPlaceholder : t('placeholders.creatingChat'))}
                         disabled={!activeChatId}
                         className="flex-1 min-h-[40px] max-h-[200px] resize-y"
                         rows={1}
@@ -905,18 +944,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     <DialogHeader className="p-4 border-b border-border bg-yellow-500/10">
                         <div className="flex items-center gap-2 text-yellow-500">
                             <AlertTriangle size={20} />
-                            <DialogTitle>Planner Mode</DialogTitle>
+                            <DialogTitle>{t('views.chat.plannerModeTitle')}</DialogTitle>
                         </div>
                     </DialogHeader>
                     <div className="p-4 space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                            You are in <strong className="text-foreground">Planner Mode</strong>.
-                            The AI will help you plan and create tasks, but won't execute any code changes.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                            Switch to <strong className="text-foreground">Agent Mode</strong> if you want
-                            the AI to execute tasks automatically.
-                        </p>
+                        <p
+                            className="text-sm text-muted-foreground [&_strong]:text-foreground"
+                            dangerouslySetInnerHTML={{ __html: t('views.chat.plannerModeWarning') }}
+                        />
+                        <p
+                            className="text-sm text-muted-foreground [&_strong]:text-foreground"
+                            dangerouslySetInnerHTML={{ __html: t('views.chat.switchToAgentHint') }}
+                        />
 
                         {/* Don't show again toggle */}
                         <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
@@ -925,7 +964,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                 checked={dontShowAgainChecked}
                                 onCheckedChange={setDontShowAgainChecked}
                             />
-                            Don't show this again
+                            {t('views.chat.dontShowAgain')}
                         </label>
                     </div>
                     <DialogFooter className="p-4 border-t border-border">
@@ -933,10 +972,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                             {t('actions.cancel')}
                         </Button>
                         <Button variant="secondary" onClick={handleContinueInPlanner}>
-                            Continue in Planner
+                            {t('views.chat.continueInPlanner')}
                         </Button>
                         <Button onClick={handleSwitchToAgent}>
-                            Switch to Agent
+                            {t('views.chat.switchToAgent')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -948,12 +987,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                     <DialogHeader className="p-4 border-b border-border bg-primary/10">
                         <div className="flex items-center gap-2 text-primary">
                             <Play size={20} />
-                            <DialogTitle>Run Task</DialogTitle>
+                            <DialogTitle>{t('views.chat.runTaskTitle')}</DialogTitle>
                         </div>
                     </DialogHeader>
                     <div className="p-4 space-y-4">
                         <p className="text-sm text-muted-foreground">
-                            The AI is requesting to execute the following task:
+                            {t('views.chat.aiRequestingTask')}
                         </p>
                         <div className="p-3 bg-muted/50 rounded-lg border border-border">
                             <p className="font-medium text-foreground">
@@ -965,10 +1004,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                                 </p>
                             )}
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                            This will start the task in the <strong className="text-foreground">TaskRunner</strong> panel
-                            where you can monitor its progress.
-                        </p>
+                        <p
+                            className="text-sm text-muted-foreground [&_strong]:text-foreground"
+                            dangerouslySetInnerHTML={{ __html: t('views.chat.taskRunnerHint') }}
+                        />
                     </div>
                     <DialogFooter className="p-4 border-t border-border">
                         <Button variant="ghost" onClick={handleCancelTaskRun} disabled={isExecutingTask}>
@@ -978,12 +1017,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ className }) => {
                             {isExecutingTask ? (
                                 <>
                                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Starting...
+                                    {t('actions.starting')}
                                 </>
                             ) : (
                                 <>
                                     <Play size={16} />
-                                    Run Task
+                                    {t('actions.runTask')}
                                 </>
                             )}
                         </Button>

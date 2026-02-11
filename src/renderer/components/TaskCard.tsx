@@ -3,10 +3,12 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../lib/utils';
 import { Badge, Button } from 'adnia-ui';
-import { GripVertical, AlertCircle, CheckCircle, Clock, Ban, Trash2, Loader2, StopCircle, Play, User, Sparkles, XCircle } from 'lucide-react';
+import { GripVertical, AlertCircle, CheckCircle, Clock, Ban, Trash2, Loader2, StopCircle, Play, User, Sparkles, XCircle, Link, Tag, GitBranch, Square, CheckSquare } from 'lucide-react';
 import { DoneTimeChip } from './DoneTimeChip';
 import { Slot } from './extension/Slot';
 import type { Task } from '../../shared/types';
+import { hasUnmetDependencies } from '../../shared/schemas/common';
+import { t } from '../i18n/t';
 
 interface TaskCardProps {
     task: Task;
@@ -15,6 +17,14 @@ interface TaskCardProps {
     onStop?: (task: Task) => void;
     onRun?: (task: Task) => void;
     isActive?: boolean;
+    /** All tasks - used to check if dependencies are met */
+    allTasks?: Task[];
+    /** Whether bulk selection mode is active */
+    isSelectionMode?: boolean;
+    /** Whether this task is selected in bulk mode */
+    isSelected?: boolean;
+    /** Callback when selection changes */
+    onSelectionChange?: (task: Task, selected: boolean) => void;
 }
 
 const PriorityIcons = {
@@ -45,14 +55,38 @@ const getStatusBadgeClasses = (status: Task['status']) => {
     }
 };
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onStop, onRun, isActive }) => {
+export const TaskCard: React.FC<TaskCardProps> = ({
+    task,
+    onClick,
+    onDelete,
+    onStop,
+    onRun,
+    isActive,
+    allTasks,
+    isSelectionMode = false,
+    isSelected = false,
+    onSelectionChange,
+}) => {
     const [isStopping, setIsStopping] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
+    // Check if task is running (must be before useDraggable to use in disabled prop)
+    const isRunning = task.runtime?.status === 'running';
+
+    // Check if task has unmet dependencies
+    const isBlocked = allTasks ? hasUnmetDependencies(task, allTasks) : false;
+    const unmetDepsCount = allTasks && task.dependsOn
+        ? task.dependsOn.filter(depId => {
+            const depTask = allTasks.find(t => t.id === depId);
+            return !depTask || depTask.status !== 'done';
+        }).length
+        : 0;
+
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: task.id,
-        data: { type: 'Task', task }
+        data: { type: 'Task', task },
+        disabled: isRunning, // Prevent dragging while task is running
     });
 
     const style = {
@@ -103,8 +137,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
         );
     }
 
-    const isRunning = task.runtime?.status === 'running';
-
     return (
         <>
         <div
@@ -112,23 +144,51 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
             style={style}
             {...attributes}
             {...listeners}
-            onClick={() => onClick(task)}
+            onClick={() => {
+                if (isSelectionMode && onSelectionChange) {
+                    onSelectionChange(task, !isSelected);
+                } else {
+                    onClick(task);
+                }
+            }}
             onContextMenu={handleContextMenu}
             className={cn(
-                "group relative flex flex-col gap-2 p-3 rounded-lg border bg-card/50 backdrop-blur-sm shadow-sm cursor-grab active:cursor-grabbing",
+                "group relative flex flex-col gap-2 p-3 rounded-lg border bg-card/50 backdrop-blur-sm shadow-sm",
+                !isSelectionMode && "cursor-grab active:cursor-grabbing",
+                isSelectionMode && "cursor-pointer",
                 "transition-all duration-200 ease-out hover:bg-card/70 hover:shadow-md hover:-translate-y-0.5",
                 "animate-fade-in-up animate-fill-both",
                 isActive && "ring-2 ring-primary border-primary",
                 isRunning && "ring-2 ring-green-500/50 border-green-500/50 bg-green-500/5 animate-glow-pulse",
+                isSelected && "ring-2 ring-primary/70 bg-primary/5",
                 "border-white/5"
             )}
         >
+            {/* Selection checkbox - inline with content for better spacing */}
+            {isSelectionMode && (
+                <div
+                    className="absolute top-3 left-3 z-10"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectionChange?.(task, !isSelected);
+                    }}
+                >
+                    <div className={cn(
+                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                        isSelected
+                            ? "bg-primary border-primary"
+                            : "border-muted-foreground/50 hover:border-primary bg-background/80"
+                    )}>
+                        {isSelected && <CheckSquare className="w-3.5 h-3.5 text-primary-foreground" />}
+                    </div>
+                </div>
+            )}
             {/* Running indicator overlay with stop button */}
             {isRunning && (
                 <div className="absolute top-2 right-2 flex items-center gap-1">
                     <Badge className="bg-green-500/20 border-green-500/30 text-green-400 text-[10px] px-2 py-1">
                         <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                        {isStopping ? 'Stopping...' : 'Running'}
+                        {isStopping ? t('labels.stopping') : t('labels.running')}
                     </Badge>
                     {onStop && !isStopping && (
                         <Button
@@ -149,7 +209,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                                 e.stopPropagation();
                                 e.preventDefault();
                             }}
-                            title="Stop execution"
+                            title={t('tooltips.stopExecution')}
                         >
                             <StopCircle className="w-3 h-3" />
                         </Button>
@@ -158,7 +218,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
             )}
 
             {/* Epic label, Human-Only/AI-Reviewable badges, and plugin badges */}
-            <div className="flex items-center gap-1.5 -mt-0.5 mb-1 flex-wrap">
+            <div className={cn(
+                "flex items-center gap-1.5 -mt-0.5 mb-1 flex-wrap",
+                isSelectionMode && "pl-7" // Space for checkbox
+            )}>
                 {task.epic && (
                     <>
                         <span
@@ -184,10 +247,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                     <Badge
                         variant="outline"
                         className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border-amber-500/30"
-                        title="This task can only be completed by a human"
+                        title={t('tooltips.humanOnly')}
                     >
                         <User className="w-3 h-3 mr-0.5" />
-                        Human-Only
+                        {t('labels.humanOnly')}
                     </Badge>
                 )}
 
@@ -196,10 +259,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                     <Badge
                         variant="outline"
                         className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 border-purple-500/30"
-                        title="AI will auto-review when moved to Review"
+                        title={t('tooltips.aiAutoReview')}
                     >
                         <Sparkles className="w-3 h-3 mr-0.5" />
-                        AI-Review
+                        {t('labels.aiReview')}
                     </Badge>
                 )}
 
@@ -208,10 +271,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                     <Badge
                         variant="outline"
                         className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse"
-                        title="AI is reviewing this task"
+                        title={t('tooltips.aiReviewing')}
                     >
                         <Loader2 className="w-3 h-3 mr-0.5 animate-spin" />
-                        Reviewing...
+                        {t('labels.reviewing')}
                     </Badge>
                 )}
 
@@ -225,14 +288,26 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                                 ? "bg-green-500/10 text-green-400 border-green-500/30"
                                 : "bg-red-500/10 text-red-400 border-red-500/30"
                         )}
-                        title={task.aiReview.passed ? "AI Review Passed" : "AI Review Failed - needs attention"}
+                        title={task.aiReview.passed ? t('tooltips.aiReviewPassed') : t('tooltips.aiReviewFailed')}
                     >
                         {task.aiReview.passed ? (
                             <CheckCircle className="w-3 h-3 mr-0.5" />
                         ) : (
                             <XCircle className="w-3 h-3 mr-0.5" />
                         )}
-                        {task.aiReview.passed ? "AI ✓" : "AI ✗"}
+                        {task.aiReview.passed ? t('labels.aiPassed') : t('labels.aiFailed')}
+                    </Badge>
+                )}
+
+                {/* Blocked by dependencies badge */}
+                {isBlocked && (
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-400 border-orange-500/30"
+                        title={t(unmetDepsCount === 1 ? 'tooltips.blockedByDeps' : 'tooltips.blockedByDeps_plural', { count: unmetDepsCount })}
+                    >
+                        <Link className="w-3 h-3 mr-0.5" />
+                        {t('labels.blocked')} ({unmetDepsCount})
                     </Badge>
                 )}
 
@@ -244,7 +319,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                 />
             </div>
 
-            <div className="flex items-start justify-between gap-2">
+            <div className={cn(
+                "flex items-start justify-between gap-2",
+                isSelectionMode && "pl-7" // Space for checkbox
+            )}>
                 <span className={cn(
                     "text-sm font-medium leading-tight line-clamp-2 text-card-foreground flex-1",
                     isRunning && "pr-20" // Make room for running badge
@@ -259,15 +337,64 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                 </div>
             </div>
 
+            {/* Tags row - only show if task has tags */}
+            {task.tags && task.tags.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap -mb-0.5">
+                    <Tag className="w-3 h-3 text-muted-foreground/50" />
+                    {task.tags.slice(0, 3).map((tag, idx) => (
+                        <span
+                            key={idx}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-muted/30 text-muted-foreground"
+                        >
+                            {tag}
+                        </span>
+                    ))}
+                    {task.tags.length > 3 && (
+                        <span className="text-[10px] text-muted-foreground/50">
+                            +{task.tags.length - 3}
+                        </span>
+                    )}
+                </div>
+            )}
+
             <div className="flex items-center justify-between mt-auto">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div title={`Priority: ${task.priority}`}>
+                    <div title={`${t('labels.priority')}: ${t(`views.kanban.priority${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}`)}`}>
                         {PriorityIcons[task.priority]}
                     </div>
                     <span className="uppercase tracking-wider text-[10px] opacity-70 font-mono">{task.id}</span>
+                    {/* Git branch badge */}
+                    {task.gitBranch && (
+                        <span
+                            className={cn(
+                                "flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-mono",
+                                task.gitBranchCheckedOut
+                                    ? "bg-green-500/20 text-green-400"
+                                    : "bg-muted/30 text-muted-foreground"
+                            )}
+                            title={task.gitBranchCheckedOut ? t('labels.branchCheckedOut') : t('labels.gitBranch')}
+                        >
+                            <GitBranch className="w-2.5 h-2.5" />
+                            {task.gitBranch.length > 12 ? task.gitBranch.slice(0, 12) + '…' : task.gitBranch}
+                        </span>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                    {/* Quick Run button - appears on hover (only if not running and has onRun) */}
+                    {onRun && !isRunning && !isBlocked && (
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-green-500/20 hover:text-green-500"
+                            onClick={handleRun}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            title={t('actions.runTask')}
+                        >
+                            <Play className="w-3 h-3" />
+                        </Button>
+                    )}
+
                     {/* Delete button - appears on hover */}
                     {onDelete && (
                         <Button
@@ -276,7 +403,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                             className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-500"
                             onClick={handleDelete}
                             onPointerDown={(e) => e.stopPropagation()}
-                            title="Delete task"
+                            title={t('tooltips.deleteTask')}
                         >
                             <Trash2 className="w-3 h-3" />
                         </Button>
@@ -315,7 +442,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                         onClick={handleRun}
                     >
                         <Play size={14} className="mr-2 text-green-500" />
-                        Ejecutar tarea
+                        {t('actions.runTask')}
                     </Button>
                 )}
                 {onDelete && (
@@ -325,7 +452,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onDelete, onS
                         onClick={handleDelete}
                     >
                         <Trash2 size={14} className="mr-2" />
-                        Borrar
+                        {t('actions.delete')}
                     </Button>
                 )}
             </div>

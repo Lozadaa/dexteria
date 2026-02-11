@@ -27,6 +27,7 @@ import { registerGitHandlers } from './gitHandlers';
 import { registerUpdateHandlers } from './updateHandlers';
 import { registerSkillHandlers } from './skillHandlers';
 import { registerInterviewHandlers } from './interviewHandlers';
+import { registerTemplateHandlers } from './templateHandlers';
 
 // Re-export shared utilities for external use
 export { getProjectRoot } from './shared';
@@ -83,4 +84,5 @@ export async function initializeIpcHandlers(root?: string): Promise<void> {
   registerUpdateHandlers();
   registerSkillHandlers();
   registerInterviewHandlers();
+  registerTemplateHandlers();
 }

@@ -14,14 +14,10 @@ import type {
   InterviewQuestion,
   InterviewAnswer,
   InterviewAssumption,
-  InterviewRisk,
-  ProjectBrief,
-  BacklogEpic,
   InterviewDepth,
   TechLevel,
   TechLevelMode,
   InterviewConfig,
-  INTERVIEW_DEPTH_MAP,
 } from '../../shared/types';
 
 // ============================================================================

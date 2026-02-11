@@ -3,7 +3,7 @@ import { useAgentState } from '../hooks/useData';
 import { useMode } from '../contexts/ModeContext';
 import { cn } from '../lib/utils';
 import Ralph from '../../../assets/ralph.png'
-import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, LayoutGrid, MessageSquare, Wrench, Code2 } from 'lucide-react';
+import { Activity, Settings, Minus, Square, X, Maximize2, Bot, ClipboardList, PlayCircle, StopCircle, Loader2, FolderOpen, FilePlus, FolderX, ChevronDown, Play, Hammer, CircleStop, LayoutGrid, MessageSquare, Wrench, Code2, History, Shield, Puzzle, Palette, HelpCircle, Files, Calendar, LayoutDashboard } from 'lucide-react';
 import LogoIcon from '../../../assets/logoicon.png';
 import { Button, IconButton, ToggleGroup } from 'adnia-ui';
 import type { ProjectProcessStatus } from '../../shared/types';
@@ -26,9 +26,10 @@ import { useToast } from '../contexts/ToastContext';
       onOpenSettings?: () => void;
       onOpenThemeEditor?: (themeId: string, themeName?: string) => void;
       onNewProject?: () => void;
+      onShowHelp?: () => void;
   }
 
-  export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings, onNewProject }) => {
+  export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings, onNewProject, onShowHelp }) => {
       const { t } = useTranslation();
       const toast = useToast();
       const { state, refresh } = useAgentState();
@@ -176,9 +177,11 @@ import { useToast } from '../contexts/ToastContext';
               const result = await window.dexteria.project.startRun();
               if (!result.success) {
                   console.error('Failed to start run:', result.error);
+                  toast.error(t('toasts.runStartFailed'));
               }
           } catch (err) {
               console.error('Failed to start run:', err);
+              toast.error(t('toasts.runStartFailed'));
           }
       };
 
@@ -187,6 +190,7 @@ import { useToast } from '../contexts/ToastContext';
               await window.dexteria.project.stopRun();
           } catch (err) {
               console.error('Failed to stop run:', err);
+              toast.error(t('toasts.runStopFailed'));
           }
       };
 
@@ -195,9 +199,11 @@ import { useToast } from '../contexts/ToastContext';
               const result = await window.dexteria.project.startBuild();
               if (!result.success) {
                   console.error('Failed to start build:', result.error);
+                  toast.error(t('toasts.buildStartFailed'));
               }
           } catch (err) {
               console.error('Failed to start build:', err);
+              toast.error(t('toasts.buildStartFailed'));
           }
       };
 
@@ -206,6 +212,7 @@ import { useToast } from '../contexts/ToastContext';
               await window.dexteria.project.stopBuild();
           } catch (err) {
               console.error('Failed to stop build:', err);
+              toast.error(t('toasts.buildStopFailed'));
           }
       };
 
@@ -224,6 +231,7 @@ import { useToast } from '../contexts/ToastContext';
           } catch (err) {
               console.error('Failed to start Ralph:', err);
               setRalphRunning(false);
+              toast.error(t('toasts.ralphStartFailed'));
           }
       };
 
@@ -240,6 +248,7 @@ import { useToast } from '../contexts/ToastContext';
               console.error('Failed to stop Ralph:', err);
               // On error, reset the stopping flag
               setStoppingRalph(false);
+              toast.error(t('toasts.ralphStopFailed'));
           }
       };
 
@@ -263,6 +272,7 @@ import { useToast } from '../contexts/ToastContext';
               await window.dexteria?.project?.open?.();
           } catch (err) {
               console.error('Failed to open project:', err);
+              toast.error(t('toasts.projectOpenFailed'));
           }
       };
 
@@ -279,6 +289,7 @@ import { useToast } from '../contexts/ToastContext';
               await window.dexteria?.project?.close?.();
           } catch (err) {
               console.error('Failed to close project:', err);
+              toast.error(t('toasts.projectCloseFailed'));
           }
       };
 
@@ -288,9 +299,11 @@ import { useToast } from '../contexts/ToastContext';
               const result = await window.dexteria?.vscode?.openProject?.();
               if (!result?.success) {
                   console.error('Failed to open in VSCode:', result?.error);
+                  toast.error(t('toasts.vscodeFailed'));
               }
           } catch (err) {
               console.error('Failed to open in VSCode:', err);
+              toast.error(t('toasts.vscodeFailed'));
           }
       };
 
@@ -338,7 +351,7 @@ import { useToast } from '../contexts/ToastContext';
                                   className="w-full justify-start rounded-none"
                               >
                                   <FilePlus size={14} />
-                                  New Project...
+                                  {t('views.topbar.newProject')}
                               </Button>
                               <Button
                                   variant="ghost"
@@ -347,7 +360,7 @@ import { useToast } from '../contexts/ToastContext';
                                   className="w-full justify-start rounded-none"
                               >
                                   <FolderX size={14} />
-                                  Close Project
+                                  {t('views.topbar.closeProject')}
                               </Button>
                                                             <div className="h-px bg-border my-1" />
                               <Button
@@ -357,7 +370,7 @@ import { useToast } from '../contexts/ToastContext';
                                   className="w-full justify-start rounded-none text-red-400 hover:text-red-300"
                               >
                                   <X size={14} />
-                                  Exit
+                                  {t('views.topbar.exit')}
                               </Button>
                           </div>
                       )}
@@ -387,7 +400,7 @@ import { useToast } from '../contexts/ToastContext';
                                   className="w-full justify-start rounded-none"
                               >
                                   <LayoutGrid size={14} />
-                                  Board
+                                  {t('views.topbar.board')}
                               </Button>
                               <Button
                                   variant="ghost"
@@ -405,7 +418,71 @@ import { useToast } from '../contexts/ToastContext';
                                   className="w-full justify-start rounded-none"
                               >
                                   <Wrench size={14} />
-                                  Tools
+                                  {t('views.topbar.tools')}
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { openView('runHistory'); setShowWindowMenu(false); }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <History size={14} />
+                                  {t('views.runHistory.title')}
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { openView('policyEditor'); setShowWindowMenu(false); }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <Shield size={14} />
+                                  {t('views.policyEditor.title')}
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { openView('templates'); setShowWindowMenu(false); }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <Files size={14} />
+                                  {t('views.templates.title')}
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { openView('roadmap'); setShowWindowMenu(false); }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <Calendar size={14} />
+                                  {t('views.roadmap.title')}
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { openView('dashboard'); setShowWindowMenu(false); }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <LayoutDashboard size={14} />
+                                  {t('views.dashboard.title')}
+                              </Button>
+                              <div className="border-t border-border my-1" />
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { openView('plugins'); setShowWindowMenu(false); }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <Puzzle size={14} />
+                                  {t('views.plugins.title')}
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => { openView('themeEditor'); setShowWindowMenu(false); }}
+                                  className="w-full justify-start rounded-none"
+                              >
+                                  <Palette size={14} />
+                                  {t('views.themeEditor.title')}
                               </Button>
                           </div>
                       )}
@@ -417,8 +494,8 @@ import { useToast } from '../contexts/ToastContext';
                           value={mode}
                           onValueChange={(value) => setMode(value as 'agent' | 'planner')}
                           options={[
-                              { value: 'agent', label: 'Agent', icon: <Bot size={12} /> },
-                              { value: 'planner', label: 'Planner', icon: <ClipboardList size={12} /> },
+                              { value: 'agent', label: t('views.topbar.agent'), icon: <Bot size={12} /> },
+                              { value: 'planner', label: t('views.topbar.planner'), icon: <ClipboardList size={12} /> },
                           ]}
                       />
                   </div>
@@ -438,7 +515,7 @@ import { useToast } from '../contexts/ToastContext';
                           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                       >
                           <Activity className="w-3 h-3 text-blue-400 animate-pulse" />
-                          <span className="text-blue-400/80 font-medium">Running:</span>
+                          <span className="text-blue-400/80 font-medium">{t('views.topbar.runningTask')}</span>
                           <span className="font-mono text-blue-300">{state.activeTaskId?.substring(0, 6)}</span>
                       </div>
                   )}
@@ -460,7 +537,7 @@ import { useToast } from '../contexts/ToastContext';
                               variant="status-success"
                               size="xs"
                               onClick={handleStopRun}
-                              title="Stop dev server"
+                              title={t('tooltips.stopDevServer')}
                           >
                               <CircleStop size={12} />
                               <span className="max-w-[60px] truncate">{t('views.topbar.running')}</span>
@@ -470,7 +547,7 @@ import { useToast } from '../contexts/ToastContext';
                               variant="muted"
                               size="xs"
                               onClick={handleStartRun}
-                              title="Start dev server"
+                              title={t('tooltips.startDevServer')}
                           >
                               <Play size={12} />
                               {t('actions.run')}
@@ -483,7 +560,7 @@ import { useToast } from '../contexts/ToastContext';
                               variant="status-warning"
                               size="xs"
                               onClick={handleStopBuild}
-                              title="Stop build"
+                              title={t('tooltips.stopBuild')}
                           >
                               <Loader2 size={12} className="animate-spin" />
                               <span>{t('views.topbar.building')}</span>
@@ -493,7 +570,7 @@ import { useToast } from '../contexts/ToastContext';
                               variant="muted"
                               size="xs"
                               onClick={handleStartBuild}
-                              title="Build project"
+                              title={t('tooltips.buildProject')}
                           >
                               <Hammer size={12} />
                               {t('views.settings.commands.build')}
@@ -523,7 +600,9 @@ import { useToast } from '../contexts/ToastContext';
                               "flex items-center gap-2 px-2 py-1 rounded-full border",
                               stoppingRalph
                                   ? "bg-orange-500/10 border-orange-500/20"
-                                  : "bg-green-500/10 border-green-500/20"
+                                  : ralphProgress?.failed || ralphProgress?.blocked
+                                      ? "bg-yellow-500/10 border-yellow-500/20"
+                                      : "bg-green-500/10 border-green-500/20"
                           )}>
                               <Loader2 className={cn(
                                   "w-3 h-3 animate-spin",
@@ -533,8 +612,26 @@ import { useToast } from '../contexts/ToastContext';
                                   "text-xs font-medium",
                                   stoppingRalph ? "text-orange-400" : "text-green-400"
                               )}>
-                                  {stoppingRalph ? 'Stopping...' : (ralphProgress ? `${ralphProgress.completed}/${ralphProgress.total}` : 'Running...')}
+                                  {stoppingRalph ? t('views.topbar.stopping') : (ralphProgress ? `${ralphProgress.completed}/${ralphProgress.total}` : t('views.topbar.running'))}
                               </span>
+                              {/* Show failed/blocked count if any */}
+                              {!stoppingRalph && ralphProgress && (ralphProgress.failed > 0 || ralphProgress.blocked > 0) && (
+                                  <span className="flex items-center gap-1 text-xs">
+                                      {ralphProgress.failed > 0 && (
+                                          <span className="text-red-400" title={t('views.topbar.failedTasks')}>
+                                              {ralphProgress.failed} {t('views.topbar.failed')}
+                                          </span>
+                                      )}
+                                      {ralphProgress.failed > 0 && ralphProgress.blocked > 0 && (
+                                          <span className="text-muted-foreground">·</span>
+                                      )}
+                                      {ralphProgress.blocked > 0 && (
+                                          <span className="text-yellow-400" title={t('views.topbar.blockedTasks')}>
+                                              {ralphProgress.blocked} {t('views.topbar.blocked')}
+                                          </span>
+                                      )}
+                                  </span>
+                              )}
                               {!stoppingRalph && ralphProgress?.currentTaskTitle && (
                                   <span className="text-xs text-green-400/70 truncate max-w-[100px]">
                                       {ralphProgress.currentTaskTitle}
@@ -546,7 +643,8 @@ import { useToast } from '../contexts/ToastContext';
                               size="sm"
                               onClick={handleStopRalph}
                               disabled={stoppingRalph}
-                              title={stoppingRalph ? "Stopping..." : "Stop Ralph"}
+                              title={stoppingRalph ? t('views.topbar.stopping') : t('tooltips.stopExecution')}
+                              aria-label={stoppingRalph ? t('views.topbar.stopping') : t('tooltips.stopExecution')}
                           >
                               <StopCircle size={16} />
                           </IconButton>
@@ -557,10 +655,10 @@ import { useToast } from '../contexts/ToastContext';
                           size="xs"
                           onClick={handleStartRalph}
                           className="mx-2"
-                          title="Run all pending tasks (Ralph Mode)"
+                          title={t('tooltips.runAllPending')}
                       >
                           <PlayCircle size={14} />
-                          Run All (Ralph mode)<img src={Ralph} width={40} height={20} />
+                          {t('tooltips.runAllRalph')}<img src={Ralph} width={40} height={20} />
                       </Button>
                   )}
 
@@ -577,7 +675,7 @@ import { useToast } from '../contexts/ToastContext';
                           ? <Activity className="w-3 h-3" />
                           : <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                       }
-                      <span>{state?.isRunning ? 'Running' : 'Idle'}</span>
+                      <span>{state?.isRunning ? t('views.topbar.running') : t('views.topbar.idle')}</span>
                   </div>
 
                   <div className="h-4 w-px bg-border mx-1" />
@@ -589,6 +687,7 @@ import { useToast } from '../contexts/ToastContext';
                           size="lg"
                           onClick={() => setShowSettings(!showSettings)}
                           className="rounded-none h-10 w-10"
+                          aria-label={t('views.settings.title')}
                       >
                           <Settings size={14} />
                       </IconButton>
@@ -606,11 +705,20 @@ import { useToast } from '../contexts/ToastContext';
                                   className="w-full justify-start rounded-none"
                               >
                                   <Settings size={14} />
-                                  Project Settings
+                                  {t('views.topbar.projectSettings')}
                               </Button>
                           </div>
                       )}
                   </div>
+
+                  {/* Help button */}
+                  <button
+                      onClick={onShowHelp}
+                      className="w-9 h-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      title={t('shortcuts.title') + ' (?)'}
+                  >
+                      <HelpCircle size={16} />
+                  </button>
 
                   <div className="h-4 w-px bg-border" />
 
@@ -627,7 +735,7 @@ import { useToast } from '../contexts/ToastContext';
                       onClick={handleMaximize}
                       className="w-11 h-full flex items-center justify-center hover:bg-muted text-muted-foreground
   hover:text-foreground transition-colors"
-                      title={isMaximized ? "Restore" : "Maximize"}
+                      title={isMaximized ? t('tooltips.restore') : t('tooltips.maximize')}
                   >
                       {isMaximized ? <Square size={12} /> : <Maximize2 size={14} />}
                   </button>

@@ -191,6 +191,54 @@ export interface TasksFile {
 }
 
 // ============================================
+// Task Template Types
+// ============================================
+
+/**
+ * Template for creating tasks with predefined structure.
+ * Templates store reusable task configurations.
+ */
+export interface TaskTemplate {
+  /** Unique template identifier */
+  id: string;
+  /** Template display name */
+  name: string;
+  /** Template description */
+  description?: string;
+  /** Category for organizing templates (e.g., 'bug', 'feature', 'refactor') */
+  category?: string;
+  /** Default task title (can include {{placeholders}}) */
+  titleTemplate?: string;
+  /** Default task description */
+  descriptionTemplate?: string;
+  /** Default priority */
+  priority?: TaskPriority;
+  /** Predefined acceptance criteria */
+  acceptanceCriteria?: string[];
+  /** Default tags */
+  tags?: string[];
+  /** Default epic configuration */
+  epic?: TaskEpic;
+  /** Whether tasks from this template are human-only */
+  humanOnly?: boolean;
+  /** Whether AI should auto-review tasks from this template */
+  aiReviewable?: boolean;
+  /** Default review criteria for AI */
+  reviewCriteria?: string;
+  /** ISO timestamp when template was created */
+  createdAt: string;
+  /** ISO timestamp when template was last updated */
+  updatedAt: string;
+}
+
+/**
+ * File format for storing templates.
+ */
+export interface TemplatesFile {
+  templates: TaskTemplate[];
+}
+
+// ============================================
 // Task Patch Types
 // ============================================
 
